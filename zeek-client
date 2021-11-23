@@ -278,9 +278,14 @@ class BrokerType:
         """Returns a Broker-compatible rendition of this instance."""
         return None
 
+    def to_json_data(self):
+        """Returns JSON-suitable datastructure representing the object."""
+        return self.__dict__
+
     @staticmethod
     def from_broker(broker_data): # pylint: disable=unused-argument
-        """Returns an instance of the type given Broker data."""
+        """Returns an instance of the type given Broker data. Raises TypeError when the
+        given data doesn't match the type's expectations."""
         return None
 
 
@@ -301,8 +306,16 @@ class Instance(BrokerType):
     def __init__(self, name, addr=None, port=None):
         self.name = name
         # This is a workaround until we've resolved addresses in instances
-        self.addr = addr or '0.0.0.0'
+        self.addr = addr or '0.0.0.0' # string or ipaddress type ... TBD
         self.port = port
+
+    @staticmethod
+    def from_broker(broker_data):
+        try:
+            name, addr, port = broker_data
+            return Instance(name, addr, port)
+        except ValueError:
+            raise TypeError('unexpected Broker data for Instance object ({})'.format(broker_data))
 
     def to_broker(self):
         port = None
@@ -453,7 +466,18 @@ def cmd_instances(controller, args): # pylint: disable=unused-argument
         LOG.error('Received unexpected event: %s', resp)
         return 1
 
-    print(json_dumps(resp.instances))
+    # Make the list of instances easier to comprehend than raw Broker data: turn
+    # it into Instance objects, then render these JSON-friendly.
+    try:
+        json_data = [Instance.from_broker(inst) for inst in resp.instances]
+        json_data = [inst.to_json_data() for inst in json_data]
+    except TypeError as err:
+        LOG.error('Instance data invalid: %s', err)
+
+    # Sort the list alphabetically by instance name
+    json_data = sorted(json_data, key=lambda inst: inst['name'])
+
+    print(json_dumps(json_data))
 
     return 0
 
@@ -557,7 +581,7 @@ def json_dumps(obj):
             return str(obj)
         raise TypeError('cannot serialize {} ({})'.format(type(obj), str(obj)))
 
-    return json.dumps(obj, default=default)
+    return json.dumps(obj, default=default, sort_keys=True)
 
 
 def print_error(*args, **kwargs):
