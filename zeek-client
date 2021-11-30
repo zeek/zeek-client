@@ -26,8 +26,10 @@ import uuid
 LOG = logging.getLogger(__name__)
 LOG.addHandler(logging.NullHandler())
 
-ZEEK_CLIENT_DEFAULT_CONTROLLER = '127.0.0.1:2150'
-ZEEK_CLIENT_CONTROLLER_TOPIC = 'zeek/cluster-control/controller'
+ZC_CONTROLLER_HOST = '127.0.0.1'
+ZC_CONTROLLER_PORT = '2150'
+ZC_CONTROLLER = ZC_CONTROLLER_HOST + ':' + ZC_CONTROLLER_PORT
+ZC_CONTROLLER_TOPIC = 'zeek/cluster-control/controller'
 
 # Prepend the Python path of the Zeek installation. This ensures we find the
 # Zeek-bundled Broker Python bindings, if available, before any system-wide
@@ -171,7 +173,7 @@ class Controller:
     """A class representing our Broker connection to the Zeek cluster controller."""
 
     def __init__(self, controller_host, controller_port,
-                 controller_topic=ZEEK_CLIENT_CONTROLLER_TOPIC):
+                 controller_topic=ZC_CONTROLLER_TOPIC):
         self.controller_host = controller_host
         self.controller_port = controller_port
         self.controller_topic = controller_topic
@@ -594,10 +596,9 @@ def print_error(*args, **kwargs):
 
 def create_parser():
     parser = argparse.ArgumentParser(description='A zeek-client prototype')
-    parser.add_argument('--controller', metavar='HOST:PORT',
-                        default=ZEEK_CLIENT_DEFAULT_CONTROLLER,
-                        help='Address and port of the controller '
-                        '(default: {})'.format(ZEEK_CLIENT_DEFAULT_CONTROLLER))
+    parser.add_argument('--controller', metavar='HOST:PORT', default=ZC_CONTROLLER,
+                        help='Address and port of the controller, either of '
+                        'which may be omitted (default: {})'.format(ZC_CONTROLLER))
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increase program output for debugging.'
                         ' Use multiple times for more output (e.g. -vvv).')
@@ -657,9 +658,13 @@ def main():
     configure_logger(args)
 
     controller_parts = args.controller.split(':', 1)
+
     if len(controller_parts) != 2:
-        print_error('error: controller must be a host:port tuple')
-        return 1
+        # Allow just a host, falling back to default port
+        controller_parts = [controller_parts[0], ZC_CONTROLLER_PORT]
+    elif not controller_parts[0]:
+        # Allow just a port (as ":<port>"), falling back to default host.
+        controller_parts = [ZC_CONTROLLER_HOST, controller_parts[1]]
 
     controller_host = controller_parts[0]
 
