@@ -483,21 +483,25 @@ def cmd_instances(controller, args): # pylint: disable=unused-argument
 
 
 def cmd_set_config(controller, args):
-    if not args.layout or not os.path.isfile(args.layout):
-        print_error('Please provide a cluster layout file. See --help for details.')
+    if not args.config or (args.config != '-' and not os.path.isfile(args.config)):
+        print_error('Please provide a cluster configuration file. See --help for details.')
         return 1
 
-    # We use a config parser to parse the cluster layout specification.  For
-    # instances, we allow names without value to designate agents that connect
-    # to the controller. Like this:
+    # We use a config parser to parse the cluster configuration. For instances,
+    # we allow names without value to designate agents that connect to the
+    # controller, like this:
     #
     # [instances]
     # foobar
     #
     # All other keys must have a value.
-    parser = configparser.ConfigParser(allow_no_value=True)
-    parser.read(args.layout)
     config = Configuration()
+    parser = configparser.ConfigParser(allow_no_value=True)
+
+    if args.config == '-':
+        parser.read_file(sys.stdin)
+    else:
+        parser.read(args.config)
 
     for section in parser.sections():
         if section == 'instances':
@@ -620,8 +624,8 @@ def create_parser():
     sub_parser = command_parser.add_parser(
         'set-config', help='Deploy cluster configuration.')
     sub_parser.set_defaults(run_cmd=cmd_set_config)
-    sub_parser.add_argument('-l', '--layout', metavar='FILE',
-                            help='Cluster layout file')
+    sub_parser.add_argument('config', metavar='FILE',
+                            help='Cluster configuration file, "-" for stdin')
     return parser
 
 
