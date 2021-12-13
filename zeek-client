@@ -42,7 +42,9 @@ try:
     import broker
 except ImportError:
     print('error: zeek-client requires the Python Broker bindings.\n'
-          'Make sure your Zeek build includes them.')
+          'Make sure your Zeek build includes them. To add installed\n'
+          'Broker bindings to Python search path manually, add the\n'
+          'output of "zeek-config --python_dir" to PYTHONPATH.')
     sys.exit(1)
 
 
@@ -458,7 +460,7 @@ def cmd_monitor(controller, args): # pylint: disable=unused-argument
     return 0
 
 
-def cmd_instances(controller, args): # pylint: disable=unused-argument
+def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     controller.publish(events.GetInstancesRequest(make_uuid()))
     resp, msg = controller.receive()
 
@@ -631,8 +633,8 @@ def create_parser():
     # instances
 
     sub_parser = command_parser.add_parser(
-        'instances', help='Show instances connected to the controller.')
-    sub_parser.set_defaults(run_cmd=cmd_instances)
+        'get-instances', help='Show instances connected to the controller.')
+    sub_parser.set_defaults(run_cmd=cmd_get_instances)
 
     # set-config
 
