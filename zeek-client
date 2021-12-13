@@ -31,6 +31,8 @@ ZC_CONTROLLER_PORT = '2150'
 ZC_CONTROLLER = ZC_CONTROLLER_HOST + ':' + ZC_CONTROLLER_PORT
 ZC_CONTROLLER_TOPIC = 'zeek/cluster-control/controller'
 
+ZC_VERSION = '@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@'
+
 # Prepend the Python path of the Zeek installation. This ensures we find the
 # Zeek-bundled Broker Python bindings, if available, before any system-wide
 # ones.
@@ -618,11 +620,12 @@ def create_parser():
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increase program output for debugging.'
                         ' Use multiple times for more output (e.g. -vvv).')
+    parser.add_argument('--version', action='store_true',
+                        help='Show version number and exit.')
 
     command_parser = parser.add_subparsers(
         title='commands', dest='command',
         help='See `%(prog)s <command> -h` for per-command usage info.')
-    command_parser.required = True
 
     # monitor
 
@@ -671,6 +674,10 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
 
+    if args.version:
+        print(ZC_VERSION)
+        return 0
+
     configure_logger(args)
 
     controller_parts = args.controller.split(':', 1)
@@ -694,6 +701,10 @@ def main():
 
     controller = Controller(controller_host, controller_port)
     if not controller.connect():
+        return 1
+
+    if not args.command:
+        print_error('error: please provide a command to execute. See --help.')
         return 1
 
     try:
