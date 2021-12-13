@@ -152,13 +152,15 @@ class EventRegistry:
 class events:
     """A scope to define event types we understand. Could become a module."""
 
+    # Any Zeek object/record gets represented as a tuple here.
+
     GetInstancesRequest = EventRegistry.make_event_class(
         'ClusterController::API::get_instances_request',
         ('reqid',), (str,))
 
     GetInstancesResponse = EventRegistry.make_event_class(
         'ClusterController::API::get_instances_response',
-        ('reqid', 'instances'), (str, tuple))
+        ('reqid', 'result'), (str, tuple))
 
     SetConfigurationRequest = EventRegistry.make_event_class(
         'ClusterController::API::set_configuration_request',
@@ -407,7 +409,7 @@ class Node(BrokerType):
                     interface=interface, cpu_affinity=cpu_affinity)
 
 
-class Configuration:
+class Configuration(BrokerType):
     """Equivalent of ClusterController::Types::Configuration."""
 
     def __init__(self):
@@ -427,7 +429,7 @@ class Configuration:
         return (self.id, instances, nodes)
 
 
-class Result:
+class Result(BrokerType):
     """Equivalent of ClusterController::Types::Result."""
 
     def __init__(self, reqid, instance, success=True, data=None, error=None, node=None):
@@ -468,10 +470,22 @@ def cmd_instances(controller, args): # pylint: disable=unused-argument
         LOG.error('Received unexpected event: %s', resp)
         return 1
 
-    # Make the list of instances easier to comprehend than raw Broker data: turn
-    # it into Instance objects, then render these JSON-friendly.
+    res = Result.from_broker(resp.result)
+
+    if not res.success:
+        msg = res.error if res.error else 'no reason given'
+        print_error('failure: {}'.format(msg))
+        return 1
+
+    if res.data is None:
+        LOG.error('Received result did not contain instance data: %s', resp)
+        return 1
+
+    # res.data is a (possibly empty) vector of Instances. Make the list of
+    # instances easier to comprehend than raw Broker data: turn it into Instance
+    # objects, then render these JSON-friendly.
     try:
-        json_data = [Instance.from_broker(inst) for inst in resp.instances]
+        json_data = [Instance.from_broker(inst) for inst in res.data]
         json_data = [inst.to_json_data() for inst in json_data]
     except TypeError as err:
         LOG.error('Instance data invalid: %s', err)
