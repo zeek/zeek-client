@@ -194,6 +194,18 @@ class events:
         'ClusterController::API::set_configuration_response',
         ('reqid', 'results'), (str, tuple))
 
+    TestNoopRequest = EventRegistry.make_event_class(
+        'ClusterController::API::test_noop_request',
+        ('reqid',), (str,))
+
+    TestTimeoutRequest = EventRegistry.make_event_class(
+        'ClusterController::API::test_timeout_request',
+        ('reqid', 'with_state'), (str, bool))
+
+    TestTimeoutResponse = EventRegistry.make_event_class(
+        'ClusterController::API::test_timeout_response',
+        ('reqid', 'result'), (str, tuple))
+
 
 class Controller:
     """A class representing our Broker connection to the Zeek cluster controller."""
@@ -606,6 +618,27 @@ def cmd_set_config(controller, args):
     return retval
 
 
+def cmd_test_timeout(controller, args):
+    controller.publish(events.TestTimeoutRequest(make_uuid(), args.with_state))
+    resp, msg = controller.receive()
+
+    if resp is None:
+        print_error('no response received: {}'.format(msg))
+        return 1
+
+    if not isinstance(resp, events.TestTimeoutResponse):
+        print_error('received unexpected event: {}'.format(resp))
+        return 1
+
+    res = Result.from_broker(resp.result)
+    outcome = 'success' if res.success else 'failure'
+    error = res.error if res.error else '(none)'
+
+    print_error('response is {}, error string: {}'.format(outcome, error))
+
+    return 0
+
+
 # Utility functions
 
 def make_uuid(prefix=''):
@@ -668,6 +701,15 @@ def create_parser():
     sub_parser.set_defaults(run_cmd=cmd_set_config)
     sub_parser.add_argument('config', metavar='FILE',
                             help='Cluster configuration file, "-" for stdin')
+
+    # test-timeout command
+
+    sub_parser = command_parser.add_parser(
+        'test-timeout', help='Send timeout test event.')
+    sub_parser.set_defaults(run_cmd=cmd_test_timeout)
+    sub_parser.add_argument('--with-state', action='store_true',
+                            help='Make request stateful in the controller.')
+
     return parser
 
 
