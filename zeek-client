@@ -21,6 +21,7 @@ import logging
 import os.path
 import select
 import sys
+import time
 import uuid
 
 LOG = logging.getLogger(__name__)
@@ -54,6 +55,7 @@ except ImportError:
           'output of "zeek-config --python_dir" to PYTHONPATH.')
     sys.exit(1)
 
+
 class ClientConfig(configparser.ConfigParser):
     def __init__(self, config_file=ZC_CONFIG_FILE):
         super().__init__()
@@ -63,6 +65,17 @@ class ClientConfig(configparser.ConfigParser):
                 # Zeek side, so by making it larger here we ensure that timeout
                 # events can fire & propagate in Zeek before we give up here.
                 'request_timeout_secs': 20,
+
+                # How long Broker's endpoint.peer() should wait until it retries
+                # a peering. Its default is 10 seconds; we dial that down
+                # because we retry anyway, per the next setting. 0 disables.
+                'connect_peer_retry_secs': 1,
+
+                # How often to attempt peerings within Controller.connect():
+                'connect_attempts': 4,
+
+                # Delay between our on connect attempts.
+                'connect_retry_delay_secs': 0.25,
             },
         })
 
@@ -224,15 +237,25 @@ class Controller:
         self.poll.register(self.ssub.fd())
 
     def connect(self):
-        self.ep.peer(self.controller_host, self.controller_port, 0.0)
+        # We add retries around Broker's peering because some problems don't
+        # fall under its built-in retry umbrella. Our explicit retries simplify
+        # testing setups, where they mask the bootstrapping of the services
+        # involved.
+        attempts = ZC_CONFIG.getint('client', 'connect_attempts')
+        for i in range(attempts):
+            self.ep.peer(self.controller_host, self.controller_port,
+                         ZC_CONFIG.getfloat('client', 'connect_peer_retry_secs'))
 
-        # Wait until connection is established.
-        status = self.ssub.get()
+            # Wait until connection is established.
+            status = self.ssub.get()
 
-        if not (isinstance(status, broker.Status) and status.code() == broker.SC.PeerAdded):
-            print('error: could not connect to controller')
-            return False
+            if isinstance(status, broker.Status) and status.code() == broker.SC.PeerAdded:
+                return True
 
+            if i < attempts - 1:
+                time.sleep(ZC_CONFIG.getfloat('client', 'connect_retry_delay_secs'))
+
+        print('error: could not connect to controller')
         return True
 
     def publish(self, event):
