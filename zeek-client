@@ -32,6 +32,11 @@ ZC_CONTROLLER = ZC_CONTROLLER_HOST + ':' + ZC_CONTROLLER_PORT
 ZC_CONTROLLER_TOPIC = 'zeek/cluster-control/controller'
 
 ZC_VERSION = '@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@'
+ZC_CONFIG_FILE = os.getenv('ZEEK_CLIENT_CONFIG_FILE') or '@ZEEK_CLIENT_CONFIG_FILE@'
+
+# Global config, a ClientConfig instance (deriving from ConfigParser).
+# Initialized when we've parsed command line args.
+ZC_CONFIG = None
 
 # Prepend the Python path of the Zeek installation. This ensures we find the
 # Zeek-bundled Broker Python bindings, if available, before any system-wide
@@ -48,6 +53,21 @@ except ImportError:
           'Broker bindings to Python search path manually, add the\n'
           'output of "zeek-config --python_dir" to PYTHONPATH.')
     sys.exit(1)
+
+class ClientConfig(configparser.ConfigParser):
+    def __init__(self, config_file=ZC_CONFIG_FILE):
+        super().__init__()
+        self.read_dict({
+            'client': {
+                # The default timeout for request state is 15 seconds on the
+                # Zeek side, so by making it larger here we ensure that timeout
+                # events can fire & propagate in Zeek before we give up here.
+                'request_timeout_secs': 20,
+            },
+        })
+
+        # Override defaults with any config file values
+        self.read(config_file)
 
 
 class Event(broker.zeek.Event):
@@ -211,7 +231,7 @@ class Controller:
         """
         self.ep.publish(self.controller_topic, event)
 
-    def receive(self, timeout_secs=10):
+    def receive(self, timeout_secs=None):
         """Receive an event from the controller's event subscriber.
 
         Args:
@@ -224,7 +244,7 @@ class Controller:
             Instance of one of the Event classes defined for the client,
             or None if timeout_secs passed before anything arrived.
         """
-        timeout_msecs = timeout_secs
+        timeout_msecs = timeout_secs or ZC_CONFIG.getint('client', 'request_timeout_secs')
         if timeout_msecs is not None:
             timeout_msecs *= 1000
 
@@ -455,7 +475,7 @@ def cmd_monitor(controller, args): # pylint: disable=unused-argument
         resp, msg = controller.receive(None)
 
         if resp is None:
-            print('no event received: {}'.format(msg))
+            print('no response received: {}'.format(msg))
         else:
             print('received "{}"'.format(resp))
 
@@ -614,6 +634,8 @@ def print_error(*args, **kwargs):
 
 def create_parser():
     parser = argparse.ArgumentParser(description='A zeek-client prototype')
+    parser.add_argument('-c', '--configfile', metavar='FILE', default=ZC_CONFIG_FILE,
+                        help='Path to zeek-client config file. (Default: {})'.format(ZC_CONFIG_FILE))
     parser.add_argument('--controller', metavar='HOST:PORT', default=ZC_CONTROLLER,
                         help='Address and port of the controller, either of '
                         'which may be omitted (default: {})'.format(ZC_CONTROLLER))
@@ -677,6 +699,9 @@ def main():
     if args.version:
         print(ZC_VERSION)
         return 0
+
+    global ZC_CONFIG
+    ZC_CONFIG = ClientConfig(args.configfile)
 
     configure_logger(args)
 
