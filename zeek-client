@@ -243,20 +243,23 @@ class Controller:
         # involved.
         attempts = ZC_CONFIG.getint('client', 'connect_attempts')
         for i in range(attempts):
-            self.ep.peer(self.controller_host, self.controller_port,
-                         ZC_CONFIG.getfloat('client', 'connect_peer_retry_secs'))
+            self.ep.peer_nosync(self.controller_host, self.controller_port,
+                                ZC_CONFIG.getfloat('client', 'connect_peer_retry_secs'))
 
-            # Wait until connection is established.
+            # Wait for outcome of the peering attempt:
             status = self.ssub.get()
-
             if isinstance(status, broker.Status) and status.code() == broker.SC.PeerAdded:
+                LOG.debug('peered with controller %s:%s', self.controller_host,
+                          self.controller_port)
                 return True
+            else:
+                LOG.warning('broker endpoint status: %s', status)
 
             if i < attempts - 1:
                 time.sleep(ZC_CONFIG.getfloat('client', 'connect_retry_delay_secs'))
 
         print('error: could not connect to controller')
-        return True
+        return False
 
     def publish(self, event):
         """Publishes the given event to the controller topic.
