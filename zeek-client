@@ -21,13 +21,23 @@ import logging
 import os.path
 import select
 import sys
+import time
 import uuid
 
 LOG = logging.getLogger(__name__)
 LOG.addHandler(logging.NullHandler())
 
-ZEEK_CLIENT_DEFAULT_CONTROLLER = '127.0.0.1:2150'
-ZEEK_CLIENT_CONTROLLER_TOPIC = 'zeek/cluster-control/controller'
+ZC_CONTROLLER_HOST = '127.0.0.1'
+ZC_CONTROLLER_PORT = '2150'
+ZC_CONTROLLER = ZC_CONTROLLER_HOST + ':' + ZC_CONTROLLER_PORT
+ZC_CONTROLLER_TOPIC = 'zeek/cluster-control/controller'
+
+ZC_VERSION = '@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@'
+ZC_CONFIG_FILE = os.getenv('ZEEK_CLIENT_CONFIG_FILE') or '@ZEEK_CLIENT_CONFIG_FILE@'
+
+# Global config, a ClientConfig instance (deriving from ConfigParser).
+# Initialized when we've parsed command line args.
+ZC_CONFIG = None
 
 # Prepend the Python path of the Zeek installation. This ensures we find the
 # Zeek-bundled Broker Python bindings, if available, before any system-wide
@@ -40,8 +50,37 @@ try:
     import broker
 except ImportError:
     print('error: zeek-client requires the Python Broker bindings.\n'
-          'Make sure your Zeek build includes them.')
+          'Make sure your Zeek build includes them. To add installed\n'
+          'Broker bindings to Python search path manually, add the\n'
+          'output of "zeek-config --python_dir" to PYTHONPATH.')
     sys.exit(1)
+
+
+class ClientConfig(configparser.ConfigParser):
+    def __init__(self, config_file=ZC_CONFIG_FILE):
+        super().__init__()
+        self.read_dict({
+            'client': {
+                # The default timeout for request state is 15 seconds on the
+                # Zeek side, so by making it larger here we ensure that timeout
+                # events can fire & propagate in Zeek before we give up here.
+                'request_timeout_secs': 20,
+
+                # How long Broker's endpoint.peer() should wait until it retries
+                # a peering. Its default is 10 seconds; we dial that down
+                # because we retry anyway, per the next setting. 0 disables.
+                'connect_peer_retry_secs': 1,
+
+                # How often to attempt peerings within Controller.connect():
+                'connect_attempts': 4,
+
+                # Delay between our on connect attempts.
+                'connect_retry_delay_secs': 0.25,
+            },
+        })
+
+        # Override defaults with any config file values
+        self.read(config_file)
 
 
 class Event(broker.zeek.Event):
@@ -150,13 +189,15 @@ class EventRegistry:
 class events:
     """A scope to define event types we understand. Could become a module."""
 
+    # Any Zeek object/record gets represented as a tuple here.
+
     GetInstancesRequest = EventRegistry.make_event_class(
         'ClusterController::API::get_instances_request',
         ('reqid',), (str,))
 
     GetInstancesResponse = EventRegistry.make_event_class(
         'ClusterController::API::get_instances_response',
-        ('reqid', 'instances'), (str, tuple))
+        ('reqid', 'result'), (str, tuple))
 
     SetConfigurationRequest = EventRegistry.make_event_class(
         'ClusterController::API::set_configuration_request',
@@ -166,12 +207,24 @@ class events:
         'ClusterController::API::set_configuration_response',
         ('reqid', 'results'), (str, tuple))
 
+    TestNoopRequest = EventRegistry.make_event_class(
+        'ClusterController::API::test_noop_request',
+        ('reqid',), (str,))
+
+    TestTimeoutRequest = EventRegistry.make_event_class(
+        'ClusterController::API::test_timeout_request',
+        ('reqid', 'with_state'), (str, bool))
+
+    TestTimeoutResponse = EventRegistry.make_event_class(
+        'ClusterController::API::test_timeout_response',
+        ('reqid', 'result'), (str, tuple))
+
 
 class Controller:
     """A class representing our Broker connection to the Zeek cluster controller."""
 
     def __init__(self, controller_host, controller_port,
-                 controller_topic=ZEEK_CLIENT_CONTROLLER_TOPIC):
+                 controller_topic=ZC_CONTROLLER_TOPIC):
         self.controller_host = controller_host
         self.controller_port = controller_port
         self.controller_topic = controller_topic
@@ -184,16 +237,29 @@ class Controller:
         self.poll.register(self.ssub.fd())
 
     def connect(self):
-        self.ep.peer(self.controller_host, self.controller_port, 0.0)
+        # We add retries around Broker's peering because some problems don't
+        # fall under its built-in retry umbrella. Our explicit retries simplify
+        # testing setups, where they mask the bootstrapping of the services
+        # involved.
+        attempts = ZC_CONFIG.getint('client', 'connect_attempts')
+        for i in range(attempts):
+            self.ep.peer_nosync(self.controller_host, self.controller_port,
+                                ZC_CONFIG.getfloat('client', 'connect_peer_retry_secs'))
 
-        # Wait until connection is established.
-        status = self.ssub.get()
+            # Wait for outcome of the peering attempt:
+            status = self.ssub.get()
+            if isinstance(status, broker.Status) and status.code() == broker.SC.PeerAdded:
+                LOG.debug('peered with controller %s:%s', self.controller_host,
+                          self.controller_port)
+                return True
+            else:
+                LOG.warning('broker endpoint status: %s', status)
 
-        if not (isinstance(status, broker.Status) and status.code() == broker.SC.PeerAdded):
-            print('error: could not connect to controller')
-            return False
+            if i < attempts - 1:
+                time.sleep(ZC_CONFIG.getfloat('client', 'connect_retry_delay_secs'))
 
-        return True
+        print('error: could not connect to controller')
+        return False
 
     def publish(self, event):
         """Publishes the given event to the controller topic.
@@ -203,7 +269,7 @@ class Controller:
         """
         self.ep.publish(self.controller_topic, event)
 
-    def receive(self, timeout_secs=10):
+    def receive(self, timeout_secs=None):
         """Receive an event from the controller's event subscriber.
 
         Args:
@@ -216,7 +282,7 @@ class Controller:
             Instance of one of the Event classes defined for the client,
             or None if timeout_secs passed before anything arrived.
         """
-        timeout_msecs = timeout_secs
+        timeout_msecs = timeout_secs or ZC_CONFIG.getint('client', 'request_timeout_secs')
         if timeout_msecs is not None:
             timeout_msecs *= 1000
 
@@ -278,9 +344,14 @@ class BrokerType:
         """Returns a Broker-compatible rendition of this instance."""
         return None
 
+    def to_json_data(self):
+        """Returns JSON-suitable datastructure representing the object."""
+        return self.__dict__
+
     @staticmethod
     def from_broker(broker_data): # pylint: disable=unused-argument
-        """Returns an instance of the type given Broker data."""
+        """Returns an instance of the type given Broker data. Raises TypeError when the
+        given data doesn't match the type's expectations."""
         return None
 
 
@@ -298,14 +369,25 @@ class Option(BrokerType):
 class Instance(BrokerType):
     """Equivalent of ClusterController::Types::Instance."""
 
-    def __init__(self, name, addr, port):
+    def __init__(self, name, addr=None, port=None):
         self.name = name
-        self.addr = addr
+        # This is a workaround until we've resolved addresses in instances
+        self.addr = addr or '0.0.0.0' # string or ipaddress type ... TBD
         self.port = port
 
+    @staticmethod
+    def from_broker(broker_data):
+        try:
+            name, addr, port = broker_data
+            return Instance(name, addr, port)
+        except ValueError:
+            raise TypeError('unexpected Broker data for Instance object ({})'.format(broker_data))
+
     def to_broker(self):
-        return (self.name, ipaddress.ip_address(self.addr),
-                broker.Port(int(self.port), broker.Port.TCP))
+        port = None
+        if self.port:
+            port = broker.Port(int(self.port), broker.Port.TCP)
+        return (self.name, ipaddress.ip_address(self.addr), port)
 
 
 class Node(BrokerType):
@@ -389,7 +471,7 @@ class Node(BrokerType):
                     interface=interface, cpu_affinity=cpu_affinity)
 
 
-class Configuration:
+class Configuration(BrokerType):
     """Equivalent of ClusterController::Types::Configuration."""
 
     def __init__(self):
@@ -409,7 +491,7 @@ class Configuration:
         return (self.id, instances, nodes)
 
 
-class Result:
+class Result(BrokerType):
     """Equivalent of ClusterController::Types::Result."""
 
     def __init__(self, reqid, instance, success=True, data=None, error=None, node=None):
@@ -431,14 +513,14 @@ def cmd_monitor(controller, args): # pylint: disable=unused-argument
         resp, msg = controller.receive(None)
 
         if resp is None:
-            print('no event received: {}'.format(msg))
+            print('no response received: {}'.format(msg))
         else:
             print('received "{}"'.format(resp))
 
     return 0
 
 
-def cmd_instances(controller, args): # pylint: disable=unused-argument
+def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     controller.publish(events.GetInstancesRequest(make_uuid()))
     resp, msg = controller.receive()
 
@@ -450,34 +532,78 @@ def cmd_instances(controller, args): # pylint: disable=unused-argument
         LOG.error('Received unexpected event: %s', resp)
         return 1
 
-    print(json_dumps(resp.instances))
+    res = Result.from_broker(resp.result)
+
+    if not res.success:
+        msg = res.error if res.error else 'no reason given'
+        print_error('failure: {}'.format(msg))
+        return 1
+
+    if res.data is None:
+        LOG.error('Received result did not contain instance data: %s', resp)
+        return 1
+
+    # res.data is a (possibly empty) vector of Instances. Make the list of
+    # instances easier to comprehend than raw Broker data: turn it into Instance
+    # objects, then render these JSON-friendly.
+    try:
+        json_data = [Instance.from_broker(inst) for inst in res.data]
+        json_data = [inst.to_json_data() for inst in json_data]
+    except TypeError as err:
+        LOG.error('Instance data invalid: %s', err)
+
+    # Sort the list alphabetically by instance name
+    json_data = sorted(json_data, key=lambda inst: inst['name'])
+
+    print(json_dumps(json_data))
 
     return 0
 
 
 def cmd_set_config(controller, args):
-    if not args.layout or not os.path.isfile(args.layout):
-        print_error('Please provide a cluster layout file. See --help for details.')
+    if not args.config or (args.config != '-' and not os.path.isfile(args.config)):
+        print_error('Please provide a cluster configuration file. See --help for details.')
         return 1
 
-    parser = configparser.ConfigParser()
-    parser.read(args.layout)
-
+    # We use a config parser to parse the cluster configuration. For instances,
+    # we allow names without value to designate agents that connect to the
+    # controller, like this:
+    #
+    # [instances]
+    # foobar
+    #
+    # All other keys must have a value.
     config = Configuration()
+    parser = configparser.ConfigParser(allow_no_value=True)
+
+    if args.config == '-':
+        parser.read_file(sys.stdin)
+    else:
+        parser.read(args.config)
 
     for section in parser.sections():
         if section == 'instances':
             # The [instances] section is special: each key in it is the name of
             # an instance, each val is the host:port pair where its agent is
-            # listening.
+            # listening. The val may be absent when it's an instance that
+            # connects to the controller.
             for key, val in parser.items('instances'):
-                hostport = val
-                parts = hostport.split(':', 1)
-                if len(parts) != 2:
-                    LOG.warning('invalid instance "%s" spec "%s", skipping', key, val)
-                    continue
-                config.instances.append(Instance(key, parts[0].strip(), parts[1].strip()))
+                if not val:
+                    config.instances.append(Instance(key))
+                else:
+                    hostport = val
+                    parts = hostport.split(':', 1)
+                    if len(parts) != 2:
+                        LOG.warning('invalid instance "%s" spec "%s", skipping', key, val)
+                        continue
+                    config.instances.append(Instance(key, parts[0].strip(), parts[1].strip()))
             continue
+
+        # All keys for sections other than "instances" need to have a value.
+        for key, val in parser.items(section):
+            if val is None:
+                Log.error('Config item %s/%s needs a value', sect, key)
+                return 1
 
         # The other sections are data cluster nodes. Each section name
         # corresponds to a node name, with the keys being one of "type",
@@ -518,6 +644,27 @@ def cmd_set_config(controller, args):
     return retval
 
 
+def cmd_test_timeout(controller, args):
+    controller.publish(events.TestTimeoutRequest(make_uuid(), args.with_state))
+    resp, msg = controller.receive()
+
+    if resp is None:
+        print_error('no response received: {}'.format(msg))
+        return 1
+
+    if not isinstance(resp, events.TestTimeoutResponse):
+        print_error('received unexpected event: {}'.format(resp))
+        return 1
+
+    res = Result.from_broker(resp.result)
+    outcome = 'success' if res.success else 'failure'
+    error = res.error if res.error else '(none)'
+
+    print_error('response is {}, error string: {}'.format(outcome, error))
+
+    return 0
+
+
 # Utility functions
 
 def make_uuid(prefix=''):
@@ -537,7 +684,7 @@ def json_dumps(obj):
             return str(obj)
         raise TypeError('cannot serialize {} ({})'.format(type(obj), str(obj)))
 
-    return json.dumps(obj, default=default)
+    return json.dumps(obj, default=default, sort_keys=True)
 
 
 def print_error(*args, **kwargs):
@@ -546,18 +693,20 @@ def print_error(*args, **kwargs):
 
 def create_parser():
     parser = argparse.ArgumentParser(description='A zeek-client prototype')
-    parser.add_argument('--controller', metavar='HOST:PORT',
-                        default=ZEEK_CLIENT_DEFAULT_CONTROLLER,
-                        help='Address and port of the controller '
-                        '(default: {})'.format(ZEEK_CLIENT_DEFAULT_CONTROLLER))
+    parser.add_argument('-c', '--configfile', metavar='FILE', default=ZC_CONFIG_FILE,
+                        help='Path to zeek-client config file. (Default: {})'.format(ZC_CONFIG_FILE))
+    parser.add_argument('--controller', metavar='HOST:PORT', default=ZC_CONTROLLER,
+                        help='Address and port of the controller, either of '
+                        'which may be omitted (default: {})'.format(ZC_CONTROLLER))
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increase program output for debugging.'
                         ' Use multiple times for more output (e.g. -vvv).')
+    parser.add_argument('--version', action='store_true',
+                        help='Show version number and exit.')
 
     command_parser = parser.add_subparsers(
         title='commands', dest='command',
         help='See `%(prog)s <command> -h` for per-command usage info.')
-    command_parser.required = True
 
     # monitor
 
@@ -568,16 +717,25 @@ def create_parser():
     # instances
 
     sub_parser = command_parser.add_parser(
-        'instances', help='Show instances connected to the controller.')
-    sub_parser.set_defaults(run_cmd=cmd_instances)
+        'get-instances', help='Show instances connected to the controller.')
+    sub_parser.set_defaults(run_cmd=cmd_get_instances)
 
     # set-config
 
     sub_parser = command_parser.add_parser(
         'set-config', help='Deploy cluster configuration.')
     sub_parser.set_defaults(run_cmd=cmd_set_config)
-    sub_parser.add_argument('-l', '--layout', metavar='FILE',
-                            help='Cluster layout file')
+    sub_parser.add_argument('config', metavar='FILE',
+                            help='Cluster configuration file, "-" for stdin')
+
+    # test-timeout command
+
+    sub_parser = command_parser.add_parser(
+        'test-timeout', help='Send timeout test event.')
+    sub_parser.set_defaults(run_cmd=cmd_test_timeout)
+    sub_parser.add_argument('--with-state', action='store_true',
+                            help='Make request stateful in the controller.')
+
     return parser
 
 
@@ -606,12 +764,23 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
 
+    if args.version:
+        print(ZC_VERSION)
+        return 0
+
+    global ZC_CONFIG
+    ZC_CONFIG = ClientConfig(args.configfile)
+
     configure_logger(args)
 
     controller_parts = args.controller.split(':', 1)
+
     if len(controller_parts) != 2:
-        print_error('error: controller must be a host:port tuple')
-        return 1
+        # Allow just a host, falling back to default port
+        controller_parts = [controller_parts[0], ZC_CONTROLLER_PORT]
+    elif not controller_parts[0]:
+        # Allow just a port (as ":<port>"), falling back to default host.
+        controller_parts = [ZC_CONTROLLER_HOST, controller_parts[1]]
 
     controller_host = controller_parts[0]
 
@@ -625,6 +794,10 @@ def main():
 
     controller = Controller(controller_host, controller_port)
     if not controller.connect():
+        return 1
+
+    if not args.command:
+        print_error('error: please provide a command to execute. See --help.')
         return 1
 
     try:
