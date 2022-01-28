@@ -508,18 +508,6 @@ class Result(BrokerType):
 
 # Command handlers
 
-def cmd_monitor(controller, args): # pylint: disable=unused-argument
-    while True:
-        resp, msg = controller.receive(None)
-
-        if resp is None:
-            print('no response received: {}'.format(msg))
-        else:
-            print('received "{}"'.format(resp))
-
-    return 0
-
-
 def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     controller.publish(events.GetInstancesRequest(make_uuid()))
     resp, msg = controller.receive()
@@ -556,6 +544,18 @@ def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     json_data = sorted(json_data, key=lambda inst: inst['name'])
 
     print(json_dumps(json_data))
+
+    return 0
+
+
+def cmd_monitor(controller, args): # pylint: disable=unused-argument
+    while True:
+        resp, msg = controller.receive(None)
+
+        if resp is None:
+            print('no response received: {}'.format(msg))
+        else:
+            print('received "{}"'.format(resp))
 
     return 0
 
@@ -708,27 +708,19 @@ def create_parser():
         title='commands', dest='command',
         help='See `%(prog)s <command> -h` for per-command usage info.')
 
-    # monitor
-
-    sub_parser = command_parser.add_parser(
-        'monitor', help='For troubleshooting: do nothing, just report events.')
-    sub_parser.set_defaults(run_cmd=cmd_monitor)
-
-    # instances
-
     sub_parser = command_parser.add_parser(
         'get-instances', help='Show instances connected to the controller.')
     sub_parser.set_defaults(run_cmd=cmd_get_instances)
 
-    # set-config
+    sub_parser = command_parser.add_parser(
+        'monitor', help='For troubleshooting: do nothing, just report events.')
+    sub_parser.set_defaults(run_cmd=cmd_monitor)
 
     sub_parser = command_parser.add_parser(
         'set-config', help='Deploy cluster configuration.')
     sub_parser.set_defaults(run_cmd=cmd_set_config)
     sub_parser.add_argument('config', metavar='FILE',
                             help='Cluster configuration file, "-" for stdin')
-
-    # test-timeout command
 
     sub_parser = command_parser.add_parser(
         'test-timeout', help='Send timeout test event.')
@@ -757,8 +749,6 @@ def configure_logger(args):
 
     LOG.addHandler(handler)
 
-
-# Main routine
 
 def main():
     parser = create_parser()
