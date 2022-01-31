@@ -362,8 +362,8 @@ class BrokerType:
         """Returns JSON-suitable datastructure representing the object."""
         return self.__dict__
 
-    @staticmethod
-    def from_broker(broker_data): # pylint: disable=unused-argument
+    @classmethod
+    def from_broker(cls, broker_data): # pylint: disable=unused-argument
         """Returns an instance of the type given Broker data. Raises TypeError when the
         given data doesn't match the type's expectations."""
         return None
@@ -387,8 +387,8 @@ class Instance(BrokerType):
         self.addr = addr or '0.0.0.0' # string or ipaddress type ... TBD
         self.port = port
 
-    @staticmethod
-    def from_broker(broker_data):
+    @classmethod
+    def from_broker(cls, broker_data):
         try:
             name, addr, port = broker_data
             return Instance(name, addr, port)
@@ -513,8 +513,8 @@ class Result(BrokerType):
         self.error = error
         self.node = node
 
-    @staticmethod
-    def from_broker(broker_data):
+    @classmethod
+    def from_broker(cls, broker_data):
         return Result(*broker_data)
 
 # Command handlers
