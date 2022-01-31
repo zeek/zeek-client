@@ -33,6 +33,7 @@ import os.path
 import select
 import sys
 import time
+import traceback
 import uuid
 
 LOG = logging.getLogger(__name__)
@@ -212,6 +213,14 @@ class events:
     GetInstancesResponse = EventRegistry.make_event_class(
         'ClusterController::API::get_instances_response',
         ('reqid', 'result'), (str, tuple))
+
+    GetNodesRequest = EventRegistry.make_event_class(
+        'ClusterController::API::get_nodes_request',
+        ('reqid',), (str,))
+
+    GetNodesResponse = EventRegistry.make_event_class(
+        'ClusterController::API::get_nodes_response',
+        ('reqid', 'results'), (str, tuple))
 
     SetConfigurationRequest = EventRegistry.make_event_class(
         'ClusterController::API::set_configuration_request',
@@ -409,6 +418,17 @@ class ClusterRole(BrokerEnumType):
         return 'Supervisor'
 
 
+class ControllerRole(BrokerEnumType):
+    """Equivalent of ClusterController::Types::Role enum in Zeek"""
+    NONE = 0
+    AGENT = 1
+    CONTROLLER = 2
+
+    @classmethod
+    def module_scope(cls):
+        return 'ClusterController::Types'
+
+
 class State(BrokerEnumType):
     """Equivalent of ClusterController::Types::State enum in Zeek"""
     PENDING = 0
@@ -563,6 +583,31 @@ class Configuration(BrokerType):
         return (self.id, instances, nodes)
 
 
+class NodeStatus(BrokerType):
+    """Equivalent of ClusterController::Types::NodeState."""
+    def __init__(self, node, state, mgmt_role, cluster_role, pid=None, port=None):
+        self.node = node # A string containing the name of the node
+        self.state = state # A State enum value
+        self.mgmt_role = mgmt_role # A ControllerRole enum value
+        self.cluster_role = cluster_role # A ClusterRole enum value
+        self.pid = pid # A numeric process ID
+        self.port = port # A numeric (TCP) port
+
+    @classmethod
+    def from_broker(cls, broker_data):
+        # When a listening port is available, convert Broker's native port type
+        # to a plain integer. We're always dealing with TCP ports here.
+        port = broker_data[5].number() if broker_data[5] is not None else None
+
+        return NodeStatus(
+            broker_data[0],
+            State.from_broker(broker_data[1]),
+            ControllerRole.from_broker(broker_data[2]),
+            ClusterRole.from_broker(broker_data[3]),
+            broker_data[4],
+            port)
+
+
 class Result(BrokerType):
     """Equivalent of ClusterController::Types::Result."""
     def __init__(self, reqid, instance, success=True, data=None, error=None, node=None):
@@ -613,6 +658,65 @@ def cmd_get_instances(controller, args): # pylint: disable=unused-argument
 
     # Sort the list alphabetically by instance name
     json_data = sorted(json_data, key=lambda inst: inst['name'])
+
+    print(json_dumps(json_data))
+    return 0
+
+
+def cmd_get_nodes(controller, args):
+    controller.publish(events.GetNodesRequest(make_uuid()))
+    resp, msg = controller.receive()
+
+    if resp is None:
+        LOG.error('No response received: %s', msg)
+        return 1
+
+    if not isinstance(resp, events.GetNodesResponse):
+        LOG.error('Received unexpected event: %s', resp)
+        return 1
+
+    json_data = {}
+
+    for broker_data in resp.results:
+        res = Result.from_broker(broker_data)
+        if not res.success:
+            msg = ': ' + res.error if res.error else ''
+            if res.instance:
+                print_error('instance {} failure{}'.format(res.instance, msg))
+            else:
+                print_error('failure{}'.format(msg))
+            return 1
+
+        if res.data is None:
+            LOG.error('Received result did not contain NodeStatus vector data: %s', resp)
+            return 1
+
+        json_data[res.instance] = {}
+
+        # res.data is a NodeStatusVec
+        try:
+            for nstat_data in res.data:
+                nstat = NodeStatus.from_broker(nstat_data)
+
+                # If either of the two role enums are "NONE", we make them
+                # None. That way they stay in the reporting, but are more easily
+                # distinguished from "actual" values.
+                mgmt_role = nstat.mgmt_role if nstat.mgmt_role != ControllerRole.NONE else None
+                cluster_role = nstat.cluster_role if nstat.cluster_role != ClusterRole.NONE else None
+
+                json_data[res.instance][nstat.node] = {
+                    'state': nstat.state,
+                    'mgmt_role': mgmt_role,
+                    'cluster_role': cluster_role,
+                }
+
+                if nstat.pid is not None:
+                    json_data[res.instance][nstat.node]['pid'] = nstat.pid
+                if nstat.port is not None:
+                    json_data[res.instance][nstat.node]['port'] = nstat.port
+        except TypeError as err:
+            LOG.error('NodeStatus data invalid: %s', err)
+            LOG.debug(traceback.format_exc())
 
     print(json_dumps(json_data))
     return 0
@@ -782,6 +886,10 @@ def create_parser():
     sub_parser = command_parser.add_parser(
         'get-instances', help='Show instances connected to the controller.')
     sub_parser.set_defaults(run_cmd=cmd_get_instances)
+
+    sub_parser = command_parser.add_parser(
+        'get-nodes', help='Show active Zeek nodes at each instance.')
+    sub_parser.set_defaults(run_cmd=cmd_get_nodes)
 
     sub_parser = command_parser.add_parser(
         'monitor', help='For troubleshooting: do nothing, just report events.')
