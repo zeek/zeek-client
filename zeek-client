@@ -328,24 +328,6 @@ class Controller:
                     return None, 'status change: {}'.format(status)
 
 
-class Role(enum.Enum):
-    """Equivalent of Supervisor::ClusterRole enum in Zeek"""
-    NONE = 0
-    LOGGER = 1
-    MANAGER = 2
-    PROXY = 3
-    WORKER = 4
-
-
-class State(enum.Enum):
-    """Equivalent of ClusterController::Types::State enum in Zeek"""
-    RUNNING = 0
-    STOPPED = 1
-    FAILED = 2
-    CRASHED = 3
-    UNKNOWN = 4
-
-
 class BrokerType:
     """Base class for types we can instantiate from or render to the
     Python-level Broker data model.
@@ -367,6 +349,78 @@ class BrokerType:
         """Returns an instance of the type given Broker data. Raises TypeError when the
         given data doesn't match the type's expectations."""
         return None
+
+
+class BrokerEnumType(BrokerType, enum.Enum):
+    """A specialization of Broker-based enums to bridge Broker/Python.
+
+    This distinguishes the "flat" Python enums ("FOO") from the fully qualified
+    way they're rendered via Zeek ("Some::Module::FOO"). To enable a Python enum
+    to present the full qualification when sending into Broker, derivations
+    reimplement the module_scope() class method.
+    """
+    def to_broker(self):
+        # XXX figuring out the need to use broker.Data.from_py() and
+        # as_enum_value() when presenting an enum to Broker is pretty
+        # tricky. Would be great if we could simplify this.
+        scope = self.module_scope()
+        scope = scope + '::' if scope else ''
+        return broker.Data.from_py(scope + self.name).as_enum_value()
+
+    def to_json_data(self):
+        # A similar concern as above applies here, but the exact enum type will
+        # often be clear from context and so the un-scoped name alone may
+        # suffice.
+        return self.name
+
+    def __str__(self):
+        scope = self.module_scope()
+        scope = scope + '::' if scope else ''
+        return scope + self.name
+
+    @classmethod
+    def module_scope(cls):
+        # Reimplement this in derived classes to convey the Zeek-level enum
+        # scope. For example, for a Foo.BAR enum value, this should return the
+        # string "Foo".
+        return ''
+
+    @classmethod
+    def from_broker(cls, broker_data):
+        # The argument is a broker.Enum with a name property like Foo::VALUE, so
+        # grab the last part and look it up in this enum type:
+        try:
+            return cls[broker_data.name.split('::')[-1]]
+        except KeyError as err:
+            raise TypeError('unexpected enum value for {}: {}'.format(
+                cls.__name__, broker_data)) from err
+
+
+class ClusterRole(BrokerEnumType):
+    """Equivalent of Supervisor::ClusterRole enum in Zeek"""
+    NONE = 0
+    LOGGER = 1
+    MANAGER = 2
+    PROXY = 3
+    WORKER = 4
+
+    @classmethod
+    def module_scope(cls):
+        return 'Supervisor'
+
+
+class State(BrokerEnumType):
+    """Equivalent of ClusterController::Types::State enum in Zeek"""
+    PENDING = 0
+    RUNNING = 1
+    STOPPED = 2
+    FAILED = 3
+    CRASHED = 4
+    UNKNOWN = 5
+
+    @classmethod
+    def module_scope(cls):
+        return 'ClusterController::Types'
 
 
 class Option(BrokerType):
@@ -436,12 +490,8 @@ class Node(BrokerType):
 
         return (self.name, self.instance,
                 broker.Port(self.port, broker.Port.TCP),
-                # XXX enums are a bit tricky, per the below -- we should cover
-                # these in the Broker Python binding docs. (Same for None vs
-                # Broker's nil.)
-                broker.Data.from_py('Supervisor::' + self.role.name).as_enum_value(),
-                broker.Data.from_py('ClusterController::Types::' +
-                                    self.state.name.title()).as_enum_value(),
+                self.role.to_broker(),
+                self.state.to_broker(),
                 self.scripts,
                 self.options,
                 self.interface,
@@ -463,25 +513,29 @@ class Node(BrokerType):
 
         instance = get(str, 'instance')
         port = get(int, 'port')
-        role = get(str, 'role', 'type')
-        state = get(str, 'state') or 'RUNNING'
         interface = get(str, 'interface')
         cpu_affinity = get(int, 'cpu_affinity')
 
         # Validate the specified values
         if not instance:
             raise ValueError('node "{}" requires an instance'.format(name))
-        if role is None or role.upper() not in Role.__members__.keys():
-            raise ValueError('node "{}" role "{}" is invalid'.format(name, role))
         if port is None or port < 1 or port > 65535:
             raise ValueError('node "{}" port "{}" is invalid'.format(name, port))
-        if state is None or state.upper() not in State.__members__.keys():
-            raise ValueError('node "{}" state "{}" is invalid'.format(name, state))
 
-        return Node(name=name, instance=instance, port=port,
-                    role=Role.__members__.get(role.upper()),
-                    state=State.__members__.get(state.upper()),
-                    interface=interface, cpu_affinity=cpu_affinity)
+        try:
+            role_raw = get(str, 'role', 'type')
+            role = ClusterRole[role_raw.upper()]
+        except (AttributeError, KeyError) as err:
+            raise ValueError('node "{}" role "{}" is invalid'.format(name, role_raw)) from err
+
+        try:
+            state_raw = get(str, 'state') or 'RUNNING'
+            state = State[state_raw.upper()]
+        except (AttributeError, KeyError) as err:
+            raise ValueError('node "{}" state "{}" is invalid'.format(name, state_raw)) from err
+
+        return Node(name=name, instance=instance, port=port, role=role,
+                    state=state, interface=interface, cpu_affinity=cpu_affinity)
 
 
 class Configuration(BrokerType):
@@ -691,6 +745,8 @@ def json_dumps(obj):
             return str(obj)
         if isinstance(obj, broker.Port):
             return str(obj)
+        if isinstance(obj, BrokerEnumType):
+            return obj.to_json_data()
         raise TypeError('cannot serialize {} ({})'.format(type(obj), str(obj)))
 
     return json.dumps(obj, default=default, sort_keys=True)
