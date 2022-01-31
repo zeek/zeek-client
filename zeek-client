@@ -12,6 +12,17 @@ the idioms and primitives also used by the zkg package manager.
 # pylint: disable=invalid-name, missing-function-docstring, too-few-public-methods
 # pylint: disable=too-many-instance-attributes, too-many-arguments, no-self-use
 
+# Broker lessons learned:
+#
+# - When sending an event from Python results in an error message like the
+#   following on the Zeek side ...
+#
+#     warning: failed to convert remote event '<some event type>' arg #<n>,
+#         got vector, expected record
+#
+#   ... the reason is that some member of the structure in question (here,
+#   a record) could not be unserialized properly.
+
 import argparse
 import configparser
 import enum
@@ -57,6 +68,10 @@ except ImportError:
 
 
 class ClientConfig(configparser.ConfigParser):
+    """zeek-client configuration settings.
+
+    A specialized ConfigParser that hardwires defaults for select values.
+    """
     def __init__(self, config_file=ZC_CONFIG_FILE):
         super().__init__()
         self.read_dict({
@@ -188,7 +203,6 @@ class EventRegistry:
 
 class events:
     """A scope to define event types we understand. Could become a module."""
-
     # Any Zeek object/record gets represented as a tuple here.
 
     GetInstancesRequest = EventRegistry.make_event_class(
@@ -222,7 +236,6 @@ class events:
 
 class Controller:
     """A class representing our Broker connection to the Zeek cluster controller."""
-
     def __init__(self, controller_host, controller_port,
                  controller_topic=ZC_CONTROLLER_TOPIC):
         self.controller_host = controller_host
@@ -252,13 +265,14 @@ class Controller:
                 LOG.debug('peered with controller %s:%s', self.controller_host,
                           self.controller_port)
                 return True
-            else:
-                LOG.warning('broker endpoint status: %s', status)
+
+            LOG.warning('broker endpoint status: %s', status)
 
             if i < attempts - 1:
                 time.sleep(ZC_CONFIG.getfloat('client', 'connect_retry_delay_secs'))
 
-        print('error: could not connect to controller')
+        print('error: could not connect to controller {}:{}'.format(
+            self.controller_host, self.controller_port))
         return False
 
     def publish(self, event):
@@ -357,7 +371,6 @@ class BrokerType:
 
 class Option(BrokerType):
     """Equivalent of ClusterController::Types::Option."""
-
     def __init__(self, name, value):
         self.name = name
         self.value = value
@@ -368,7 +381,6 @@ class Option(BrokerType):
 
 class Instance(BrokerType):
     """Equivalent of ClusterController::Types::Instance."""
-
     def __init__(self, name, addr=None, port=None):
         self.name = name
         # This is a workaround until we've resolved addresses in instances
@@ -380,8 +392,9 @@ class Instance(BrokerType):
         try:
             name, addr, port = broker_data
             return Instance(name, addr, port)
-        except ValueError:
-            raise TypeError('unexpected Broker data for Instance object ({})'.format(broker_data))
+        except ValueError as err:
+            raise TypeError('unexpected Broker data for Instance object ({})'.format(
+                broker_data)) from err
 
     def to_broker(self):
         port = None
@@ -473,7 +486,6 @@ class Node(BrokerType):
 
 class Configuration(BrokerType):
     """Equivalent of ClusterController::Types::Configuration."""
-
     def __init__(self):
         self.id = make_uuid()
         self.instances = []
@@ -493,7 +505,6 @@ class Configuration(BrokerType):
 
 class Result(BrokerType):
     """Equivalent of ClusterController::Types::Result."""
-
     def __init__(self, reqid, instance, success=True, data=None, error=None, node=None):
         self.reqid = reqid
         self.instance = instance
@@ -544,7 +555,6 @@ def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     json_data = sorted(json_data, key=lambda inst: inst['name'])
 
     print(json_dumps(json_data))
-
     return 0
 
 
@@ -602,7 +612,7 @@ def cmd_set_config(controller, args):
         # All keys for sections other than "instances" need to have a value.
         for key, val in parser.items(section):
             if val is None:
-                Log.error('Config item %s/%s needs a value', sect, key)
+                LOG.error('Config item %s/%s needs a value', section, key)
                 return 1
 
         # The other sections are data cluster nodes. Each section name
@@ -661,7 +671,6 @@ def cmd_test_timeout(controller, args):
     error = res.error if res.error else '(none)'
 
     print_error('response is {}, error string: {}'.format(outcome, error))
-
     return 0
 
 
