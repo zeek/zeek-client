@@ -467,14 +467,14 @@ class Node(BrokerType):
         def __hash__(self):
             return hash(frozenset(self))
 
-    def __init__(self, name, instance, role, port, state=State.RUNNING,
+    def __init__(self, name, instance, role, port=None, state=State.RUNNING,
                  scripts=None, options=None, interface=None, cpu_affinity=None,
                  env=None):
         self.name = name
         self.instance = instance
-        self.port = port
         self.role = role
         self.state = state
+        self.port = port
         self.scripts = scripts
         self.options = options
         self.interface = interface
@@ -488,10 +488,14 @@ class Node(BrokerType):
         # that we create only here, so won't modify after hashing.
         hdenv = Node.HashableDict(self.env.items())
 
+        port = None
+        if self.port is not None:
+            port = broker.Port(self.port, broker.Port.TCP)
+
         return (self.name, self.instance,
-                broker.Port(self.port, broker.Port.TCP),
                 self.role.to_broker(),
                 self.state.to_broker(),
+                port,
                 self.scripts,
                 self.options,
                 self.interface,
@@ -501,6 +505,7 @@ class Node(BrokerType):
     @staticmethod
     def from_config(parser, name):
         def get(typ, *keys):
+            """Typed config key/val retrieval, with support for key name aliases."""
             for key in keys:
                 val = parser.get(name, key, fallback=None)
                 if val is not None:
@@ -519,7 +524,8 @@ class Node(BrokerType):
         # Validate the specified values
         if not instance:
             raise ValueError('node "{}" requires an instance'.format(name))
-        if port is None or port < 1 or port > 65535:
+        # The listening port is optional
+        if port is not None and (port < 1 or port > 65535):
             raise ValueError('node "{}" port "{}" is invalid'.format(name, port))
 
         try:
@@ -534,7 +540,7 @@ class Node(BrokerType):
         except (AttributeError, KeyError) as err:
             raise ValueError('node "{}" state "{}" is invalid'.format(name, state_raw)) from err
 
-        return Node(name=name, instance=instance, port=port, role=role,
+        return Node(name=name, instance=instance, role=role, port=port,
                     state=state, interface=interface, cpu_affinity=cpu_affinity)
 
 
