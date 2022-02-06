@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 """
-This is an incomplete, prototypical implementation of a Zeek cluster
-controller, as sketched in the following architecture design doc:
+This is a prototypical implementation of a Zeek management client, as sketched
+in the following architecture design doc:
 
 https://docs.google.com/document/d/1r0wXnihx4yESOpLJ87Wh2g1V-aHOFUkbgiFe8RHJpZo/edit
 
@@ -42,7 +42,7 @@ LOG.addHandler(logging.NullHandler())
 ZC_CONTROLLER_HOST = '127.0.0.1'
 ZC_CONTROLLER_PORT = '2150'
 ZC_CONTROLLER = ZC_CONTROLLER_HOST + ':' + ZC_CONTROLLER_PORT
-ZC_CONTROLLER_TOPIC = 'zeek/cluster-control/controller'
+ZC_CONTROLLER_TOPIC = 'zeek/management/controller'
 
 ZC_VERSION = '@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@'
 ZC_CONFIG_FILE = os.getenv('ZEEK_CLIENT_CONFIG_FILE') or '@ZEEK_CLIENT_CONFIG_FILE@'
@@ -207,39 +207,39 @@ class events:
     # Any Zeek object/record gets represented as a tuple here.
 
     GetInstancesRequest = EventRegistry.make_event_class(
-        'ClusterController::API::get_instances_request',
+        'Management::Controller::API::get_instances_request',
         ('reqid',), (str,))
 
     GetInstancesResponse = EventRegistry.make_event_class(
-        'ClusterController::API::get_instances_response',
+        'Management::Controller::API::get_instances_response',
         ('reqid', 'result'), (str, tuple))
 
     GetNodesRequest = EventRegistry.make_event_class(
-        'ClusterController::API::get_nodes_request',
+        'Management::Controller::API::get_nodes_request',
         ('reqid',), (str,))
 
     GetNodesResponse = EventRegistry.make_event_class(
-        'ClusterController::API::get_nodes_response',
+        'Management::Controller::API::get_nodes_response',
         ('reqid', 'results'), (str, tuple))
 
     SetConfigurationRequest = EventRegistry.make_event_class(
-        'ClusterController::API::set_configuration_request',
+        'Management::Controller::API::set_configuration_request',
         ('reqid', 'config'), (str, tuple))
 
     SetConfigurationResponse = EventRegistry.make_event_class(
-        'ClusterController::API::set_configuration_response',
+        'Management::Controller::API::set_configuration_response',
         ('reqid', 'results'), (str, tuple))
 
     TestNoopRequest = EventRegistry.make_event_class(
-        'ClusterController::API::test_noop_request',
+        'Management::Controller::API::test_noop_request',
         ('reqid',), (str,))
 
     TestTimeoutRequest = EventRegistry.make_event_class(
-        'ClusterController::API::test_timeout_request',
+        'Management::Controller::API::test_timeout_request',
         ('reqid', 'with_state'), (str, bool))
 
     TestTimeoutResponse = EventRegistry.make_event_class(
-        'ClusterController::API::test_timeout_response',
+        'Management::Controller::API::test_timeout_response',
         ('reqid', 'result'), (str, tuple))
 
 
@@ -415,19 +415,19 @@ class ClusterRole(BrokerEnumType):
         return 'Supervisor'
 
 
-class ControllerRole(BrokerEnumType):
-    """Equivalent of ClusterController::Types::Role enum in Zeek"""
+class ManagementRole(BrokerEnumType):
+    """Equivalent of Management::Role enum in Zeek"""
     NONE = 0
     AGENT = 1
     CONTROLLER = 2
 
     @classmethod
     def module_scope(cls):
-        return 'ClusterController::Types'
+        return 'Management'
 
 
 class State(BrokerEnumType):
-    """Equivalent of ClusterController::Types::State enum in Zeek"""
+    """Equivalent of Management::State enum in Zeek"""
     PENDING = 0
     RUNNING = 1
     STOPPED = 2
@@ -437,11 +437,11 @@ class State(BrokerEnumType):
 
     @classmethod
     def module_scope(cls):
-        return 'ClusterController::Types'
+        return 'Management'
 
 
 class Option(BrokerType):
-    """Equivalent of ClusterController::Types::Option."""
+    """Equivalent of Management::Option."""
     def __init__(self, name, value):
         self.name = name
         self.value = value
@@ -451,7 +451,7 @@ class Option(BrokerType):
 
 
 class Instance(BrokerType):
-    """Equivalent of ClusterController::Types::Instance."""
+    """Equivalent of Management::Instance."""
     def __init__(self, name, addr=None, port=None):
         self.name = name
         # This is a workaround until we've resolved addresses in instances
@@ -475,7 +475,7 @@ class Instance(BrokerType):
 
 
 class Node(BrokerType):
-    """Equivalent of ClusterController::Types::Node."""
+    """Equivalent of Management::Node."""
 
     class HashableDict(dict):
         """Ad-hoc dict adaptation to work around the fact that we cannot readily put a
@@ -562,7 +562,7 @@ class Node(BrokerType):
 
 
 class Configuration(BrokerType):
-    """Equivalent of ClusterController::Types::Configuration."""
+    """Equivalent of Management::Configuration."""
     def __init__(self):
         self.id = make_uuid()
         self.instances = []
@@ -581,11 +581,11 @@ class Configuration(BrokerType):
 
 
 class NodeStatus(BrokerType):
-    """Equivalent of ClusterController::Types::NodeState."""
+    """Equivalent of Management::NodeState."""
     def __init__(self, node, state, mgmt_role, cluster_role, pid=None, port=None):
         self.node = node # A string containing the name of the node
         self.state = state # A State enum value
-        self.mgmt_role = mgmt_role # A ControllerRole enum value
+        self.mgmt_role = mgmt_role # A ManagementRole enum value
         self.cluster_role = cluster_role # A ClusterRole enum value
         self.pid = pid # A numeric process ID
         self.port = port # A numeric (TCP) port
@@ -599,14 +599,14 @@ class NodeStatus(BrokerType):
         return NodeStatus(
             broker_data[0],
             State.from_broker(broker_data[1]),
-            ControllerRole.from_broker(broker_data[2]),
+            ManagementRole.from_broker(broker_data[2]),
             ClusterRole.from_broker(broker_data[3]),
             broker_data[4],
             port)
 
 
 class Result(BrokerType):
-    """Equivalent of ClusterController::Types::Result."""
+    """Equivalent of Management::Result."""
     def __init__(self, reqid, instance, success=True, data=None, error=None, node=None):
         self.reqid = reqid
         self.instance = instance
@@ -698,7 +698,7 @@ def cmd_get_nodes(controller, args):
                 # If either of the two role enums are "NONE", we make them
                 # None. That way they stay in the reporting, but are more easily
                 # distinguished from "actual" values.
-                mgmt_role = nstat.mgmt_role if nstat.mgmt_role != ControllerRole.NONE else None
+                mgmt_role = nstat.mgmt_role if nstat.mgmt_role != ManagementRole.NONE else None
                 cluster_role = nstat.cluster_role if nstat.cluster_role != ClusterRole.NONE else None
 
                 json_data[res.instance][nstat.node] = {
