@@ -369,12 +369,9 @@ class BrokerEnumType(BrokerType, enum.Enum):
     reimplement the module_scope() class method.
     """
     def to_broker(self):
-        # XXX figuring out the need to use broker.Data.from_py() and
-        # as_enum_value() when presenting an enum to Broker is pretty
-        # tricky. Would be great if we could simplify this.
         scope = self.module_scope()
         scope = scope + '::' if scope else ''
-        return broker.Data.from_py(scope + self.name).as_enum_value()
+        return broker.Enum(scope + self.name)
 
     def to_json_data(self):
         # A similar concern as above applies here, but the exact enum type will
