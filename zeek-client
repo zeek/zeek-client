@@ -916,6 +916,8 @@ def configure_logger(args):
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
 
+    LOG.setLevel(logging.ERROR)
+
     if args.verbose == 1:
         LOG.setLevel(logging.WARNING)
     elif args.verbose == 2:
