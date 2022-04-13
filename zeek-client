@@ -866,9 +866,8 @@ def cmd_set_config(controller, args):
                 LOG.error('Config item %s/%s needs a value', section, key)
                 return 1
 
-        # The other sections are data cluster nodes. Each section name
-        # corresponds to a node name, with the keys being one of "type",
-        # "instance",
+        # The other sections are cluster nodes. Each section name corresponds to
+        # a node name, with the keys being one of "type", "instance",
         if section in [node.name for node in config.nodes]:
             LOG.warning('node "%s" defined more than once, skipping repeats"', section)
             continue
