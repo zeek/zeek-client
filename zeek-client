@@ -738,7 +738,7 @@ def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     # instances easier to comprehend than raw Broker data: turn it into Instance
     # objects, then render these JSON-friendly.
     try:
-        json_data = [Instance.from_broker(inst) for inst in res.data]
+        json_data = sorted([Instance.from_broker(inst) for inst in res.data])
         json_data = [inst.to_json_data() for inst in json_data]
     except TypeError as err:
         LOG.error('Instance data invalid: %s', err)
@@ -764,8 +764,9 @@ def cmd_get_nodes(controller, args):
 
     json_data = {}
 
-    for broker_data in resp.results:
-        res = Result.from_broker(broker_data)
+    results = [Result.from_broker(broker_data) for broker_data in resp.results]
+
+    for res in sorted(results):
         if not res.success:
             msg = ': ' + res.error if res.error else ''
             if res.instance:
