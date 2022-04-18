@@ -203,8 +203,20 @@ class EventRegistry:
 
 
 class events:
-    """A scope to define event types we understand. Could become a module."""
-    # Any Zeek object/record gets represented as a tuple here.
+    """A scope to define event types we send/receive."""
+
+    # This could become a module if/when we break apart this script.
+
+    # Any Zeek object/record that's an event argument gets represented as a
+    # tuple here, reflecting Broker's representation thereof.
+
+    GetIdValueRequest = EventRegistry.make_event_class(
+        'Management::Controller::API::get_id_value_request',
+        ('reqid', 'id', 'nodes'), (str, str, set))
+
+    GetIdValueResponse = EventRegistry.make_event_class(
+        'Management::Controller::API::get_id_value_response',
+        ('reqid', 'results'), (str, tuple))
 
     GetInstancesRequest = EventRegistry.make_event_class(
         'Management::Controller::API::get_instances_request',
@@ -302,8 +314,10 @@ class Controller:
                 is a 10-second timeout.
 
         Returns:
-            Instance of one of the Event classes defined for the client,
-            or None if timeout_secs passed before anything arrived.
+            A tuple of (1) an instance of one of the Event classes defined for
+            the client, or None if timeout_secs passed before anything arrived,
+            and (2) a string indicating any occurring errors. The string is
+            empty when no error occurs.
         """
         timeout_msecs = timeout_secs or ZC_CONFIG.getint('client', 'request_timeout_secs')
         if timeout_msecs is not None:
@@ -420,6 +434,7 @@ class ManagementRole(BrokerEnumType):
     NONE = 0
     AGENT = 1
     CONTROLLER = 2
+    NODE = 3
 
     @classmethod
     def module_scope(cls):
@@ -642,6 +657,59 @@ class Result(BrokerType):
         return Result(*broker_data)
 
 # Command handlers
+
+def cmd_get_id_value(controller, args):
+    controller.publish(events.GetIdValueRequest(make_uuid(), args.id, set(args.nodes)))
+    resp, msg = controller.receive()
+
+    if resp is None:
+        LOG.error('No response received: %s', msg)
+        return 1
+
+    if not isinstance(resp, events.GetIdValueResponse):
+        LOG.error('Received unexpected event: %s', resp)
+        return 1
+
+    json_data = {
+        'results': {},
+        'errors': [],
+    }
+
+    # The Result records have both instance and node filled in, so use both for
+    # ordering. While for the JSON serialization we can outsource the ordering
+    # task to Python, for our error reporting it's up to us, and we want be
+    # reproducible.
+
+    results = [Result.from_broker(broker_data) for broker_data in resp.results]
+
+    for res in sorted(results):
+        if not res.success:
+            json_data['errors'].append({
+                'source': res.node,
+                'error': res.error,
+            })
+            continue
+
+        # Upon success, we should always have res.node filled in. But guard anyway.
+        if res.node:
+            # res.data is a string containing JSON rendered by Zeek's to_json()
+            # BiF. Parse it into a data structure to render seamlessly.
+            try:
+                json_data['results'][res.node] = json.loads(res.data)
+            except json.JSONDecodeError as err:
+                json_data['errors'].append({
+                    'source': res.node,
+                    'error': 'JSON decode error: {}'.format(err),
+                })
+            continue
+
+        json_data['errors'].append({
+            'error': 'result lacking node: {}'.format(res.data),
+        })
+
+    print(json_dumps(json_data))
+    return 0 if len(json_data['errors']) == 0 else 1
+
 
 def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     controller.publish(events.GetInstancesRequest(make_uuid()))
@@ -901,6 +969,15 @@ def create_parser():
     command_parser = parser.add_subparsers(
         title='commands', dest='command',
         help='See `%(prog)s <command> -h` for per-command usage info.')
+
+    sub_parser = command_parser.add_parser(
+        'get-id-value', help='Show the value of a given identifier in Zeek cluster nodes.')
+    sub_parser.set_defaults(run_cmd=cmd_get_id_value)
+    sub_parser.add_argument('id', metavar='IDENTIFIER',
+                            help='Name of the Zeek script identifier to retrieve.')
+    sub_parser.add_argument('nodes', metavar='NODES', nargs='*', default=[],
+                            help='Name(s) of select Zeek cluster nodes to query.'
+                            ' When omitted, queries all nodes.')
 
     sub_parser = command_parser.add_parser(
         'get-instances', help='Show instances connected to the controller.')
