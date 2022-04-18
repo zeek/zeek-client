@@ -762,52 +762,56 @@ def cmd_get_nodes(controller, args):
         LOG.error('Received unexpected event: %s', resp)
         return 1
 
-    json_data = {}
+    json_data = {
+        'results': {},
+        'errors': [],
+    }
 
     results = [Result.from_broker(broker_data) for broker_data in resp.results]
 
     for res in sorted(results):
         if not res.success:
-            msg = ': ' + res.error if res.error else ''
-            if res.instance:
-                print_error('instance {} failure{}'.format(res.instance, msg))
-            else:
-                print_error('failure{}'.format(msg))
-            return 1
+            json_data['errors'].append({
+                'source': res.instance,
+                'error': res.error,
+            })
+            continue
 
         if res.data is None:
-            LOG.error('Received result did not contain NodeStatus vector data: %s', resp)
-            return 1
+            json_data['errors'].append({
+                'source': res.instance,
+                'error': 'result does not contain node status data',
+            })
+            continue
 
-        json_data[res.instance] = {}
+        json_data['results'][res.instance] = {}
 
         # res.data is a NodeStatusVec
         try:
-            for nstat_data in res.data:
-                nstat = NodeStatus.from_broker(nstat_data)
-
+            nstats = [NodeStatus.from_broker(nstat_data) for nstat_data in res.data]
+            for nstat in sorted(nstats):
                 # If either of the two role enums are "NONE", we make them
                 # None. That way they stay in the reporting, but are more easily
                 # distinguished from "actual" values.
                 mgmt_role = nstat.mgmt_role if nstat.mgmt_role != ManagementRole.NONE else None
                 cluster_role = nstat.cluster_role if nstat.cluster_role != ClusterRole.NONE else None
 
-                json_data[res.instance][nstat.node] = {
+                json_data['results'][res.instance][nstat.node] = {
                     'state': nstat.state,
                     'mgmt_role': mgmt_role,
                     'cluster_role': cluster_role,
                 }
 
                 if nstat.pid is not None:
-                    json_data[res.instance][nstat.node]['pid'] = nstat.pid
+                    json_data['results'][res.instance][nstat.node]['pid'] = nstat.pid
                 if nstat.port is not None:
-                    json_data[res.instance][nstat.node]['port'] = nstat.port
+                    json_data['results'][res.instance][nstat.node]['port'] = nstat.port
         except TypeError as err:
             LOG.error('NodeStatus data invalid: %s', err)
             LOG.debug(traceback.format_exc())
 
     print(json_dumps(json_data))
-    return 0
+    return 0 if len(json_data['errors']) == 0 else 1
 
 
 def cmd_monitor(controller, args): # pylint: disable=unused-argument
