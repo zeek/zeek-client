@@ -203,8 +203,20 @@ class EventRegistry:
 
 
 class events:
-    """A scope to define event types we understand. Could become a module."""
-    # Any Zeek object/record gets represented as a tuple here.
+    """A scope to define event types we send/receive."""
+
+    # This could become a module if/when we break apart this script.
+
+    # Any Zeek object/record that's an event argument gets represented as a
+    # tuple here, reflecting Broker's representation thereof.
+
+    GetIdValueRequest = EventRegistry.make_event_class(
+        'Management::Controller::API::get_id_value_request',
+        ('reqid', 'id', 'nodes'), (str, str, set))
+
+    GetIdValueResponse = EventRegistry.make_event_class(
+        'Management::Controller::API::get_id_value_response',
+        ('reqid', 'results'), (str, tuple))
 
     GetInstancesRequest = EventRegistry.make_event_class(
         'Management::Controller::API::get_instances_request',
@@ -302,8 +314,10 @@ class Controller:
                 is a 10-second timeout.
 
         Returns:
-            Instance of one of the Event classes defined for the client,
-            or None if timeout_secs passed before anything arrived.
+            A tuple of (1) an instance of one of the Event classes defined for
+            the client, or None if timeout_secs passed before anything arrived,
+            and (2) a string indicating any occurring errors. The string is
+            empty when no error occurs.
         """
         timeout_msecs = timeout_secs or ZC_CONFIG.getint('client', 'request_timeout_secs')
         if timeout_msecs is not None:
@@ -420,6 +434,7 @@ class ManagementRole(BrokerEnumType):
     NONE = 0
     AGENT = 1
     CONTROLLER = 2
+    NODE = 3
 
     @classmethod
     def module_scope(cls):
@@ -457,6 +472,9 @@ class Instance(BrokerType):
         # This is a workaround until we've resolved addresses in instances
         self.addr = addr or '0.0.0.0' # string or ipaddress type ... TBD
         self.port = port
+
+    def __lt__(self, other):
+        return self.name < other.name
 
     @classmethod
     def from_broker(cls, broker_data):
@@ -590,6 +608,9 @@ class NodeStatus(BrokerType):
         self.pid = pid # A numeric process ID
         self.port = port # A numeric (TCP) port
 
+    def __lt__(self, other):
+        return self.node < other.node
+
     @classmethod
     def from_broker(cls, broker_data):
         # When a listening port is available, convert Broker's native port type
@@ -615,11 +636,80 @@ class Result(BrokerType):
         self.error = error
         self.node = node
 
+    def __lt__(self, other):
+        """Support sorting. Sort first by instance name the result comes from, second by
+        the node name if present.
+        """
+        if self.instance < other.instance:
+            return True
+        if self.instance > other.instance:
+            return False
+
+        # Be more specific if we have a node name -- we can use it to sort when
+        # two results come from the same instance.
+        if self.node is not None and other.node is not None:
+            return self.node < other.node
+
+        return False
+
     @classmethod
     def from_broker(cls, broker_data):
         return Result(*broker_data)
 
 # Command handlers
+
+def cmd_get_id_value(controller, args):
+    controller.publish(events.GetIdValueRequest(make_uuid(), args.id, set(args.nodes)))
+    resp, msg = controller.receive()
+
+    if resp is None:
+        LOG.error('No response received: %s', msg)
+        return 1
+
+    if not isinstance(resp, events.GetIdValueResponse):
+        LOG.error('Received unexpected event: %s', resp)
+        return 1
+
+    json_data = {
+        'results': {},
+        'errors': [],
+    }
+
+    # The Result records have both instance and node filled in, so use both for
+    # ordering. While for the JSON serialization we can outsource the ordering
+    # task to Python, for our error reporting it's up to us, and we want be
+    # reproducible.
+
+    results = [Result.from_broker(broker_data) for broker_data in resp.results]
+
+    for res in sorted(results):
+        if not res.success:
+            json_data['errors'].append({
+                'source': res.node,
+                'error': res.error,
+            })
+            continue
+
+        # Upon success, we should always have res.node filled in. But guard anyway.
+        if res.node:
+            # res.data is a string containing JSON rendered by Zeek's to_json()
+            # BiF. Parse it into a data structure to render seamlessly.
+            try:
+                json_data['results'][res.node] = json.loads(res.data)
+            except json.JSONDecodeError as err:
+                json_data['errors'].append({
+                    'source': res.node,
+                    'error': 'JSON decode error: {}'.format(err),
+                })
+            continue
+
+        json_data['errors'].append({
+            'error': 'result lacking node: {}'.format(res.data),
+        })
+
+    print(json_dumps(json_data))
+    return 0 if len(json_data['errors']) == 0 else 1
+
 
 def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     controller.publish(events.GetInstancesRequest(make_uuid()))
@@ -644,17 +734,17 @@ def cmd_get_instances(controller, args): # pylint: disable=unused-argument
         LOG.error('Received result did not contain instance data: %s', resp)
         return 1
 
+    json_data = {}
+
     # res.data is a (possibly empty) vector of Instances. Make the list of
     # instances easier to comprehend than raw Broker data: turn it into Instance
     # objects, then render these JSON-friendly.
     try:
-        json_data = [Instance.from_broker(inst) for inst in res.data]
-        json_data = [inst.to_json_data() for inst in json_data]
+        for inst in sorted([Instance.from_broker(inst) for inst in res.data]):
+            json_data[inst.name] = inst.to_json_data()
+            json_data[inst.name].pop('name')
     except TypeError as err:
         LOG.error('Instance data invalid: %s', err)
-
-    # Sort the list alphabetically by instance name
-    json_data = sorted(json_data, key=lambda inst: inst['name'])
 
     print(json_dumps(json_data))
     return 0
@@ -672,51 +762,56 @@ def cmd_get_nodes(controller, args):
         LOG.error('Received unexpected event: %s', resp)
         return 1
 
-    json_data = {}
+    json_data = {
+        'results': {},
+        'errors': [],
+    }
 
-    for broker_data in resp.results:
-        res = Result.from_broker(broker_data)
+    results = [Result.from_broker(broker_data) for broker_data in resp.results]
+
+    for res in sorted(results):
         if not res.success:
-            msg = ': ' + res.error if res.error else ''
-            if res.instance:
-                print_error('instance {} failure{}'.format(res.instance, msg))
-            else:
-                print_error('failure{}'.format(msg))
-            return 1
+            json_data['errors'].append({
+                'source': res.instance,
+                'error': res.error,
+            })
+            continue
 
         if res.data is None:
-            LOG.error('Received result did not contain NodeStatus vector data: %s', resp)
-            return 1
+            json_data['errors'].append({
+                'source': res.instance,
+                'error': 'result does not contain node status data',
+            })
+            continue
 
-        json_data[res.instance] = {}
+        json_data['results'][res.instance] = {}
 
         # res.data is a NodeStatusVec
         try:
-            for nstat_data in res.data:
-                nstat = NodeStatus.from_broker(nstat_data)
-
+            nstats = [NodeStatus.from_broker(nstat_data) for nstat_data in res.data]
+            for nstat in sorted(nstats):
                 # If either of the two role enums are "NONE", we make them
                 # None. That way they stay in the reporting, but are more easily
                 # distinguished from "actual" values.
                 mgmt_role = nstat.mgmt_role if nstat.mgmt_role != ManagementRole.NONE else None
                 cluster_role = nstat.cluster_role if nstat.cluster_role != ClusterRole.NONE else None
 
-                json_data[res.instance][nstat.node] = {
+                json_data['results'][res.instance][nstat.node] = {
                     'state': nstat.state,
                     'mgmt_role': mgmt_role,
                     'cluster_role': cluster_role,
                 }
 
                 if nstat.pid is not None:
-                    json_data[res.instance][nstat.node]['pid'] = nstat.pid
+                    json_data['results'][res.instance][nstat.node]['pid'] = nstat.pid
                 if nstat.port is not None:
-                    json_data[res.instance][nstat.node]['port'] = nstat.port
+                    json_data['results'][res.instance][nstat.node]['port'] = nstat.port
         except TypeError as err:
             LOG.error('NodeStatus data invalid: %s', err)
             LOG.debug(traceback.format_exc())
 
     print(json_dumps(json_data))
-    return 0
+    return 0 if len(json_data['errors']) == 0 else 1
 
 
 def cmd_monitor(controller, args): # pylint: disable=unused-argument
@@ -776,9 +871,8 @@ def cmd_set_config(controller, args):
                 LOG.error('Config item %s/%s needs a value', section, key)
                 return 1
 
-        # The other sections are data cluster nodes. Each section name
-        # corresponds to a node name, with the keys being one of "type",
-        # "instance",
+        # The other sections are cluster nodes. Each section name corresponds to
+        # a node name, with the keys being one of "type", "instance",
         if section in [node.name for node in config.nodes]:
             LOG.warning('node "%s" defined more than once, skipping repeats"', section)
             continue
@@ -881,6 +975,15 @@ def create_parser():
         help='See `%(prog)s <command> -h` for per-command usage info.')
 
     sub_parser = command_parser.add_parser(
+        'get-id-value', help='Show the value of a given identifier in Zeek cluster nodes.')
+    sub_parser.set_defaults(run_cmd=cmd_get_id_value)
+    sub_parser.add_argument('id', metavar='IDENTIFIER',
+                            help='Name of the Zeek script identifier to retrieve.')
+    sub_parser.add_argument('nodes', metavar='NODES', nargs='*', default=[],
+                            help='Name(s) of select Zeek cluster nodes to query.'
+                            ' When omitted, queries all nodes.')
+
+    sub_parser = command_parser.add_parser(
         'get-instances', help='Show instances connected to the controller.')
     sub_parser.set_defaults(run_cmd=cmd_get_instances)
 
@@ -915,6 +1018,8 @@ def configure_logger(args):
         '%(asctime)s %(levelname)-8s %(message)s', '%Y-%m-%d %H:%M:%S')
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
+
+    LOG.setLevel(logging.ERROR)
 
     if args.verbose == 1:
         LOG.setLevel(logging.WARNING)
