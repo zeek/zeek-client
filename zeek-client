@@ -734,17 +734,17 @@ def cmd_get_instances(controller, args): # pylint: disable=unused-argument
         LOG.error('Received result did not contain instance data: %s', resp)
         return 1
 
+    json_data = {}
+
     # res.data is a (possibly empty) vector of Instances. Make the list of
     # instances easier to comprehend than raw Broker data: turn it into Instance
     # objects, then render these JSON-friendly.
     try:
-        json_data = sorted([Instance.from_broker(inst) for inst in res.data])
-        json_data = [inst.to_json_data() for inst in json_data]
+        for inst in sorted([Instance.from_broker(inst) for inst in res.data]):
+            json_data[inst.name] = inst.to_json_data()
+            json_data[inst.name].pop('name')
     except TypeError as err:
         LOG.error('Instance data invalid: %s', err)
-
-    # Sort the list alphabetically by instance name
-    json_data = sorted(json_data, key=lambda inst: inst['name'])
 
     print(json_dumps(json_data))
     return 0
