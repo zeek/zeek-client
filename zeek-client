@@ -458,6 +458,9 @@ class Instance(BrokerType):
         self.addr = addr or '0.0.0.0' # string or ipaddress type ... TBD
         self.port = port
 
+    def __lt__(self, other):
+        return self.name < other.name
+
     @classmethod
     def from_broker(cls, broker_data):
         try:
@@ -590,6 +593,9 @@ class NodeStatus(BrokerType):
         self.pid = pid # A numeric process ID
         self.port = port # A numeric (TCP) port
 
+    def __lt__(self, other):
+        return self.node < other.node
+
     @classmethod
     def from_broker(cls, broker_data):
         # When a listening port is available, convert Broker's native port type
@@ -614,6 +620,22 @@ class Result(BrokerType):
         self.data = data
         self.error = error
         self.node = node
+
+    def __lt__(self, other):
+        """Support sorting. Sort first by instance name the result comes from, second by
+        the node name if present.
+        """
+        if self.instance < other.instance:
+            return True
+        if self.instance > other.instance:
+            return False
+
+        # Be more specific if we have a node name -- we can use it to sort when
+        # two results come from the same instance.
+        if self.node is not None and other.node is not None:
+            return self.node < other.node
+
+        return False
 
     @classmethod
     def from_broker(cls, broker_data):
