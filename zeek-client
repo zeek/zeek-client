@@ -512,7 +512,7 @@ class Node(BrokerType):
         def __hash__(self):
             return hash(frozenset(self))
 
-    def __init__(self, name, instance, role, port=None, state=State.RUNNING,
+    def __init__(self, name, instance, role, state=State.RUNNING, port=None,
                  scripts=None, options=None, interface=None, cpu_affinity=None,
                  env=None):
         self.name = name
@@ -585,8 +585,8 @@ class Node(BrokerType):
         except (AttributeError, KeyError) as err:
             raise ValueError('node "{}" state "{}" is invalid'.format(name, state_raw)) from err
 
-        return Node(name=name, instance=instance, role=role, port=port,
-                    state=state, interface=interface, cpu_affinity=cpu_affinity)
+        return Node(name=name, instance=instance, role=role, state=state,
+                    port=port, interface=interface, cpu_affinity=cpu_affinity)
 
 
 class Configuration(BrokerType):
