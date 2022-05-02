@@ -110,7 +110,7 @@ class ClientConfig(configparser.ConfigParser):
         self.read(config_file)
 
 
-class Event(broker.zeek.Event):
+class Event(broker.zeek.SafeEvent):
     """A specialization of Broker's Event class to make it printable, make arguments
     and their types explicit, and allow us to register instances as known event
     types."""
@@ -202,7 +202,7 @@ class EventRegistry:
         create a new Zeek event instance. Returns None if the event wasn't
         understood.
         """
-        evt = broker.zeek.Event(args)
+        evt = broker.zeek.SafeEvent(args)
         args = evt.args()
 
         if evt.name() not in EventRegistry.EVENT_TYPES:
@@ -274,7 +274,7 @@ class Controller:
         self.controller_port = controller_port
         self.controller_topic = controller_topic
         self.ep = broker.Endpoint()
-        self.sub = self.ep.make_subscriber(controller_topic)
+        self.sub = self.ep.make_safe_subscriber(controller_topic)
         self.ssub = self.ep.make_status_subscriber(True)
 
         self.poll = select.poll()
