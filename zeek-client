@@ -775,7 +775,7 @@ def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     return 0
 
 
-def cmd_get_nodes(controller, args):
+def cmd_get_nodes(controller, _args):
     controller.publish(events.GetNodesRequest(make_uuid()))
     resp, msg = controller.receive()
 
