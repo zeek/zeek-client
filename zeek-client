@@ -361,6 +361,41 @@ class Controller:
                     return None, 'status change: {}'.format(status)
 
 
+class ConfigParserMixin():
+    """A mixin that adds a method to create and represent the object via
+    ConfigParser instances.
+    """
+    @classmethod
+    def from_config_parser(cls, cfp, section=None): # pylint: disable=unused-argument
+        """Instantiates an object of this class based on the given
+        ConfigParser, and optional section name in it, as applicable.
+
+        Raises ValueError if the provided configuration is invalid for the class
+        to instantiate.
+        """
+        return None
+
+    def to_config_parser(self, cfp=None): # pylint: disable=unused-argument
+        """Returns this object in a ConfigParser instance. When the optional cfp
+        argument is not None, the caller requests the implementation to add to
+        the given parser, not create a new one.
+        """
+        return None
+
+    @staticmethod
+    def _get(cfp, typ, section, *keys):
+        """Typed config key/val retrieval, with support for key name aliases."""
+        for key in keys:
+            val = cfp.get(section, key, fallback=None)
+            if val is not None:
+                try:
+                    return typ(val)
+                except ValueError as err:
+                    raise ValueError('cannot convert item "{}" in section "{}" to type {}'
+                                     .format(key, section, typ)) from err
+        return None
+
+
 class BrokerType:
     """Base class for types we can instantiate from or render to the
     Python-level Broker data model.
