@@ -34,6 +34,7 @@ import json
 import logging
 import os.path
 import select
+import shlex
 import sys
 import time
 import traceback
@@ -549,7 +550,7 @@ class Instance(BrokerType):
         return (self.name, ipaddress.ip_address(self.addr), port)
 
 
-class Node(BrokerType):
+class Node(BrokerType, ConfigParserMixin):
     """Equivalent of Management::Node."""
 
     class HashableDict(dict):
@@ -597,49 +598,132 @@ class Node(BrokerType):
                 self.cpu_affinity,
                 hdenv)
 
-    @staticmethod
-    def from_config(parser, name):
+    @classmethod
+    def from_config_parser(cls, cfp, section=None):
         def get(typ, *keys):
-            """Typed config key/val retrieval, with support for key name aliases."""
-            for key in keys:
-                val = parser.get(name, key, fallback=None)
-                if val is not None:
-                    try:
-                        return typ(val)
-                    except ValueError as err:
-                        raise ValueError('cannot convert item "{}" in node "{}" to type {}'
-                                         .format(key, name, typ)) from err
-            return None
+            return cls._get(cfp, typ, section, *keys)
 
+        name = section
         instance = get(str, 'instance')
+        role = get(str, 'role', 'type')
+        state = get(str, 'state') or 'RUNNING'
+
         port = get(int, 'port')
+        scripts = None
+        # The Node record type on the Zeek side has an Options set
+        # that we don't use (yet).
         interface = get(str, 'interface')
         cpu_affinity = get(int, 'cpu_affinity')
+        env = None
 
         # Validate the specified values
         if not instance:
             raise ValueError('node "{}" requires an instance'.format(name))
-        # The listening port is optional
+
+        if not role:
+            raise ValueError('node "{}" requires a role'.format(name))
+
+        try:
+            role = ClusterRole.lookup(role)
+        except (AttributeError, KeyError) as err:
+            raise ValueError('node "{}" role "{}" is invalid'.format(name, role)) from err
+
+        try:
+            state = State.lookup(state)
+        except (AttributeError, KeyError) as err:
+            raise ValueError('node "{}" state "{}" is invalid'.format(name, state)) from err
+
+        # Optional values follow:
+
         if port is not None and (port < 1 or port > 65535):
             raise ValueError('node "{}" port "{}" is invalid'.format(name, port))
 
         try:
-            role_raw = get(str, 'role', 'type')
-            role = ClusterRole[role_raw.upper()]
+            # We support multiple scripts as a simple space-separated sequence
+            # of filenames, with possible quotation marks for strings with
+            # spaces. The shlex module provides a convenient way to parse these.
+            val = get(str, 'scripts')
+            if val:
+                scripts = sorted(shlex.split(val))
         except (AttributeError, KeyError) as err:
-            raise ValueError('node "{}" role "{}" is invalid'.format(name, role_raw)) from err
+            raise ValueError('node "{}" scripts value "{}" is invalid'.format(
+                name, val)) from err
 
         try:
-            state_raw = get(str, 'state') or 'RUNNING'
-            state = State[state_raw.upper()]
-        except (AttributeError, KeyError) as err:
-            raise ValueError('node "{}" state "{}" is invalid'.format(name, state_raw)) from err
+            # An environment variable dictionary is represented as a single
+            # config value: a space-separated sequence of <var>=<val> strings,
+            # possibly with quotation marks around the val. shlex helps here
+            # too: shlex.split('foo=bar=baz blum="foo bar baz"') yields
+            # ['foo=bar=baz', 'blum=foo bar baz']
+            val = get(str, 'env')
+            if val:
+                env = {}
+                for item in shlex.split(val):
+                    key, kval = item.split('=', 1)
+                    env[key] = kval
+        except (AttributeError, KeyError, ValueError) as err:
+            raise ValueError('node "{}" env value "{}" is invalid'.format(
+                name, val)) from err
 
         return Node(name=name, instance=instance, role=role, state=state,
-                    port=port, interface=interface, cpu_affinity=cpu_affinity)
+                    port=port, scripts=scripts, interface=interface,
+                    cpu_affinity=cpu_affinity, env=env)
+
+    def to_config_parser(self, cfp=None):
+        if cfp is None:
+            cfp = configparser.ConfigParser(allow_no_value=True)
+
+        if self.name in cfp.sections():
+            cfp.remove_section(self.name)
+
+        cfp.add_section(self.name)
+
+        cfp.set(self.name, 'instance', self.instance)
+        cfp.set(self.name, 'role', self.role.name)
+
+        if self.state is not None:
+            cfp.set(self.name, 'state', self.state.name)
+
+        if self.port is not None:
+            cfp.set(self.name, 'port', str(self.port))
+
+        if self.scripts:
+            # See if any of the script paths contain spaces, and use quotation
+            # marks if so. This does not escape quotation marks or deal with
+            # other "difficult" characters.
+            scripts = []
+
+            for script in sorted(self.scripts):
+                if len(script.split()) > 1:
+                    script = '"' + script + '"'
+                scripts.append(script)
+
+            cfp.set(self.name, 'scripts', ' '.join(scripts))
+
+        if self.interface is not None:
+            cfp.set(self.name, 'interface', self.interface)
+
+        if self.cpu_affinity is not None:
+            cfp.set(self.name, 'cpu_affinity', str(self.cpu_affinity))
+
+        if self.env:
+            # If the value has whitespace, use key="val". As with scripts above,
+            # this does not deal with more complicated escaping/characters.
+            env = []
+
+            for key in sorted(self.env.keys()):
+                val = self.env[key]
+                if len(val).split() > 1:
+                    val = '"' + val + '"'
+
+                env.append('{}={}'.format(key, val))
+
+            cfp.set(self.name, 'env', ' '.join(env))
+
+        return cfp
 
 
-class Configuration(BrokerType):
+class Configuration(BrokerType, ConfigParserMixin):
     """Equivalent of Management::Configuration."""
     def __init__(self):
         self.id = make_uuid()
@@ -656,6 +740,64 @@ class Configuration(BrokerType):
         nodes = {node.to_broker() for node in self.nodes}
 
         return (self.id, instances, nodes)
+
+    @classmethod
+    def from_config_parser(cls, cfp, _section=None):
+        config = Configuration()
+
+        for section in cfp.sections():
+            if section == 'instances':
+                # The [instances] section is special: each key in it is the name of
+                # an instance, each val is the host:port pair where its agent is
+                # listening. The val may be absent when it's an instance that
+                # connects to the controller.
+                for key, val in cfp.items('instances'):
+                    if not val:
+                        config.instances.append(Instance(key))
+                    else:
+                        hostport = val
+                        parts = hostport.split(':', 1)
+                        if len(parts) != 2:
+                            LOG.warning('invalid instance "%s" spec "%s", skipping', key, val)
+                            continue
+                        config.instances.append(Instance(key, parts[0].strip(), parts[1].strip()))
+                continue
+
+            # All keys for sections other than "instances" need to have a value.
+            for key, val in cfp.items(section):
+                if val is None:
+                    LOG.error('Config item %s/%s needs a value', section, key)
+                    return None
+
+            # The other sections are cluster nodes. Each section name corresponds to
+            # a node name, with the keys being one of "type", "instance", etc.
+            if section in [node.name for node in config.nodes]:
+                LOG.warning('node "%s" defined more than once, skipping repeats"', section)
+                continue
+
+            try:
+                config.nodes.append(Node.from_config_parser(cfp, section))
+            except ValueError as err:
+                LOG.warning('invalid node "%s" spec, skipping: "%s"', section, err)
+
+        return config
+
+    def to_config_parser(self, cfp=None):
+        if cfp is None:
+            cfp = configparser.ConfigParser(allow_no_value=True)
+
+        if 'instances' in cfp.sections():
+            cfp.remove_section('instances')
+
+        if self.instances:
+            cfp.add_section('instances')
+            for inst in sorted(self.instances):
+                cfp.set('instances', inst.name, '{}:{}'.format(inst.addr, inst.port))
+
+        for node in sorted(self.nodes):
+            node.to_config_parser(cfp)
+
+        return cfp
 
 
 class NodeStatus(BrokerType):
