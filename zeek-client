@@ -545,7 +545,7 @@ class Instance(BrokerType):
         self.name = name
         # This is a workaround until we've resolved addresses in instances
         self.addr = addr or '0.0.0.0' # string or ipaddress type ... TBD
-        self.port = port
+        self.port = port # None or integer value; we always mean TCP
 
     def __lt__(self, other):
         return self.name < other.name
@@ -554,7 +554,7 @@ class Instance(BrokerType):
     def from_broker(cls, broker_data):
         try:
             name, addr, port = broker_data
-            return Instance(name, addr, port)
+            return Instance(name, addr, None if port is None else port.number())
         except ValueError as err:
             raise TypeError('unexpected Broker data for Instance object ({})'.format(
                 broker_data)) from err
@@ -639,12 +639,16 @@ class Node(BrokerType, ConfigParserMixin):
             if broker_data[6] is not None:
                 options = [Option.from_broker(opt_data) for opt_data in broker_data[6]]
 
+            port = None
+            if broker_data[4] is not None:
+                port = broker_data[4].number()
+
             return Node(
                 broker_data[0], # name
                 broker_data[1], # instance
                 ClusterRole.from_broker(broker_data[2]),
                 State.from_broker(broker_data[3]),
-                broker_data[4], # port
+                port,
                 broker_data[5], # scripts
                 options,
                 broker_data[7], # interface
