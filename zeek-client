@@ -1042,47 +1042,14 @@ def cmd_set_config(controller, args):
     #
     # All other keys must have a value.
     config = Configuration()
-    parser = configparser.ConfigParser(allow_no_value=True)
+    cfp = configparser.ConfigParser(allow_no_value=True)
 
     if args.config == '-':
-        parser.read_file(sys.stdin)
+        cfp.read_file(sys.stdin)
     else:
-        parser.read(args.config)
+        cfp.read(args.config)
 
-    for section in parser.sections():
-        if section == 'instances':
-            # The [instances] section is special: each key in it is the name of
-            # an instance, each val is the host:port pair where its agent is
-            # listening. The val may be absent when it's an instance that
-            # connects to the controller.
-            for key, val in parser.items('instances'):
-                if not val:
-                    config.instances.append(Instance(key))
-                else:
-                    hostport = val
-                    parts = hostport.split(':', 1)
-                    if len(parts) != 2:
-                        LOG.warning('invalid instance "%s" spec "%s", skipping', key, val)
-                        continue
-                    config.instances.append(Instance(key, parts[0].strip(), parts[1].strip()))
-            continue
-
-        # All keys for sections other than "instances" need to have a value.
-        for key, val in parser.items(section):
-            if val is None:
-                LOG.error('Config item %s/%s needs a value', section, key)
-                return 1
-
-        # The other sections are cluster nodes. Each section name corresponds to
-        # a node name, with the keys being one of "type", "instance",
-        if section in [node.name for node in config.nodes]:
-            LOG.warning('node "%s" defined more than once, skipping repeats"', section)
-            continue
-
-        try:
-            config.nodes.append(Node.from_config(parser, section))
-        except ValueError as err:
-            LOG.warning('invalid node "%s" spec, skipping: "%s"', section, err)
+    config = Configuration.from_config_parser(cfp)
 
     # XXX todo: validate basic properties of the configuration
 
