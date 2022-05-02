@@ -403,24 +403,36 @@ class BrokerEnumType(BrokerType, enum.Enum):
         # suffice.
         return self.name
 
-    def __str__(self):
+    def qualified_name(self):
         scope = self.module_scope()
         scope = scope + '::' if scope else ''
         return scope + self.name
 
     @classmethod
+    def lookup(cls, name):
+        """Robust name-based lookup of an enum value.
+
+        This removes any Zeek-land or Python-land qualifications, and
+        automatically upper-cases the looked-up name.
+
+        Raises KeyError if the requested enum value isn't defined.
+        """
+        name = name.split('::')[-1]
+        name = name.split('.')[-1]
+        return cls[name.upper()]
+
+    @classmethod
     def module_scope(cls):
         # Reimplement this in derived classes to convey the Zeek-level enum
-        # scope. For example, for a Foo.BAR enum value, this should return the
-        # string "Foo".
+        # scope. For example, for a Foo.BAR (or Foo::BAR, in Zeek) enum value,
+        # this should return the string "Foo".
         return ''
 
     @classmethod
     def from_broker(cls, broker_data):
-        # The argument is a broker.Enum with a name property like Foo::VALUE, so
-        # grab the last part and look it up in this enum type:
+        # The argument is a broker.Enum with a name property like Foo::VALUE.
         try:
-            return cls[broker_data.name.split('::')[-1]]
+            return cls.lookup(broker_data.name)
         except KeyError as err:
             raise TypeError('unexpected enum value for {}: {}'.format(
                 cls.__name__, broker_data)) from err
