@@ -526,6 +526,9 @@ class Node(BrokerType):
         self.cpu_affinity = cpu_affinity
         self.env = env or {}
 
+    def __lt__(self, other):
+        return self.name < other.name
+
     def to_broker(self):
         # Brokerization of the self.env dict poses a problem: Broker uses Python
         # sets to represent Broker sets, but Python sets cannot hash members
