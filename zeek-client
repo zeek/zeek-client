@@ -34,6 +34,7 @@ import json
 import logging
 import os.path
 import select
+import shlex
 import sys
 import time
 import traceback
@@ -109,7 +110,7 @@ class ClientConfig(configparser.ConfigParser):
         self.read(config_file)
 
 
-class Event(broker.zeek.Event):
+class Event(broker.zeek.SafeEvent):
     """A specialization of Broker's Event class to make it printable, make arguments
     and their types explicit, and allow us to register instances as known event
     types."""
@@ -201,7 +202,7 @@ class EventRegistry:
         create a new Zeek event instance. Returns None if the event wasn't
         understood.
         """
-        evt = broker.zeek.Event(args)
+        evt = broker.zeek.SafeEvent(args)
         args = evt.args()
 
         if evt.name() not in EventRegistry.EVENT_TYPES:
@@ -219,6 +220,14 @@ class events:
 
     # Any Zeek object/record that's an event argument gets represented as a
     # tuple here, reflecting Broker's representation thereof.
+
+    GetConfigurationRequest = EventRegistry.make_event_class(
+        'Management::Controller::API::get_configuration_request',
+        ('reqid',), (str,))
+
+    GetConfigurationResponse = EventRegistry.make_event_class(
+        'Management::Controller::API::get_configuration_response',
+        ('reqid', 'result'), (str, tuple))
 
     GetIdValueRequest = EventRegistry.make_event_class(
         'Management::Controller::API::get_id_value_request',
@@ -273,7 +282,7 @@ class Controller:
         self.controller_port = controller_port
         self.controller_topic = controller_topic
         self.ep = broker.Endpoint()
-        self.sub = self.ep.make_subscriber(controller_topic)
+        self.sub = self.ep.make_safe_subscriber(controller_topic)
         self.ssub = self.ep.make_status_subscriber(True)
 
         self.poll = select.poll()
@@ -361,6 +370,41 @@ class Controller:
                     return None, 'status change: {}'.format(status)
 
 
+class ConfigParserMixin():
+    """A mixin that adds a method to create and represent the object via
+    ConfigParser instances.
+    """
+    @classmethod
+    def from_config_parser(cls, cfp, section=None): # pylint: disable=unused-argument
+        """Instantiates an object of this class based on the given
+        ConfigParser, and optional section name in it, as applicable.
+
+        Raises ValueError if the provided configuration is invalid for the class
+        to instantiate.
+        """
+        return None
+
+    def to_config_parser(self, cfp=None): # pylint: disable=unused-argument
+        """Returns this object in a ConfigParser instance. When the optional cfp
+        argument is not None, the caller requests the implementation to add to
+        the given parser, not create a new one.
+        """
+        return None
+
+    @staticmethod
+    def _get(cfp, typ, section, *keys):
+        """Typed config key/val retrieval, with support for key name aliases."""
+        for key in keys:
+            val = cfp.get(section, key, fallback=None)
+            if val is not None:
+                try:
+                    return typ(val)
+                except ValueError as err:
+                    raise ValueError('cannot convert item "{}" in section "{}" to type {}'
+                                     .format(key, section, typ)) from err
+        return None
+
+
 class BrokerType:
     """Base class for types we can instantiate from or render to the
     Python-level Broker data model.
@@ -403,24 +447,36 @@ class BrokerEnumType(BrokerType, enum.Enum):
         # suffice.
         return self.name
 
-    def __str__(self):
+    def qualified_name(self):
         scope = self.module_scope()
         scope = scope + '::' if scope else ''
         return scope + self.name
 
     @classmethod
+    def lookup(cls, name):
+        """Robust name-based lookup of an enum value.
+
+        This removes any Zeek-land or Python-land qualifications, and
+        automatically upper-cases the looked-up name.
+
+        Raises KeyError if the requested enum value isn't defined.
+        """
+        name = name.split('::')[-1]
+        name = name.split('.')[-1]
+        return cls[name.upper()]
+
+    @classmethod
     def module_scope(cls):
         # Reimplement this in derived classes to convey the Zeek-level enum
-        # scope. For example, for a Foo.BAR enum value, this should return the
-        # string "Foo".
+        # scope. For example, for a Foo.BAR (or Foo::BAR, in Zeek) enum value,
+        # this should return the string "Foo".
         return ''
 
     @classmethod
     def from_broker(cls, broker_data):
-        # The argument is a broker.Enum with a name property like Foo::VALUE, so
-        # grab the last part and look it up in this enum type:
+        # The argument is a broker.Enum with a name property like Foo::VALUE.
         try:
-            return cls[broker_data.name.split('::')[-1]]
+            return cls.lookup(broker_data.name)
         except KeyError as err:
             raise TypeError('unexpected enum value for {}: {}'.format(
                 cls.__name__, broker_data)) from err
@@ -474,6 +530,14 @@ class Option(BrokerType):
     def to_broker(self):
         return (self.name, self.value)
 
+    @classmethod
+    def from_broker(cls, broker_data):
+        try:
+            return Option(*broker_data)
+        except ValueError as err:
+            raise TypeError('unexpected Broker data for Option object ({})'.format(
+                broker_data)) from err
+
 
 class Instance(BrokerType):
     """Equivalent of Management::Instance."""
@@ -481,7 +545,7 @@ class Instance(BrokerType):
         self.name = name
         # This is a workaround until we've resolved addresses in instances
         self.addr = addr or '0.0.0.0' # string or ipaddress type ... TBD
-        self.port = port
+        self.port = port # None or integer value; we always mean TCP
 
     def __lt__(self, other):
         return self.name < other.name
@@ -490,7 +554,7 @@ class Instance(BrokerType):
     def from_broker(cls, broker_data):
         try:
             name, addr, port = broker_data
-            return Instance(name, addr, port)
+            return Instance(name, addr, None if port is None else port.number())
         except ValueError as err:
             raise TypeError('unexpected Broker data for Instance object ({})'.format(
                 broker_data)) from err
@@ -502,7 +566,7 @@ class Instance(BrokerType):
         return (self.name, ipaddress.ip_address(self.addr), port)
 
 
-class Node(BrokerType):
+class Node(BrokerType, ConfigParserMixin):
     """Equivalent of Management::Node."""
 
     class HashableDict(dict):
@@ -512,7 +576,7 @@ class Node(BrokerType):
         def __hash__(self):
             return hash(frozenset(self))
 
-    def __init__(self, name, instance, role, port=None, state=State.RUNNING,
+    def __init__(self, name, instance, role, state=State.RUNNING, port=None,
                  scripts=None, options=None, interface=None, cpu_affinity=None,
                  env=None):
         self.name = name
@@ -525,6 +589,9 @@ class Node(BrokerType):
         self.interface = interface
         self.cpu_affinity = cpu_affinity
         self.env = env or {}
+
+    def __lt__(self, other):
+        return self.name < other.name
 
     def to_broker(self):
         # Brokerization of the self.env dict poses a problem: Broker uses Python
@@ -547,54 +614,196 @@ class Node(BrokerType):
                 self.cpu_affinity,
                 hdenv)
 
-    @staticmethod
-    def from_config(parser, name):
-        def get(typ, *keys):
-            """Typed config key/val retrieval, with support for key name aliases."""
-            for key in keys:
-                val = parser.get(name, key, fallback=None)
-                if val is not None:
-                    try:
-                        return typ(val)
-                    except ValueError as err:
-                        raise ValueError('cannot convert item "{}" in node "{}" to type {}'
-                                         .format(key, name, typ)) from err
-            return None
+    def to_json_data(self):
+        return {
+            'name': self.name,
+            'instance': self.instance,
+            'role': self.role.to_json_data(),
 
+            # We currently omit the state field since it has no effect on
+            # cluster node operation.
+            # 'state': self.state.to_json_data(),
+
+            'port': self.port,
+            'scripts': self.scripts,
+            'options': self.options,
+            'interface': self.interface,
+            'cpu_affinity': self.cpu_affinity,
+            'env': self.env,
+        }
+
+    @classmethod
+    def from_broker(cls, broker_data):
+        try:
+            options = None
+            if broker_data[6] is not None:
+                options = [Option.from_broker(opt_data) for opt_data in broker_data[6]]
+
+            port = None
+            if broker_data[4] is not None:
+                port = broker_data[4].number()
+
+            return Node(
+                broker_data[0], # name
+                broker_data[1], # instance
+                ClusterRole.from_broker(broker_data[2]),
+                State.from_broker(broker_data[3]),
+                port,
+                broker_data[5], # scripts
+                options,
+                broker_data[7], # interface
+                broker_data[8], # cpu_affinity
+                broker_data[9], # env
+            )
+        except ValueError as err:
+            raise TypeError('unexpected Broker data for Node object ({})'.format(
+                broker_data)) from err
+
+    @classmethod
+    def from_config_parser(cls, cfp, section=None):
+        def get(typ, *keys):
+            return cls._get(cfp, typ, section, *keys)
+
+        name = section
         instance = get(str, 'instance')
+        role = get(str, 'role', 'type')
+
+        # We currently ignore the node state, if provided. The Node class
+        # defaults to 'RUNNING'.
+        state = State.RUNNING
+        if get(str, 'state'):
+            LOG.warning('ignoring node "%s" state "%s" in configuration',
+                        name, get(str, 'state'))
+
         port = get(int, 'port')
+        scripts = None
+
+        # The Node record type on the Zeek side features a set[Options] that we
+        # don't use (yet).
+
         interface = get(str, 'interface')
         cpu_affinity = get(int, 'cpu_affinity')
+        env = None
 
         # Validate the specified values
         if not instance:
             raise ValueError('node "{}" requires an instance'.format(name))
-        # The listening port is optional
+
+        if not role:
+            raise ValueError('node "{}" requires a role'.format(name))
+
+        try:
+            role = ClusterRole.lookup(role)
+        except (AttributeError, KeyError) as err:
+            raise ValueError('node "{}" role "{}" is invalid'.format(name, role)) from err
+
+        # Optional values follow:
+
         if port is not None and (port < 1 or port > 65535):
             raise ValueError('node "{}" port "{}" is invalid'.format(name, port))
 
         try:
-            role_raw = get(str, 'role', 'type')
-            role = ClusterRole[role_raw.upper()]
+            # We support multiple scripts as a simple space-separated sequence
+            # of filenames, with possible quotation marks for strings with
+            # spaces. The shlex module provides a convenient way to parse these.
+            val = get(str, 'scripts')
+            if val:
+                scripts = sorted(shlex.split(val))
         except (AttributeError, KeyError) as err:
-            raise ValueError('node "{}" role "{}" is invalid'.format(name, role_raw)) from err
+            raise ValueError('node "{}" scripts value "{}" is invalid'.format(
+                name, val)) from err
 
         try:
-            state_raw = get(str, 'state') or 'RUNNING'
-            state = State[state_raw.upper()]
-        except (AttributeError, KeyError) as err:
-            raise ValueError('node "{}" state "{}" is invalid'.format(name, state_raw)) from err
+            # An environment variable dictionary is represented as a single
+            # config value: a space-separated sequence of <var>=<val> strings,
+            # possibly with quotation marks around the val. shlex helps here
+            # too: shlex.split('foo=bar=baz blum="foo bar baz"') yields
+            # ['foo=bar=baz', 'blum=foo bar baz']
+            val = get(str, 'env')
+            if val:
+                env = {}
+                for item in shlex.split(val):
+                    key, kval = item.split('=', 1)
+                    env[key] = kval
+        except (AttributeError, KeyError, ValueError) as err:
+            raise ValueError('node "{}" env value "{}" is invalid'.format(
+                name, val)) from err
 
-        return Node(name=name, instance=instance, role=role, port=port,
-                    state=state, interface=interface, cpu_affinity=cpu_affinity)
+        return Node(name=name, instance=instance, role=role, state=state,
+                    port=port, scripts=scripts, interface=interface,
+                    cpu_affinity=cpu_affinity, env=env)
+
+    def to_config_parser(self, cfp=None):
+        if cfp is None:
+            cfp = configparser.ConfigParser(allow_no_value=True)
+
+        if self.name in cfp.sections():
+            cfp.remove_section(self.name)
+
+        cfp.add_section(self.name)
+
+        cfp.set(self.name, 'instance', self.instance)
+        cfp.set(self.name, 'role', self.role.name)
+
+        # Skip state for the moment, it has no operational effect
+        # if self.state is not None:
+        #    cfp.set(self.name, 'state', self.state.name)
+
+        if self.port is not None:
+            cfp.set(self.name, 'port', str(self.port))
+
+        if self.scripts:
+            # See if any of the script paths contain spaces, and use quotation
+            # marks if so. This does not escape quotation marks or deal with
+            # other "difficult" characters.
+            scripts = []
+
+            for script in sorted(self.scripts):
+                if len(script.split()) > 1:
+                    script = '"' + script + '"'
+                scripts.append(script)
+
+            cfp.set(self.name, 'scripts', ' '.join(scripts))
+
+        if self.interface is not None:
+            cfp.set(self.name, 'interface', self.interface)
+
+        if self.cpu_affinity is not None:
+            cfp.set(self.name, 'cpu_affinity', str(self.cpu_affinity))
+
+        if self.env:
+            # If the value has whitespace, use key="val". As with scripts above,
+            # this does not deal with more complicated escaping/characters.
+            env = []
+
+            for key in sorted(self.env.keys()):
+                val = self.env[key]
+                if len(val).split() > 1:
+                    val = '"' + val + '"'
+
+                env.append('{}={}'.format(key, val))
+
+            cfp.set(self.name, 'env', ' '.join(env))
+
+        return cfp
 
 
-class Configuration(BrokerType):
+class Configuration(BrokerType, ConfigParserMixin):
     """Equivalent of Management::Configuration."""
     def __init__(self):
         self.id = make_uuid()
         self.instances = []
         self.nodes = []
+
+    @classmethod
+    def from_broker(cls, broker_data):
+        res = Configuration()
+        res.id = broker_data[0]
+        for inst_data in broker_data[1]:
+            res.instances.append(Instance.from_broker(inst_data))
+        for node_data in broker_data[2]:
+            res.nodes.append(Node.from_broker(node_data))
+        return res
 
     def to_broker(self):
         """Marshal the configuration to a Broker-compatible layout.
@@ -606,6 +815,71 @@ class Configuration(BrokerType):
         nodes = {node.to_broker() for node in self.nodes}
 
         return (self.id, instances, nodes)
+
+    def to_json_data(self):
+        return {
+            "id": self.id,
+            "instances": [inst.to_json_data() for inst in sorted(self.instances)],
+            "nodes": [node.to_json_data() for node in sorted(self.nodes)],
+        }
+
+    @classmethod
+    def from_config_parser(cls, cfp, _section=None):
+        config = Configuration()
+
+        for section in cfp.sections():
+            if section == 'instances':
+                # The [instances] section is special: each key in it is the name of
+                # an instance, each val is the host:port pair where its agent is
+                # listening. The val may be absent when it's an instance that
+                # connects to the controller.
+                for key, val in cfp.items('instances'):
+                    if not val:
+                        config.instances.append(Instance(key))
+                    else:
+                        hostport = val
+                        parts = hostport.split(':', 1)
+                        if len(parts) != 2:
+                            LOG.warning('invalid instance "%s" spec "%s", skipping', key, val)
+                            continue
+                        config.instances.append(Instance(key, parts[0].strip(), parts[1].strip()))
+                continue
+
+            # All keys for sections other than "instances" need to have a value.
+            for key, val in cfp.items(section):
+                if val is None:
+                    LOG.error('Config item %s/%s needs a value', section, key)
+                    return None
+
+            # The other sections are cluster nodes. Each section name corresponds to
+            # a node name, with the keys being one of "type", "instance", etc.
+            if section in [node.name for node in config.nodes]:
+                LOG.warning('node "%s" defined more than once, skipping repeats"', section)
+                continue
+
+            try:
+                config.nodes.append(Node.from_config_parser(cfp, section))
+            except ValueError as err:
+                LOG.warning('invalid node "%s" spec, skipping: "%s"', section, err)
+
+        return config
+
+    def to_config_parser(self, cfp=None):
+        if cfp is None:
+            cfp = configparser.ConfigParser(allow_no_value=True)
+
+        if 'instances' in cfp.sections():
+            cfp.remove_section('instances')
+
+        if self.instances:
+            cfp.add_section('instances')
+            for inst in sorted(self.instances):
+                cfp.set('instances', inst.name, '{}:{}'.format(inst.addr, inst.port))
+
+        for node in sorted(self.nodes):
+            node.to_config_parser(cfp)
+
+        return cfp
 
 
 class NodeStatus(BrokerType):
@@ -667,6 +941,41 @@ class Result(BrokerType):
         return Result(*broker_data)
 
 # Command handlers
+
+def cmd_get_config(controller, args):
+    controller.publish(events.GetConfigurationRequest(make_uuid()))
+    resp, msg = controller.receive()
+
+    if resp is None:
+        LOG.error('No response received: %s', msg)
+        return 1
+
+    if not isinstance(resp, events.GetConfigurationResponse):
+        LOG.error('Received unexpected event: %s', resp)
+        return 1
+
+    res = Result.from_broker(resp.result)
+
+    if not res.success:
+        msg = res.error if res.error else 'no reason given'
+        print_error('failure: {}'.format(msg))
+        return 1
+
+    if not res.data:
+        LOG.error('Received result did not contain configuration data: %s', resp)
+        return 1
+
+    config = Configuration.from_broker(res.data)
+
+    with open(args.filename, 'w') if args.filename and args.filename != '-'  else sys.stdout as hdl:
+        if args.as_json:
+            hdl.write(json_dumps(config.to_json_data()) + '\n')
+        else:
+            cfp = config.to_config_parser()
+            cfp.write(hdl)
+
+    return 0
+
 
 def cmd_get_id_value(controller, args):
     controller.publish(events.GetIdValueRequest(make_uuid(), args.id, set(args.nodes)))
@@ -760,7 +1069,7 @@ def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     return 0
 
 
-def cmd_get_nodes(controller, args):
+def cmd_get_nodes(controller, _args):
     controller.publish(events.GetNodesRequest(make_uuid()))
     resp, msg = controller.receive()
 
@@ -850,47 +1159,14 @@ def cmd_set_config(controller, args):
     #
     # All other keys must have a value.
     config = Configuration()
-    parser = configparser.ConfigParser(allow_no_value=True)
+    cfp = configparser.ConfigParser(allow_no_value=True)
 
     if args.config == '-':
-        parser.read_file(sys.stdin)
+        cfp.read_file(sys.stdin)
     else:
-        parser.read(args.config)
+        cfp.read(args.config)
 
-    for section in parser.sections():
-        if section == 'instances':
-            # The [instances] section is special: each key in it is the name of
-            # an instance, each val is the host:port pair where its agent is
-            # listening. The val may be absent when it's an instance that
-            # connects to the controller.
-            for key, val in parser.items('instances'):
-                if not val:
-                    config.instances.append(Instance(key))
-                else:
-                    hostport = val
-                    parts = hostport.split(':', 1)
-                    if len(parts) != 2:
-                        LOG.warning('invalid instance "%s" spec "%s", skipping', key, val)
-                        continue
-                    config.instances.append(Instance(key, parts[0].strip(), parts[1].strip()))
-            continue
-
-        # All keys for sections other than "instances" need to have a value.
-        for key, val in parser.items(section):
-            if val is None:
-                LOG.error('Config item %s/%s needs a value', section, key)
-                return 1
-
-        # The other sections are cluster nodes. Each section name corresponds to
-        # a node name, with the keys being one of "type", "instance",
-        if section in [node.name for node in config.nodes]:
-            LOG.warning('node "%s" defined more than once, skipping repeats"', section)
-            continue
-
-        try:
-            config.nodes.append(Node.from_config(parser, section))
-        except ValueError as err:
-            LOG.warning('invalid node "%s" spec, skipping: "%s"', section, err)
+    config = Configuration.from_config_parser(cfp)
 
     # XXX todo: validate basic properties of the configuration
 
@@ -983,6 +1259,14 @@ def create_parser():
     command_parser = parser.add_subparsers(
         title='commands', dest='command',
         help='See `%(prog)s <command> -h` for per-command usage info.')
+
+    sub_parser = command_parser.add_parser(
+        'get-config', help='Retrieve deployed cluster configuration.')
+    sub_parser.set_defaults(run_cmd=cmd_get_config)
+    sub_parser.add_argument('--filename', '-f', metavar='FILE', default='-',
+                            help='Output file for the configuration, default stdout')
+    sub_parser.add_argument('--as-json', action='store_true',
+                            help='Report in JSON instead of INI-style config file')
 
     sub_parser = command_parser.add_parser(
         'get-id-value', help='Show the value of a given identifier in Zeek cluster nodes.')
