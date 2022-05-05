@@ -110,6 +110,9 @@ class ClientConfig(configparser.ConfigParser):
 
                 # Delay between our on connect attempts.
                 'connect_retry_delay_secs': 0.25,
+
+                # Whether we pretty-print JSON output by default.
+                'pretty_json': True,
             },
         })
 
@@ -1288,7 +1291,8 @@ def json_dumps(obj):
             return obj.to_json_data()
         raise TypeError('cannot serialize {} ({})'.format(type(obj), str(obj)))
 
-    return json.dumps(obj, default=default, sort_keys=True)
+    indent = 2 if ZC_CONFIG.getboolean('client', 'pretty_json') else None
+    return json.dumps(obj, default=default, sort_keys=True, indent=indent)
 
 
 def print_error(*args, **kwargs):
