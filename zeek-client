@@ -619,7 +619,11 @@ class Node(BrokerType, ConfigParserMixin):
             'name': self.name,
             'instance': self.instance,
             'role': self.role.to_json_data(),
-            'state': self.state.to_json_data(),
+
+            # We currently omit the state field since it has no effect on
+            # cluster node operation.
+            # 'state': self.state.to_json_data(),
+
             'port': self.port,
             'scripts': self.scripts,
             'options': self.options,
@@ -659,12 +663,20 @@ class Node(BrokerType, ConfigParserMixin):
         name = section
         instance = get(str, 'instance')
         role = get(str, 'role', 'type')
-        state = get(str, 'state') or 'RUNNING'
+
+        # We currently ignore the node state, if provided. The Node class
+        # defaults to 'RUNNING'.
+        state = State.RUNNING
+        if get(str, 'state'):
+            LOG.warning('ignoring node "%s" state "%s" in configuration',
+                        name, get(str, 'state'))
 
         port = get(int, 'port')
         scripts = None
-        # The Node record type on the Zeek side has an Options set
-        # that we don't use (yet).
+
+        # The Node record type on the Zeek side features a set[Options] that we
+        # don't use (yet).
+
         interface = get(str, 'interface')
         cpu_affinity = get(int, 'cpu_affinity')
         env = None
@@ -680,11 +692,6 @@ class Node(BrokerType, ConfigParserMixin):
             role = ClusterRole.lookup(role)
         except (AttributeError, KeyError) as err:
             raise ValueError('node "{}" role "{}" is invalid'.format(name, role)) from err
-
-        try:
-            state = State.lookup(state)
-        except (AttributeError, KeyError) as err:
-            raise ValueError('node "{}" state "{}" is invalid'.format(name, state)) from err
 
         # Optional values follow:
 
@@ -734,8 +741,9 @@ class Node(BrokerType, ConfigParserMixin):
         cfp.set(self.name, 'instance', self.instance)
         cfp.set(self.name, 'role', self.role.name)
 
-        if self.state is not None:
-            cfp.set(self.name, 'state', self.state.name)
+        # Skip state for the moment, it has no operational effect
+        # if self.state is not None:
+        #    cfp.set(self.name, 'state', self.state.name)
 
         if self.port is not None:
             cfp.set(self.name, 'port', str(self.port))
