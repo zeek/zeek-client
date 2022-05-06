@@ -111,6 +111,9 @@ class ClientConfig(configparser.ConfigParser):
                 # Delay between our on connect attempts.
                 'connect_retry_delay_secs': 0.25,
 
+                # The way zeek-client reports informational messages on stderr
+                'rich_logging_format': False,
+
                 # Whether we pretty-print JSON output by default.
                 'pretty_json': True,
             },
@@ -124,17 +127,16 @@ class ClientConfig(configparser.ConfigParser):
             try:
                 self.apply(item)
             except ValueError:
-                print_error('error: config item "{}" in ZEEK_CLIENT_CONFIG_SETTINGS '
-                            'invalid. Please use <section.key>=<val>. See --help.'
-                            .format(item))
+                LOG.error('config item "%s" in ZEEK_CLIENT_CONFIG_SETTINGS '
+                          'invalid. Please use <section.key>=<val>.', item)
 
     def update_from_args(self, args):
         for item in args.set:
             try:
                 ZC_CONFIG.apply(item)
             except ValueError:
-                print_error('error: config item "{}" invalid. Please use '
-                            '<section.key>=<val>. See --help.'.format(item))
+                LOG.error('config item "%s" invalid. Please use '
+                          '<section.key>=<val>.', item)
 
     def apply(self, item):
         """This is equivalent to set(), but works via a single <section.key>=<val> string."""
@@ -352,17 +354,17 @@ class Controller:
             # Wait for outcome of the peering attempt:
             status = self.ssub.get()
             if isinstance(status, broker.Status) and status.code() == broker.SC.PeerAdded:
-                LOG.debug('peered with controller %s:%s', self.controller_host,
+                LOG.info('peered with controller %s:%s', self.controller_host,
                           self.controller_port)
                 return True
 
-            LOG.warning('broker endpoint status: %s', status)
+            LOG.debug('broker endpoint status: %s', status)
 
             if i < attempts - 1:
                 time.sleep(ZC_CONFIG.getfloat('client', 'connect_retry_delay_secs'))
 
-        print('error: could not connect to controller {}:{}'.format(
-            self.controller_host, self.controller_port))
+        LOG.error('could not connect to controller %s:%s:',
+                  self.controller_host, self.controller_port)
         return False
 
     def publish(self, event):
@@ -450,8 +452,8 @@ class ConfigParserMixin():
                 try:
                     return typ(val)
                 except ValueError as err:
-                    raise ValueError('cannot convert item "{}" in section "{}" to type {}'
-                                     .format(key, section, typ)) from err
+                    raise ValueError('cannot convert "{}.{}" value "{}" to {}'
+                                     .format(section, key, val, typ.__name__)) from err
         return None
 
 
@@ -749,8 +751,12 @@ class Node(BrokerType, ConfigParserMixin):
 
         # Optional values follow:
 
+        # All cluster node types except workers need a port
+        if port is None and role not in [ClusterRole.NONE, ClusterRole.WORKER]:
+            raise ValueError('node "{}" requires a port'.format(name))
+
         if port is not None and (port < 1 or port > 65535):
-            raise ValueError('node "{}" port "{}" is invalid'.format(name, port))
+            raise ValueError('node "{}" port {} outside valid range'.format(name, port))
 
         try:
             # We support multiple scripts as a simple space-separated sequence
@@ -898,7 +904,7 @@ class Configuration(BrokerType, ConfigParserMixin):
             # All keys for sections other than "instances" need to have a value.
             for key, val in cfp.items(section):
                 if val is None:
-                    LOG.error('Config item %s/%s needs a value', section, key)
+                    LOG.error('config item %s/%s needs a value', section, key)
                     return None
 
             # The other sections are cluster nodes. Each section name corresponds to
@@ -910,7 +916,8 @@ class Configuration(BrokerType, ConfigParserMixin):
             try:
                 config.nodes.append(Node.from_config_parser(cfp, section))
             except ValueError as err:
-                LOG.warning('invalid node "%s" spec, skipping: "%s"', section, err)
+                LOG.error('invalid node "%s" configuration: %s', section, err)
+                return None
 
         return config
 
@@ -997,22 +1004,22 @@ def cmd_get_config(controller, args):
     resp, msg = controller.receive()
 
     if resp is None:
-        LOG.error('No response received: %s', msg)
+        LOG.error('no response received: %s', msg)
         return 1
 
     if not isinstance(resp, events.GetConfigurationResponse):
-        LOG.error('Received unexpected event: %s', resp)
+        LOG.error('received unexpected event: %s', resp)
         return 1
 
     res = Result.from_broker(resp.result)
 
     if not res.success:
         msg = res.error if res.error else 'no reason given'
-        print_error('failure: {}'.format(msg))
+        LOG.error('response indicates failure: %s', msg)
         return 1
 
     if not res.data:
-        LOG.error('Received result did not contain configuration data: %s', resp)
+        LOG.error('received result did not contain configuration data: %s', resp)
         return 1
 
     config = Configuration.from_broker(res.data)
@@ -1032,11 +1039,11 @@ def cmd_get_id_value(controller, args):
     resp, msg = controller.receive()
 
     if resp is None:
-        LOG.error('No response received: %s', msg)
+        LOG.error('no response received: %s', msg)
         return 1
 
     if not isinstance(resp, events.GetIdValueResponse):
-        LOG.error('Received unexpected event: %s', resp)
+        LOG.error('received unexpected event: %s', resp)
         return 1
 
     json_data = {
@@ -1085,22 +1092,22 @@ def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     resp, msg = controller.receive()
 
     if resp is None:
-        LOG.error('No response received: %s', msg)
+        LOG.error('no response received: %s', msg)
         return 1
 
     if not isinstance(resp, events.GetInstancesResponse):
-        LOG.error('Received unexpected event: %s', resp)
+        LOG.error('received unexpected event: %s', resp)
         return 1
 
     res = Result.from_broker(resp.result)
 
     if not res.success:
         msg = res.error if res.error else 'no reason given'
-        print_error('failure: {}'.format(msg))
+        LOG.error('response indicates failure: %s', msg)
         return 1
 
     if res.data is None:
-        LOG.error('Received result did not contain instance data: %s', resp)
+        LOG.error('received result did not contain instance data: %s', resp)
         return 1
 
     json_data = {}
@@ -1113,7 +1120,7 @@ def cmd_get_instances(controller, args): # pylint: disable=unused-argument
             json_data[inst.name] = inst.to_json_data()
             json_data[inst.name].pop('name')
     except TypeError as err:
-        LOG.error('Instance data invalid: %s', err)
+        LOG.error('instance data invalid: %s', err)
 
     print(json_dumps(json_data))
     return 0
@@ -1124,11 +1131,11 @@ def cmd_get_nodes(controller, _args):
     resp, msg = controller.receive()
 
     if resp is None:
-        LOG.error('No response received: %s', msg)
+        LOG.error('no response received: %s', msg)
         return 1
 
     if not isinstance(resp, events.GetNodesResponse):
-        LOG.error('Received unexpected event: %s', resp)
+        LOG.error('received unexpected event: %s', resp)
         return 1
 
     json_data = {
@@ -1197,7 +1204,7 @@ def cmd_monitor(controller, args): # pylint: disable=unused-argument
 
 def cmd_set_config(controller, args):
     if not args.config or (args.config != '-' and not os.path.isfile(args.config)):
-        print_error('Please provide a cluster configuration file. See --help for details.')
+        LOG.error('please provide a cluster configuration file.')
         return 1
 
     # We use a config parser to parse the cluster configuration. For instances,
@@ -1218,19 +1225,19 @@ def cmd_set_config(controller, args):
 
     config = Configuration.from_config_parser(cfp)
 
-    # XXX todo: validate basic properties of the configuration
-
-    # Okay, we have a cluster configuration. Ship it:
+    if config is None:
+        LOG.error('configuration has errors, not deploying')
+        return 1
 
     controller.publish(events.SetConfigurationRequest(make_uuid(), config.to_broker()))
     resp, msg = controller.receive()
 
     if resp is None:
-        LOG.error('No response received: %s', msg)
+        LOG.error('no response received: %s', msg)
         return 1
 
     if not isinstance(resp, events.SetConfigurationResponse):
-        LOG.error('Received unexpected event: %s', resp)
+        LOG.error('received unexpected event: %s', resp)
         return 1
 
     retval = 0
@@ -1239,7 +1246,7 @@ def cmd_set_config(controller, args):
         res = Result.from_broker(broker_data)
         if not res.success:
             msg = ': ' + res.error if res.error else ''
-            print_error('instance {} failure{}'.format(res.instance, msg))
+            LOG.error('instance %s failure%s', res.instance, msg)
             retval = 1
 
     return retval
@@ -1255,18 +1262,15 @@ def cmd_test_timeout(controller, args):
     resp, msg = controller.receive()
 
     if resp is None:
-        print_error('no response received: {}'.format(msg))
+        LOG.error('no response received: %s', msg)
         return 1
 
     if not isinstance(resp, events.TestTimeoutResponse):
-        print_error('received unexpected event: {}'.format(resp))
+        LOG.error('received unexpected event: %s', resp)
         return 1
 
     res = Result.from_broker(resp.result)
-    outcome = 'success' if res.success else 'failure'
-    error = res.error if res.error else '(none)'
-
-    print_error('response is {}, error string: {}'.format(outcome, error))
+    print(json_dumps({'success': res.success, 'error': res.error}))
     return 0
 
 
@@ -1295,10 +1299,6 @@ def json_dumps(obj):
     return json.dumps(obj, default=default, sort_keys=True, indent=indent)
 
 
-def print_error(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
-
-
 def create_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1320,9 +1320,13 @@ def create_parser():
     if 'argcomplete' in sys.modules:
         arg.completer = ZC_CONFIG.completer
 
-    parser.add_argument('--verbose', '-v', action='count', default=0,
-                        help='Increase program output for debugging.'
-                        ' Use multiple times for more output (e.g. -vvv).')
+    verbosity_group = parser.add_mutually_exclusive_group()
+    verbosity_group.add_argument('--quiet', '-q', action='store_true',
+                                 help='Suppress informational output to stderr.')
+    verbosity_group.add_argument('--verbose', '-v', action='count', default=0,
+                                 help='Increase informational output to stderr. '
+                                 'Repeat for more output (e.g. -vvv).')
+
     parser.add_argument('--version', action='store_true',
                         help='Show version number and exit.')
 
@@ -1344,8 +1348,8 @@ def create_parser():
     sub_parser.add_argument('id', metavar='IDENTIFIER',
                             help='Name of the Zeek script identifier to retrieve.')
     sub_parser.add_argument('nodes', metavar='NODES', nargs='*', default=[],
-                            help='Name(s) of select Zeek cluster nodes to query.'
-                            ' When omitted, queries all nodes.')
+                            help='Name(s) of select Zeek cluster nodes to query. '
+                            'When omitted, queries all nodes.')
 
     sub_parser = command_parser.add_parser(
         'get-instances', help='Show instances connected to the controller.')
@@ -1382,11 +1386,19 @@ def create_parser():
 
 
 def configure_logger(args):
-    if args.verbose == 0:
+    if args.quiet:
         return
 
-    formatter = logging.Formatter(
-        '%(asctime)s %(levelname)-8s %(message)s', '%Y-%m-%d %H:%M:%S')
+    # Make log levels lower-case, looks better in informal logging
+    for level in (logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG):
+        logging.addLevelName(level, logging.getLevelName(level).lower())
+
+    if ZC_CONFIG.getboolean('client', 'rich_logging_format'):
+        formatter = logging.Formatter(
+            '%(asctime)s %(levelname)-8s %(message)s', '%Y-%m-%d %H:%M:%S')
+    else:
+        formatter = logging.Formatter('%(levelname)s: %(message)s')
+
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
 
@@ -1439,7 +1451,7 @@ def main():
         if controller_port < 1 or controller_port > 65535:
             raise ValueError
     except ValueError:
-        print_error('error: controller port number invalid')
+        LOG.error('controller port number outside valid range')
         return 1
 
     controller = Controller(controller_host, controller_port)
@@ -1447,7 +1459,7 @@ def main():
         return 1
 
     if not args.command:
-        print_error('error: please provide a command to execute. See --help.')
+        LOG.error('please provide a command to execute.')
         return 1
 
     try:
