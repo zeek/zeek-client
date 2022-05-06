@@ -1300,7 +1300,15 @@ def print_error(*args, **kwargs):
 
 
 def create_parser():
-    parser = argparse.ArgumentParser(description='A zeek-client prototype')
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='A Zeek management client',
+        epilog='environment variables:\n\n'
+        '    ZEEK_CLIENT_CONFIG_FILE:      '
+        'Same as `--configfile` argument, but lower precedence.\n'
+        '    ZEEK_CLIENT_CONFIG_SETTINGS:  '
+        'Same as a space-separated series of `--set` arguments, but lower precedence.\n')
+
     parser.add_argument('-c', '--configfile', metavar='FILE', default=ZC_CONFIG_FILE,
                         help='Path to zeek-client config file. (Default: {})'.format(ZC_CONFIG_FILE))
     parser.add_argument('--controller', metavar='HOST:PORT', default=ZC_CONTROLLER,
