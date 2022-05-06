@@ -59,7 +59,6 @@ ZC_VERSION = '@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@'
 ZC_CONFIG_FILE = os.getenv('ZEEK_CLIENT_CONFIG_FILE') or '@ZEEK_CLIENT_CONFIG_FILE@'
 
 # Global config, a ClientConfig instance (deriving from ConfigParser).
-# Initialized when we've parsed command line args.
 ZC_CONFIG = None
 
 # Prepend the Python path of the Zeek installation. This ensures we find the
@@ -83,8 +82,16 @@ class ClientConfig(configparser.ConfigParser):
     """zeek-client configuration settings.
 
     A specialized ConfigParser that hardwires defaults for select values.
+    Three levels of overrides apply, if provided:
+
+    (1) first, the config file, if available
+
+    (2) the ZEEK_CLIENT_CONFIG_SETTINGS environment variable may contain a
+        series of <section.key>=<val> assignments
+
+    (3) Any --set <section.key>=<val> arguments apply final overrides
     """
-    def __init__(self, config_file=ZC_CONFIG_FILE):
+    def __init__(self):
         super().__init__()
         self.read_dict({
             'client': {
@@ -103,11 +110,54 @@ class ClientConfig(configparser.ConfigParser):
 
                 # Delay between our on connect attempts.
                 'connect_retry_delay_secs': 0.25,
+
+                # Whether we pretty-print JSON output by default.
+                'pretty_json': True,
             },
         })
 
-        # Override defaults with any config file values
+    def update_from_file(self, config_file=ZC_CONFIG_FILE):
         self.read(config_file)
+
+    def update_from_env(self):
+        for item in shlex.split(os.getenv('ZEEK_CLIENT_CONFIG_SETTINGS') or ''):
+            try:
+                self.apply(item)
+            except ValueError:
+                print_error('error: config item "{}" in ZEEK_CLIENT_CONFIG_SETTINGS '
+                            'invalid. Please use <section.key>=<val>. See --help.'
+                            .format(item))
+
+    def update_from_args(self, args):
+        for item in args.set:
+            try:
+                ZC_CONFIG.apply(item)
+            except ValueError:
+                print_error('error: config item "{}" invalid. Please use '
+                            '<section.key>=<val>. See --help.'.format(item))
+
+    def apply(self, item):
+        """This is equivalent to set(), but works via a single <section.key>=<val> string."""
+        try:
+            identifier, val = item.split('=', 1)
+            section, key = identifier.split('.', 1)
+            if not self.has_section(section):
+                self.add_section(section)
+            self.set(section, key, val)
+        except ValueError as err:
+            raise ValueError('config item "{}" invalid'.format(item)) from err
+
+    def completer(self, **_kwargs):
+        """A completer suitable for argcomplete."""
+        ret = []
+
+        for section in self.sections():
+            for key, val in self.items(section):
+                ret.append(section + '.' + key + '=' + val)
+
+        return sorted(ret)
+
+ZC_CONFIG = ClientConfig()
 
 
 class Event(broker.zeek.SafeEvent):
@@ -1195,6 +1245,11 @@ def cmd_set_config(controller, args):
     return retval
 
 
+def cmd_show_settings(_controller, _args):
+    ZC_CONFIG.write(sys.stdout)
+    return 0
+
+
 def cmd_test_timeout(controller, args):
     controller.publish(events.TestTimeoutRequest(make_uuid(), args.with_state))
     resp, msg = controller.receive()
@@ -1236,7 +1291,8 @@ def json_dumps(obj):
             return obj.to_json_data()
         raise TypeError('cannot serialize {} ({})'.format(type(obj), str(obj)))
 
-    return json.dumps(obj, default=default, sort_keys=True)
+    indent = 2 if ZC_CONFIG.getboolean('client', 'pretty_json') else None
+    return json.dumps(obj, default=default, sort_keys=True, indent=indent)
 
 
 def print_error(*args, **kwargs):
@@ -1244,12 +1300,26 @@ def print_error(*args, **kwargs):
 
 
 def create_parser():
-    parser = argparse.ArgumentParser(description='A zeek-client prototype')
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='A Zeek management client',
+        epilog='environment variables:\n\n'
+        '    ZEEK_CLIENT_CONFIG_FILE:      '
+        'Same as `--configfile` argument, but lower precedence.\n'
+        '    ZEEK_CLIENT_CONFIG_SETTINGS:  '
+        'Same as a space-separated series of `--set` arguments, but lower precedence.\n')
+
     parser.add_argument('-c', '--configfile', metavar='FILE', default=ZC_CONFIG_FILE,
                         help='Path to zeek-client config file. (Default: {})'.format(ZC_CONFIG_FILE))
     parser.add_argument('--controller', metavar='HOST:PORT', default=ZC_CONTROLLER,
                         help='Address and port of the controller, either of '
                         'which may be omitted (default: {})'.format(ZC_CONTROLLER))
+    arg = parser.add_argument('--set', metavar='SECTION.KEY=VAL', action='append', default=[],
+                              help='Adjust a configuration setting. Can use repeatedly. See show-settings.')
+
+    if 'argcomplete' in sys.modules:
+        arg.completer = ZC_CONFIG.completer
+
     parser.add_argument('--verbose', '-v', action='count', default=0,
                         help='Increase program output for debugging.'
                         ' Use multiple times for more output (e.g. -vvv).')
@@ -1296,6 +1366,10 @@ def create_parser():
                             help='Cluster configuration file, "-" for stdin')
 
     sub_parser = command_parser.add_parser(
+        'show-settings', help="Show zeek-client's own configuration.")
+    sub_parser.set_defaults(run_cmd=cmd_show_settings)
+
+    sub_parser = command_parser.add_parser(
         'test-timeout', help='Send timeout test event.')
     sub_parser.set_defaults(run_cmd=cmd_test_timeout)
     sub_parser.add_argument('--with-state', action='store_true',
@@ -1329,15 +1403,23 @@ def configure_logger(args):
 
 
 def main():
+    # Preliminary configuration update: environment variables can already take
+    # hold. This allows autocompleted settings to show values more accurately
+    # than our hardwired defaults.
+    ZC_CONFIG.update_from_env()
+
     parser = create_parser()
     args = parser.parse_args()
+
+    # After we've parsed the command line, finalize config settings in the
+    # expected hierarchical order:
+    ZC_CONFIG.update_from_file(args.configfile)
+    ZC_CONFIG.update_from_env()
+    ZC_CONFIG.update_from_args(args)
 
     if args.version:
         print(ZC_VERSION)
         return 0
-
-    global ZC_CONFIG
-    ZC_CONFIG = ClientConfig(args.configfile)
 
     configure_logger(args)
 
