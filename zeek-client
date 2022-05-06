@@ -751,6 +751,10 @@ class Node(BrokerType, ConfigParserMixin):
 
         # Optional values follow:
 
+        # All cluster node types except workers need a port
+        if port is None and role not in [ClusterRole.NONE, ClusterRole.WORKER]:
+            raise ValueError('node "{}" requires a port'.format(name))
+
         if port is not None and (port < 1 or port > 65535):
             raise ValueError('node "{}" port {} outside valid range'.format(name, port))
 
@@ -1221,9 +1225,9 @@ def cmd_set_config(controller, args):
 
     config = Configuration.from_config_parser(cfp)
 
-    # XXX todo: validate basic properties of the configuration
-
-    # Okay, we have a cluster configuration. Ship it:
+    if config is None:
+        LOG.error('configuration has errors, not deploying')
+        return 1
 
     controller.publish(events.SetConfigurationRequest(make_uuid(), config.to_broker()))
     resp, msg = controller.receive()
