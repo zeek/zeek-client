@@ -1270,10 +1270,7 @@ def cmd_test_timeout(controller, args):
         return 1
 
     res = Result.from_broker(resp.result)
-    outcome = 'success' if res.success else 'failure'
-    error = res.error if res.error else '(none)'
-
-    print_error('response is {}, error string: {}'.format(outcome, error))
+    print(json_dumps({'success': res.success, 'error': res.error}))
     return 0
 
 
