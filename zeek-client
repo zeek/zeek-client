@@ -617,6 +617,14 @@ class Instance(BrokerType):
             port = broker.Port(int(self.port), broker.Port.TCP)
         return (self.name, ipaddress.ip_address(self.addr), port)
 
+    def to_json_data(self):
+        if self.port is not None:
+            return self.__dict__
+
+        # When port is absent, take it to mean it connects to the controller,
+        # so address and name aren't noted down in the config.
+        return { 'name': self.name }
+
 
 class Node(BrokerType, ConfigParserMixin):
     """Equivalent of Management::Node."""
@@ -931,7 +939,12 @@ class Configuration(BrokerType, ConfigParserMixin):
         if self.instances:
             cfp.add_section('instances')
             for inst in sorted(self.instances):
-                cfp.set('instances', inst.name, '{}:{}'.format(inst.addr, inst.port))
+                if inst.port is not None:
+                    # An instance the controller connects to
+                    cfp.set('instances', inst.name, '{}:{}'.format(inst.addr, inst.port))
+                else:
+                    # An instance connecting to the controller
+                    cfp.set('instances', inst.name)
 
         for node in sorted(self.nodes):
             node.to_config_parser(cfp)
