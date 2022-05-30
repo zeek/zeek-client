@@ -1253,15 +1253,29 @@ def cmd_set_config(controller, args):
         LOG.error('received unexpected event: %s', resp)
         return 1
 
+    json_data = {}
     retval = 0
 
     for broker_data in resp.results:
         res = Result.from_broker(broker_data)
+
         if not res.success:
-            msg = ': ' + res.error if res.error else ''
-            LOG.error('instance %s failure%s', res.instance, msg)
             retval = 1
 
+        # If the result record doesn't mention a node, it's the response of an
+        # agent that had no nodes to launch (but possibly dropped existing ones
+        # as part of this request). We adopt its error state, but don't render
+        # any output.
+        if res.node is None:
+            continue
+
+        json_data[res.node] = {
+            'success': res.success,
+            'instance': res.instance,
+        }
+
+
+    print(json_dumps(json_data))
     return retval
 
 
