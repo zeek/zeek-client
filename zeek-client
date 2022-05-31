@@ -1010,6 +1010,18 @@ class Result(BrokerType):
     def from_broker(cls, broker_data):
         return Result(*broker_data)
 
+
+class NodeOutputs(BrokerType):
+    """Equivalent of Management::NodeOutputs."""
+    def __init__(self, stdout, stderr):
+        self.stdout = stdout
+        self.stderr = stderr
+
+    @classmethod
+    def from_broker(cls, broker_data):
+        return NodeOutputs(*broker_data)
+
+
 # Command handlers
 
 def cmd_get_config(controller, args):
@@ -1273,6 +1285,13 @@ def cmd_set_config(controller, args):
             'success': res.success,
             'instance': res.instance,
         }
+
+        # If launching this node failed, we should have a NodeOutputs record as
+        # data member in the result record.
+        if res.data:
+            node_outputs = NodeOutputs.from_broker(res.data)
+            json_data[res.node]['stdout'] = node_outputs.stdout
+            json_data[res.node]['stderr'] = node_outputs.stderr
 
 
     print(json_dumps(json_data))
