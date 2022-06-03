@@ -621,8 +621,10 @@ class Instance(BrokerType):
         if self.port is not None:
             return self.__dict__
 
-        # When port is absent, take it to mean it connects to the controller,
-        # so address and name aren't noted down in the config.
+        # Here too, work around 0.0.0.0 until resolved
+        if str(self.host) != '0.0.0.0':
+            return { 'name': self.name, 'host': self.host }
+
         return { 'name': self.name }
 
 
