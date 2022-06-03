@@ -596,7 +596,7 @@ class Instance(BrokerType):
     def __init__(self, name, addr=None, port=None):
         self.name = name
         # This is a workaround until we've resolved addresses in instances
-        self.addr = addr or '0.0.0.0' # string or ipaddress type ... TBD
+        self.host = addr or '0.0.0.0' # string or ipaddress type ... TBD
         self.port = port # None or integer value; we always mean TCP
 
     def __lt__(self, other):
@@ -615,7 +615,7 @@ class Instance(BrokerType):
         port = None
         if self.port:
             port = broker.Port(int(self.port), broker.Port.TCP)
-        return (self.name, ipaddress.ip_address(self.addr), port)
+        return (self.name, ipaddress.ip_address(self.host), port)
 
     def to_json_data(self):
         if self.port is not None:
@@ -941,7 +941,7 @@ class Configuration(BrokerType, ConfigParserMixin):
             for inst in sorted(self.instances):
                 if inst.port is not None:
                     # An instance the controller connects to
-                    cfp.set('instances', inst.name, '{}:{}'.format(inst.addr, inst.port))
+                    cfp.set('instances', inst.name, '{}:{}'.format(inst.host, inst.port))
                 else:
                     # An instance connecting to the controller
                     cfp.set('instances', inst.name)
