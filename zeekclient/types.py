@@ -24,7 +24,7 @@ class ConfigParserMixin():
         """
         return None
 
-    def to_config_parser(self, cfp=None): # pylint: disable=unused-argument
+    def to_config_parser(self, cfp=None): # pylint: disable=unused-argument,no-self-use
         """Returns this object in a ConfigParser instance. When the optional cfp
         argument is not None, the caller requests the implementation to add to
         the given parser, not create a new one.
@@ -53,7 +53,7 @@ class BrokerType:
     https://docs.zeek.org/projects/broker/en/current/python.html#data-model
     https://docs.zeek.org/projects/broker/en/current/data.html
     """
-    def to_broker(self):
+    def to_broker(self):  # pylint: disable=no-self-use
         """Returns a Broker-compatible rendition of this instance."""
         return None
 

@@ -83,7 +83,8 @@ def create_parser():
                         help='Address and port of the controller, either of '
                         'which may be omitted (default: {})'.format(CONTROLLER))
     arg = parser.add_argument('--set', metavar='SECTION.KEY=VAL', action='append', default=[],
-                              help='Adjust a configuration setting. Can use repeatedly. See show-settings.')
+                              help='Adjust a configuration setting. Can use repeatedly. '
+                              'See show-settings.')
 
     # This is for argcomplete users and has no effect otherwise.
     arg.completer = CONFIG.completer

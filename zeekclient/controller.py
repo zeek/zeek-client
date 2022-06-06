@@ -17,9 +17,9 @@ class Controller:
         self.controller_host = controller_host
         self.controller_port = controller_port
         self.controller_topic = controller_topic
-        self.ep = broker.Endpoint()
-        self.sub = self.ep.make_safe_subscriber(controller_topic)
-        self.ssub = self.ep.make_status_subscriber(True)
+        self.ept = broker.Endpoint()
+        self.sub = self.ept.make_safe_subscriber(controller_topic)
+        self.ssub = self.ept.make_status_subscriber(True)
 
         self.poll = select.poll()
         self.poll.register(self.sub.fd())
@@ -32,8 +32,8 @@ class Controller:
         # involved.
         attempts = CONFIG.getint('client', 'connect_attempts')
         for i in range(attempts):
-            self.ep.peer_nosync(self.controller_host, self.controller_port,
-                                CONFIG.getfloat('client', 'connect_peer_retry_secs'))
+            self.ept.peer_nosync(self.controller_host, self.controller_port,
+                                 CONFIG.getfloat('client', 'connect_peer_retry_secs'))
 
             # Wait for outcome of the peering attempt:
             status = self.ssub.get()
@@ -57,7 +57,7 @@ class Controller:
         Args:
             event (Event): the event to publish.
         """
-        self.ep.publish(self.controller_topic, event)
+        self.ept.publish(self.controller_topic, event)
 
     def receive(self, timeout_secs=None):
         """Receive an event from the controller's event subscriber.
@@ -78,12 +78,11 @@ class Controller:
         if timeout_msecs is not None:
             timeout_msecs *= 1000
 
-        # XXX this is intentionally still very basic -- no event dispatch
-        # mechanism, event loop, etc. The extent to which we require these will
-        # become clearer soon. For now we just poll on the fds of the subscriber
-        # and status subscriber so we get notified when something arrives or an
-        # error occurs. Might have to handle POLLERR and POLLHUP here too to be
-        # more robust still.
+        # XXX this is quite basic -- no event dispatch mechanism, event loop,
+        # etc. For now we just poll on the fds of the subscriber and status
+        # subscriber so we get notified when something arrives or an error
+        # occurs. Might have to handle POLLERR and POLLHUP here too to be more
+        # robust.
         while True:
             try:
                 resps = self.poll.poll(timeout_msecs)
