@@ -63,7 +63,7 @@ def main():
     zeekclient.CONFIG.update_from_args(args)
 
     if args.version:
-        print(zeekclient.consts.VERSION)
+        print(zeekclient.__version__)
         return 0
 
     # Establish logging as per requested verbosity and formatting
