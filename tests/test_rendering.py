@@ -1,0 +1,368 @@
+#! /usr/bin/env python
+"""This verifies zeekclient's ability to ingest configurations and their related
+data structures from INI, and render them back to INI/JSON as expected.
+"""
+import configparser
+import io
+import json
+import logging
+import os
+import sys
+import unittest
+
+TESTS = os.path.dirname(os.path.realpath(__file__))
+ROOT = os.path.normpath(os.path.join(TESTS, '..'))
+
+# Prepend the tree's root folder to the module searchpath so we find zeekclient
+# via it. This allows tests to run without package installation.
+sys.path.insert(0, ROOT)
+
+import zeekclient
+
+
+class TestRendering(unittest.TestCase):
+    INI_INPUT= """# A sample ini using all available keys.
+[instances]
+agent
+
+[manager]
+instance = agent
+port = 5000
+role = manager
+
+[logger-01]
+instance = agent
+port = 5001
+role = logger
+scripts = foo/bar/baz
+
+[worker-01]
+instance = agent
+role = worker
+interface = lo
+env = FOO=BAR BLUM=frub
+cpu_affinity = 4
+
+[worker-02]
+instance = agent
+role = worker
+interface = enp3s0
+cpu_affinity = 8
+"""
+    INI_EXPECTED = """[instances]
+agent
+
+[logger-01]
+instance = agent
+role = LOGGER
+port = 5001
+scripts = foo/bar/baz
+
+[manager]
+instance = agent
+role = MANAGER
+port = 5000
+
+[worker-01]
+instance = agent
+role = WORKER
+interface = lo
+cpu_affinity = 4
+env = BLUM=frub FOO=BAR
+
+[worker-02]
+instance = agent
+role = WORKER
+interface = enp3s0
+cpu_affinity = 8
+"""
+    JSON_EXPECTED = """{
+    "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "instances": [
+        {
+            "name": "agent"
+        }
+    ],
+    "nodes": [
+        {
+            "cpu_affinity": null,
+            "env": {},
+            "instance": "agent",
+            "interface": null,
+            "name": "logger-01",
+            "options": null,
+            "port": 5001,
+            "role": "LOGGER",
+            "scripts": [
+                "foo/bar/baz"
+            ]
+        },
+        {
+            "cpu_affinity": null,
+            "env": {},
+            "instance": "agent",
+            "interface": null,
+            "name": "manager",
+            "options": null,
+            "port": 5000,
+            "role": "MANAGER",
+            "scripts": null
+        },
+        {
+            "cpu_affinity": 4,
+            "env": {
+                "BLUM": "frub",
+                "FOO": "BAR"
+            },
+            "instance": "agent",
+            "interface": "lo",
+            "name": "worker-01",
+            "options": null,
+            "port": null,
+            "role": "WORKER",
+            "scripts": null
+        },
+        {
+            "cpu_affinity": 8,
+            "env": {},
+            "instance": "agent",
+            "interface": "enp3s0",
+            "name": "worker-02",
+            "options": null,
+            "port": null,
+            "role": "WORKER",
+            "scripts": null
+        }
+    ]
+}"""
+    def assertEqualStripped(self, str1, str2):
+        self.assertEqual(str1.strip(), str2.strip())
+
+    def parserFromString(self, content):
+        cfp = configparser.ConfigParser(allow_no_value=True)
+        cfp.read_string(content)
+        return cfp
+
+    def setUp(self):
+        # A buffer receiving any created log messages, for validation. We could
+        # also assertLogs(), but with the latter it's more work to get exactly
+        # the output the user would see.
+        self.logbuf = io.StringIO()
+        zeekclient.logs.configure(verbosity=3, stream=self.logbuf)
+
+    def test_full_config_ini(self):
+        # This test parses a feature-complete configuration from an INI file,
+        # and verifies that writing it back out to an INI yields expected
+        # content.
+
+        # Parse the input into a config parser, and create a Configuration
+        # object from it.
+        cfp = self.parserFromString(self.INI_INPUT)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertTrue(config is not None)
+
+        # Turning that back into a config parser should have expected content:
+        cfp = config.to_config_parser()
+        with io.StringIO() as buf:
+            cfp.write(buf)
+            self.assertEqualStripped(buf.getvalue(), self.INI_EXPECTED)
+
+        # Another roundtrip: the content should not change.
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertTrue(config is not None)
+
+        cfp = config.to_config_parser()
+        with io.StringIO() as buf:
+            cfp.write(buf)
+            self.assertEqualStripped(buf.getvalue(), self.INI_EXPECTED)
+
+    def test_full_config_json(self):
+        # This test parses a feature-complete configuration from an INI file,
+        # and verifies that writing it to JSON yields expected content.
+
+        # Parse the input into a config parser, and create a Configuration
+        # object from it.
+        cfp = self.parserFromString(self.INI_INPUT)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertTrue(config is not None)
+
+        jdata = config.to_json_data()
+
+        # Canonicalize the ID:
+        canon = lambda c: '-' if c == '-' else 'x'
+        jdata['id'] = ''.join([canon(c) for c in jdata['id']])
+
+        self.assertEqual(json.dumps(jdata, sort_keys=True, indent=4),
+                         self.JSON_EXPECTED)
+
+    def test_config_addl_key(self):
+        # This test creates a Configuration from an INI file with additional
+        # keys that should get ignored in the instantiated object, but trigger
+        # log warnings.
+
+        ini_input = """
+[instances]
+agent
+
+[manager]
+instance = agent
+port = 5000
+role = manager
+not_a_key = mhmmm
+also_not_a_key = uh oh
+"""
+        ini_expected = """[instances]
+agent
+
+[manager]
+instance = agent
+role = MANAGER
+port = 5000
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertTrue(config is not None)
+
+        cfp = config.to_config_parser()
+        with io.StringIO() as buf:
+            cfp.write(buf)
+            self.assertEqualStripped(buf.getvalue(), ini_expected)
+
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'warning: ignoring unexpected keys: also_not_a_key, not_a_key')
+
+    def test_config_invalid_instances(self):
+        ini_input = """
+[instances]
+agent = foo:
+
+[manager]
+instance = agent
+port = 80
+role = manager
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertFalse(config)
+
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'error: invalid spec for instance "agent": "foo:" should be <host>:<port>')
+
+    def test_config_missing_instance(self):
+        ini_input = """
+[instances]
+agent
+
+[manager]
+port = 80
+role = manager
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertFalse(config)
+
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'error: invalid node "manager" configuration: node requires an instance')
+
+    def test_config_missing_instance(self):
+        ini_input = """
+[instances]
+agent
+
+[manager]
+port = 80
+role = manager
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertFalse(config)
+
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'error: invalid node "manager" configuration: node requires an instance')
+
+    def test_config_missing_role(self):
+        ini_input = """
+[instances]
+agent
+
+[manager]
+instance = agent
+port = 80
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertFalse(config)
+
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'error: invalid node "manager" configuration: node requires a role')
+
+    def test_config_invalid_role(self):
+        ini_input = """
+[instances]
+agent
+
+[manager]
+instance = agent
+port = 80
+role = superintendent
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertFalse(config)
+
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'error: invalid node "manager" configuration: role "superintendent" is invalid')
+
+    def test_config_invalid_port_string(self):
+        ini_input = """
+[instances]
+agent
+
+[manager]
+instance = agent
+port = eighty
+role = manager
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertFalse(config)
+
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'error: invalid node "manager" configuration: cannot convert "manager.port" value "eighty" to int')
+
+    def test_config_invalid_port_number(self):
+        ini_input = """
+[instances]
+agent
+
+[manager]
+instance = agent
+port = 70000
+role = manager
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertFalse(config)
+
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'error: invalid node "manager" configuration: port 70000 outside valid range')
+
+def test():
+    """Entry point for testing this module.
+
+    Returns True if successful, False otherwise.
+    """
+    res = unittest.main(sys.modules[__name__], verbosity=0, exit=False)
+    # This is how unittest.main() implements the exit code itself:
+    return res.result.wasSuccessful()
+
+if __name__ == '__main__':
+    sys.exit(not test())
