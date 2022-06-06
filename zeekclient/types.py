@@ -432,7 +432,7 @@ class Node(BrokerType, ConfigParserMixin):
 
             for key in sorted(self.env.keys()):
                 val = self.env[key]
-                if len(val).split() > 1:
+                if len(str(val).split()) > 1:
                     val = '"' + val + '"'
 
                 env.append('{}={}'.format(key, val))
