@@ -15,6 +15,12 @@ import unittest
 TESTS = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.normpath(os.path.join(TESTS, '..'))
 
+# Prepend this folder so we can load our mocks
+sys.path.insert(0, TESTS)
+
+# This is the Broker mock, not the real one
+import broker
+
 # Prepend the tree's root folder to the module searchpath so we find zeekclient
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
