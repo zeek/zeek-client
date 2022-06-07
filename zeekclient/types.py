@@ -337,24 +337,24 @@ class Node(BrokerType, ConfigParserMixin):
 
         # Validate the specified values
         if not instance:
-            raise ValueError('node "{}" requires an instance'.format(name))
+            raise ValueError('node requires an instance')
 
         if not role:
-            raise ValueError('node "{}" requires a role'.format(name))
+            raise ValueError('node requires a role')
 
         try:
             role = ClusterRole.lookup(role)
         except (AttributeError, KeyError) as err:
-            raise ValueError('node "{}" role "{}" is invalid'.format(name, role)) from err
+            raise ValueError('role "{}" is invalid'.format(role)) from err
 
         # Optional values follow:
 
         # All cluster node types except workers need a port
         if port is None and role not in [ClusterRole.NONE, ClusterRole.WORKER]:
-            raise ValueError('node "{}" requires a port'.format(name))
+            raise ValueError('node requires a port')
 
         if port is not None and (port < 1 or port > 65535):
-            raise ValueError('node "{}" port {} outside valid range'.format(name, port))
+            raise ValueError('port {} outside valid range'.format(port))
 
         try:
             # We support multiple scripts as a simple space-separated sequence
@@ -364,8 +364,7 @@ class Node(BrokerType, ConfigParserMixin):
             if val:
                 scripts = sorted(shlex.split(val))
         except (AttributeError, KeyError) as err:
-            raise ValueError('node "{}" scripts value "{}" is invalid'.format(
-                name, val)) from err
+            raise ValueError('scripts value "{}" is invalid'.format(val)) from err
 
         try:
             # An environment variable dictionary is represented as a single
@@ -380,8 +379,16 @@ class Node(BrokerType, ConfigParserMixin):
                     key, kval = item.split('=', 1)
                     env[key] = kval
         except (AttributeError, KeyError, ValueError) as err:
-            raise ValueError('node "{}" env value "{}" is invalid'.format(
-                name, val)) from err
+            raise ValueError('env value "{}" is invalid'.format(val)) from err
+
+        # Warn about unexpected keys:
+        cfp_subset = cfp[section] if section else cfp
+        keys = set(cfp_subset.keys())
+        keys -= set(['instance', 'role', 'scripts', 'port', 'scripts',
+                     'interface', 'cpu_affinity', 'env'])
+
+        if len(keys) > 0:
+            LOG.warning('ignoring unexpected keys: %s', ', '.join(sorted(keys)))
 
         return Node(name=name, instance=instance, role=role, state=state,
                     port=port, scripts=scripts, interface=interface,
@@ -493,9 +500,9 @@ class Configuration(BrokerType, ConfigParserMixin):
                     else:
                         hostport = val
                         parts = hostport.split(':', 1)
-                        if len(parts) != 2:
-                            LOG.warning('invalid instance "%s" spec "%s", skipping', key, val)
-                            continue
+                        if len(parts) != 2 or not parts[0] or not parts[1]:
+                            LOG.error('invalid spec for instance "%s": "%s" should be <host>:<port>', key, val)
+                            return None
                         config.instances.append(Instance(key, parts[0].strip(), parts[1].strip()))
                 continue
 
