@@ -33,7 +33,6 @@ try:
 except ImportError:
     pass
 
-
 # Prepend the Python path of the Zeek installation. This ensures we find the
 # Zeek-bundled Broker Python bindings, if available, before any system-wide
 # ones.
@@ -90,7 +89,7 @@ def main():
         zeekclient.LOG.error('controller port number outside valid range')
         return 1
 
-    controller = zeekclient.controller.Controller(controller_host, controller_port)
+    controller = zeekclient.Controller(controller_host, controller_port)
     if not controller.connect():
         return 1
 
