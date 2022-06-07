@@ -349,10 +349,9 @@ class Node(BrokerType, ConfigParserMixin):
 
         # Optional values follow:
 
-        # All cluster node types except workers need a port
-        if port is None and role not in [ClusterRole.NONE, ClusterRole.WORKER]:
-            raise ValueError('node requires a port')
-
+        # Ports are optional and filled in by the controller, assuming
+        # Management::Controller::auto_assign_ports is enabled. But when
+        # present, we validate:
         if port is not None and (port < 1 or port > 65535):
             raise ValueError('port {} outside valid range'.format(port))
 
