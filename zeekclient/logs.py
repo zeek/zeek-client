@@ -5,7 +5,7 @@ LOG = logging.getLogger(__name__)
 LOG.addHandler(logging.NullHandler())
 
 
-def configure(verbosity=1, rich_logging=False):
+def configure(verbosity=1, rich_logging=False, stream=None):
     """Configures logging.
 
     Args:
@@ -24,7 +24,7 @@ def configure(verbosity=1, rich_logging=False):
     else:
         formatter = logging.Formatter('%(levelname)s: %(message)s')
 
-    handler = logging.StreamHandler()
+    handler = logging.StreamHandler(stream=stream)
     handler.setFormatter(formatter)
 
     LOG.setLevel(logging.ERROR)
