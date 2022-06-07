@@ -47,7 +47,7 @@ class Controller:
             if i < attempts - 1:
                 time.sleep(CONFIG.getfloat('client', 'connect_retry_delay_secs'))
 
-        LOG.error('could not connect to controller %s:%s:',
+        LOG.error('could not connect to controller %s:%s',
                   self.controller_host, self.controller_port)
         return False
 
