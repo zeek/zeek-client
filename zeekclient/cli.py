@@ -392,8 +392,11 @@ def cmd_set_config(controller, args):
         LOG.error('received unexpected event: %s', resp)
         return 1
 
-    json_data = {}
     retval = 0
+    json_data = {
+        'results': {},
+        'errors': [],
+    }
 
     for broker_data in resp.results:
         res = Result.from_broker(broker_data)
@@ -401,14 +404,13 @@ def cmd_set_config(controller, args):
         if not res.success:
             retval = 1
 
-        # If the result record doesn't mention a node, it's the response of an
-        # agent that had no nodes to launch (but possibly dropped existing ones
-        # as part of this request). We adopt its error state, but don't render
-        # any output.
-        if res.node is None:
-            continue
+            # If the failure doesn't mention a node, it's the response of an
+            # agent.
+            if res.node is None and res.error:
+                json_data['errors'].append(res.error)
+                continue
 
-        json_data[res.node] = {
+        json_data['results'][res.node] = {
             'success': res.success,
             'instance': res.instance,
         }
@@ -417,9 +419,8 @@ def cmd_set_config(controller, args):
         # data member in the result record.
         if res.data:
             node_outputs = NodeOutputs.from_broker(res.data)
-            json_data[res.node]['stdout'] = node_outputs.stdout
-            json_data[res.node]['stderr'] = node_outputs.stderr
-
+            json_data['results'][res.node]['stdout'] = node_outputs.stdout
+            json_data['results'][res.node]['stderr'] = node_outputs.stderr
 
     print(json_dumps(json_data))
     return retval
