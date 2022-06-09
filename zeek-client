@@ -70,19 +70,12 @@ def main():
         zeekclient.logs.configure(args.verbose, zeekclient.CONFIG.getboolean(
             'client', 'rich_logging_format'))
 
-    controller = zeekclient.Controller(
-        zeekclient.CONFIG.get('controller', 'host'),
-        zeekclient.CONFIG.getint('controller', 'port'))
-
-    if not controller.connect():
-        return 1
-
     if not args.command:
         zeekclient.LOG.error('please provide a command to execute.')
         return 1
 
     try:
-        return args.run_cmd(controller, args)
+        return args.run_cmd(args)
     except KeyboardInterrupt:
         return 0
 

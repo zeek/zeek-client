@@ -11,6 +11,8 @@ import broker
 
 from .config import CONFIG
 
+from .controller import Controller
+
 from .consts import (
     CONFIG_FILE
 )
@@ -64,6 +66,16 @@ def json_dumps(obj):
 
     indent = 2 if CONFIG.getboolean('client', 'pretty_json') else None
     return json.dumps(obj, default=default, sort_keys=True, indent=indent)
+
+
+def create_controller():
+    controller = Controller(CONFIG.get('controller', 'host'),
+                            CONFIG.getint('controller', 'port'))
+
+    if not controller.connect():
+        return None
+
+    return controller
 
 
 def create_parser():
@@ -153,7 +165,11 @@ def create_parser():
     return parser
 
 
-def cmd_get_config(controller, args):
+def cmd_get_config(args):
+    controller = create_controller()
+    if controller is None:
+        return 1
+
     controller.publish(GetConfigurationRequest(make_uuid()))
     resp, msg = controller.receive()
 
@@ -188,7 +204,11 @@ def cmd_get_config(controller, args):
     return 0
 
 
-def cmd_get_id_value(controller, args):
+def cmd_get_id_value(args):
+    controller = create_controller()
+    if controller is None:
+        return 1
+
     controller.publish(GetIdValueRequest(make_uuid(), args.id, set(args.nodes)))
     resp, msg = controller.receive()
 
@@ -241,7 +261,11 @@ def cmd_get_id_value(controller, args):
     return 0 if len(json_data['errors']) == 0 else 1
 
 
-def cmd_get_instances(controller, args): # pylint: disable=unused-argument
+def cmd_get_instances(_args):
+    controller = create_controller()
+    if controller is None:
+        return 1
+
     controller.publish(GetInstancesRequest(make_uuid()))
     resp, msg = controller.receive()
 
@@ -280,7 +304,11 @@ def cmd_get_instances(controller, args): # pylint: disable=unused-argument
     return 0
 
 
-def cmd_get_nodes(controller, _args):
+def cmd_get_nodes(_args):
+    controller = create_controller()
+    if controller is None:
+        return 1
+
     controller.publish(GetNodesRequest(make_uuid()))
     resp, msg = controller.receive()
 
@@ -344,7 +372,11 @@ def cmd_get_nodes(controller, _args):
     return 0 if len(json_data['errors']) == 0 else 1
 
 
-def cmd_monitor(controller, args): # pylint: disable=unused-argument
+def cmd_monitor(_args):
+    controller = create_controller()
+    if controller is None:
+        return 1
+
     while True:
         resp, msg = controller.receive(None)
 
@@ -356,7 +388,7 @@ def cmd_monitor(controller, args): # pylint: disable=unused-argument
     return 0
 
 
-def cmd_set_config(controller, args):
+def cmd_set_config(args):
     if not args.config or (args.config != '-' and not os.path.isfile(args.config)):
         LOG.error('please provide a cluster configuration file.')
         return 1
@@ -381,6 +413,10 @@ def cmd_set_config(controller, args):
 
     if config is None:
         LOG.error('configuration has errors, not deploying')
+        return 1
+
+    controller = create_controller()
+    if controller is None:
         return 1
 
     controller.publish(SetConfigurationRequest(make_uuid(), config.to_broker()))
@@ -428,12 +464,16 @@ def cmd_set_config(controller, args):
     return retval
 
 
-def cmd_show_settings(_controller, _args):
+def cmd_show_settings(_args):
     CONFIG.write(sys.stdout)
     return 0
 
 
-def cmd_test_timeout(controller, args):
+def cmd_test_timeout(args):
+    controller = create_controller()
+    if controller is None:
+        return 1
+
     controller.publish(TestTimeoutRequest(make_uuid(), args.with_state))
     resp, msg = controller.receive()
 
