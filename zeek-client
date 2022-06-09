@@ -67,8 +67,9 @@ def main():
 
     # Establish logging as per requested verbosity and formatting
     if not args.quiet:
-        zeekclient.logs.configure(args.verbose, zeekclient.CONFIG.getboolean(
-            'client', 'rich_logging_format'))
+        zeekclient.logs.configure(
+            zeekclient.CONFIG.getint('client', 'verbosity'),
+            zeekclient.CONFIG.getboolean('client', 'rich_logging_format'))
 
     if not args.command:
         zeekclient.LOG.error('please provide a command to execute.')

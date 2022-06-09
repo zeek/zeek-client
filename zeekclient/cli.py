@@ -106,7 +106,7 @@ def create_parser():
     verbosity_group = parser.add_mutually_exclusive_group()
     verbosity_group.add_argument('--quiet', '-q', action='store_true',
                                  help='Suppress informational output to stderr.')
-    verbosity_group.add_argument('--verbose', '-v', action='count', default=0,
+    verbosity_group.add_argument('--verbose', '-v', action='count',
                                  help='Increase informational output to stderr. '
                                  'Repeat for more output (e.g. -vvv).')
 

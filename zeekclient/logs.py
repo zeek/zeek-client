@@ -5,7 +5,7 @@ LOG = logging.getLogger(__name__)
 LOG.addHandler(logging.NullHandler())
 
 
-def configure(verbosity=1, rich_logging=False, stream=None):
+def configure(verbosity=0, rich_logging=False, stream=None):
     """Configures logging.
 
     Args:

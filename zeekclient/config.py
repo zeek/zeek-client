@@ -48,6 +48,14 @@ class Config(configparser.ConfigParser):
 
                 # Whether we pretty-print JSON output by default.
                 'pretty_json': True,
+
+                # Default output verbosity level:
+                #   0   permits errors
+                #   1   also warnings
+                #   2   also informational messages
+                #   3   also debug messages
+                #   4+  no additional effect
+                'verbosity': 0,
             },
             'controller': {
                 # Default host name/address where we contact the controller.
@@ -90,6 +98,10 @@ class Config(configparser.ConfigParser):
             else:
                 self.set('controller', 'host', host_port[0])
                 self.set('controller', 'port', host_port[1])
+
+        # --verbose/-v/-vvv etc set a numeric verbosity level:
+        if args.verbose:
+            self.set('client', 'verbosity', str(args.verbose))
 
     def apply(self, item):
         """This is equivalent to set(), but works via a single <section.key>=<val> string."""
