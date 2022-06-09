@@ -12,8 +12,7 @@ import broker
 from .config import CONFIG
 
 from .consts import (
-    CONFIG_FILE,
-    CONTROLLER
+    CONFIG_FILE
 )
 
 from .events import (
@@ -77,11 +76,14 @@ def create_parser():
         '    ZEEK_CLIENT_CONFIG_SETTINGS:  '
         'Same as a space-separated series of `--set` arguments, but lower precedence.\n')
 
+    controller = '{}:{}'.format(CONFIG.get('controller', 'host'),
+                                CONFIG.get('controller', 'port'))
+
     parser.add_argument('-c', '--configfile', metavar='FILE', default=CONFIG_FILE,
                         help='Path to zeek-client config file. (Default: {})'.format(CONFIG_FILE))
-    parser.add_argument('--controller', metavar='HOST:PORT', default=CONTROLLER,
+    parser.add_argument('--controller', metavar='HOST:PORT',
                         help='Address and port of the controller, either of '
-                        'which may be omitted (default: {})'.format(CONTROLLER))
+                        'which may be omitted (default: {})'.format(controller))
     arg = parser.add_argument('--set', metavar='SECTION.KEY=VAL', action='append', default=[],
                               help='Adjust a configuration setting. Can use repeatedly. '
                               'See show-settings.')

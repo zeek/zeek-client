@@ -40,7 +40,7 @@ class Config(configparser.ConfigParser):
                 # How often to attempt peerings within Controller.connect():
                 'connect_attempts': 4,
 
-                # Delay between our on connect attempts.
+                # Delay between our connection attempts.
                 'connect_retry_delay_secs': 0.25,
 
                 # The way zeek-client reports informational messages on stderr
@@ -48,6 +48,13 @@ class Config(configparser.ConfigParser):
 
                 # Whether we pretty-print JSON output by default.
                 'pretty_json': True,
+            },
+            'controller': {
+                # Default host name/address where we contact the controller.
+                'host': '127.0.0.1',
+
+                # Default port of the controller.
+                'port': 2150,
             },
         })
 
@@ -69,6 +76,20 @@ class Config(configparser.ConfigParser):
             except ValueError:
                 LOG.error('config item "%s" invalid. Please use '
                           '<section.key>=<val>.', item)
+
+        # The `--controller` argument is a shortcut for two `--set` arguments that
+        # set controller host and port, so update these manually:
+        if args.controller:
+            host_port = args.controller.split(':', 1)
+            if len(host_port) != 2 or not host_port[1]:
+                # It's just a hostname
+                self.set('controller', 'host', host_port[0])
+            elif not host_port[0]:
+                # It's just a port (as ":<port>")
+                self.set('controller', 'port', host_port[1])
+            else:
+                self.set('controller', 'host', host_port[0])
+                self.set('controller', 'port', host_port[1])
 
     def apply(self, item):
         """This is equivalent to set(), but works via a single <section.key>=<val> string."""

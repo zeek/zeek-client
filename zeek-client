@@ -70,26 +70,10 @@ def main():
         zeekclient.logs.configure(args.verbose, zeekclient.CONFIG.getboolean(
             'client', 'rich_logging_format'))
 
-    controller_parts = args.controller.split(':', 1)
+    controller = zeekclient.Controller(
+        zeekclient.CONFIG.get('controller', 'host'),
+        zeekclient.CONFIG.getint('controller', 'port'))
 
-    if len(controller_parts) != 2:
-        # Allow just a host, falling back to default port
-        controller_parts = [controller_parts[0], zeekclient.CONTROLLER_PORT]
-    elif not controller_parts[0]:
-        # Allow just a port (as ":<port>"), falling back to default host.
-        controller_parts = [zeekclient.CONTROLLER_HOST, controller_parts[1]]
-
-    controller_host = controller_parts[0]
-
-    try:
-        controller_port = int(controller_parts[1])
-        if controller_port < 1 or controller_port > 65535:
-            raise ValueError
-    except ValueError:
-        zeekclient.LOG.error('controller port number outside valid range')
-        return 1
-
-    controller = zeekclient.Controller(controller_host, controller_port)
     if not controller.connect():
         return 1
 

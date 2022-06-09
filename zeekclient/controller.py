@@ -26,6 +26,11 @@ class Controller:
         self.poll.register(self.ssub.fd())
 
     def connect(self):
+        if self.controller_port < 1 or self.controller_port > 65535:
+            LOG.error('controller port number {} outside valid range'.format(
+                self.controller_port))
+            return False
+
         # We add retries around Broker's peering because some problems don't
         # fall under its built-in retry umbrella. Our explicit retries simplify
         # testing setups, where they mask the bootstrapping of the services
