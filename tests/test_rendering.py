@@ -361,6 +361,47 @@ role = manager
             self.logbuf.getvalue(),
             'error: invalid node "manager" configuration: port 70000 outside valid range')
 
+    def test_config_missing_instance_section(self):
+        ini_input = """
+[manager]
+instance = agent
+role = manager
+
+[logger]
+instance = agent2
+role = logger
+
+[worker]
+instance = agent
+role = worker
+"""
+        ini_expected = """
+[instances]
+agent
+agent2
+
+[logger]
+instance = agent2
+role = LOGGER
+
+[manager]
+instance = agent
+role = MANAGER
+
+[worker]
+instance = agent
+role = WORKER
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertTrue(config is not None)
+
+        cfp = config.to_config_parser()
+        with io.StringIO() as buf:
+            cfp.write(buf)
+            self.assertEqualStripped(buf.getvalue(), ini_expected)
+
+
 def test():
     """Entry point for testing this module.
 

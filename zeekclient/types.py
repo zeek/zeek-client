@@ -523,6 +523,17 @@ class Configuration(BrokerType, ConfigParserMixin):
                 LOG.error('invalid node "%s" configuration: %s', section, err)
                 return None
 
+        # When the configuration has no "instances" section, then any instance
+        # names given in node sections imply corresponding instances whose
+        # agents connect to the controller. That is, the instances section is
+        # just a redundant listing of the instance names and we can synthesize
+        # it:
+        if 'instances' not in cfp.sections():
+            names = set()
+            for node in config.nodes:
+                names.add(node.instance)
+            config.instances = sorted([Instance(name) for name in names])
+
         return config
 
     def to_config_parser(self, cfp=None):

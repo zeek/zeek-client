@@ -60,6 +60,33 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(self.config.getint('client', 'request_timeout_secs'), 42)
         self.assertEqual(self.config.get('server', 'FOO'), '1 2 3')
 
+    def test_update_from_args_controller_host(self):
+        parser = zeekclient.cli.create_parser()
+        args = parser.parse_args(['--controller', 'foo'])
+        self.config.update_from_args(args)
+        self.assertEqual(self.config.get('controller', 'host'), 'foo')
+        self.assertEqual(self.config.getint('controller', 'port'), 2150)
+
+        parser = zeekclient.cli.create_parser()
+        args = parser.parse_args(['--controller', 'foo:'])
+        self.config.update_from_args(args)
+        self.assertEqual(self.config.get('controller', 'host'), 'foo')
+        self.assertEqual(self.config.getint('controller', 'port'), 2150)
+
+    def test_update_from_args_controller_port(self):
+        parser = zeekclient.cli.create_parser()
+        args = parser.parse_args(['--controller', ':2222'])
+        self.config.update_from_args(args)
+        self.assertEqual(self.config.get('controller', 'host'), '127.0.0.1')
+        self.assertEqual(self.config.getint('controller', 'port'), 2222)
+
+    def test_update_from_args_controller_hostport(self):
+        parser = zeekclient.cli.create_parser()
+        args = parser.parse_args(['--controller', 'foo:2222'])
+        self.config.update_from_args(args)
+        self.assertEqual(self.config.get('controller', 'host'), 'foo')
+        self.assertEqual(self.config.getint('controller', 'port'), 2222)
+
 
 def test():
     """Entry point for testing this module.

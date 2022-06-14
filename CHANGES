@@ -1,3 +1,13 @@
+0.3.0-28 | 2022-06-14 12:11:00 -0700
+
+  * Allow skipping the instances section in config .ini files when redundant (Christian Kreibich, Corelight)
+
+  * Move verbosity into the config system (Christian Kreibich, Corelight)
+
+  * Move controller host/port from constants into the config system (Christian Kreibich, Corelight)
+
+  * Make CLI commands handle controller object instantiation themselves (Christian Kreibich, Corelight)
+
 0.3.0-23 | 2022-06-08 13:38:20 -0700
 
   * Switch set-config result JSON format to that used by others (Christian Kreibich, Corelight)

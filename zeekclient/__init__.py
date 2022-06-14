@@ -24,5 +24,5 @@ from .logs import *
 from .types import *
 from .utils import *
 
-__version__ = "0.3.0-23"
+__version__ = "0.3.0-28"
 __all__ = ['cli', 'config', 'consts', 'controller', 'events', 'logging', 'types', 'utils']
