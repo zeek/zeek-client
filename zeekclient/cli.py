@@ -185,7 +185,7 @@ def cmd_get_config(args):
 
     if not res.success:
         msg = res.error if res.error else 'no reason given'
-        LOG.error('response indicates failure: %s', msg)
+        LOG.error(msg)
         return 1
 
     if not res.data:
@@ -281,7 +281,7 @@ def cmd_get_instances(_args):
 
     if not res.success:
         msg = res.error if res.error else 'no reason given'
-        LOG.error('response indicates failure: %s', msg)
+        LOG.error(msg)
         return 1
 
     if res.data is None:
