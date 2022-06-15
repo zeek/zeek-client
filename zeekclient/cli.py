@@ -124,6 +124,12 @@ def create_parser():
     sub_parser.set_defaults(run_cmd=cmd_deploy)
 
     sub_parser = command_parser.add_parser(
+        'deploy-config', help='Upload a cluster configuration and deploy it.')
+    sub_parser.set_defaults(run_cmd=cmd_deploy_config)
+    sub_parser.add_argument('config', metavar='FILE',
+                            help='Cluster configuration file, "-" for stdin')
+
+    sub_parser = command_parser.add_parser(
         'get-config', help='Retrieve staged or deployed cluster configuration.')
     sub_parser.set_defaults(run_cmd=cmd_get_config)
     sub_parser.add_argument('--filename', '-f', metavar='FILE', default='-',
@@ -474,10 +480,14 @@ def cmd_monitor(_args):
     return 0
 
 
-def cmd_set_config(args):
+def cmd_set_config_impl(args):
+    """Internals of cmd_set_config() to enable chaining with other commands.
+
+    Returns a tuple of exit code and any JSON data to show to the user/caller.
+    """
     if not args.config or (args.config != '-' and not os.path.isfile(args.config)):
         LOG.error('please provide a cluster configuration file.')
-        return 1
+        return 1, None
 
     # We use a config parser to parse the cluster configuration. For instances,
     # we allow names without value to designate agents that connect to the
@@ -499,22 +509,22 @@ def cmd_set_config(args):
 
     if config is None:
         LOG.error('configuration has errors, not sending')
-        return 1
+        return 1, None
 
     controller = create_controller()
     if controller is None:
-        return 1
+        return 1, None
 
     controller.publish(SetConfigurationRequest(make_uuid(), config.to_broker()))
     resp, msg = controller.receive()
 
     if resp is None:
         LOG.error('no response received: %s', msg)
-        return 1
+        return 1, None
 
     if not isinstance(resp, SetConfigurationResponse):
         LOG.error('received unexpected event: %s', resp)
-        return 1
+        return 1, None
 
     retval = 0
     json_data = {
@@ -537,8 +547,27 @@ def cmd_set_config(args):
         if res.data:
             json_data['results']['id'] = res.data
 
-    print(json_dumps(json_data))
-    return retval
+    return retval, json_data
+
+
+def cmd_set_config(args):
+    ret, json_data = cmd_set_config_impl(args)
+
+    if json_data:
+        print(json_dumps(json_data))
+
+    return ret
+
+
+def cmd_deploy_config(args):
+    ret, json_data = cmd_set_config_impl(args)
+
+    if ret != 0:
+        if json_data:
+            print(json_dumps(json_data))
+        return ret
+
+    return cmd_deploy(args)
 
 
 def cmd_show_settings(_args):
