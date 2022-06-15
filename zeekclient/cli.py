@@ -18,6 +18,8 @@ from .consts import (
 )
 
 from .events import (
+    DeployRequest,
+    DeployResponse,
     GetConfigurationRequest,
     GetConfigurationResponse,
     GetIdValueRequest,
@@ -118,7 +120,11 @@ def create_parser():
         help='See `%(prog)s <command> -h` for per-command usage info.')
 
     sub_parser = command_parser.add_parser(
-        'get-config', help='Retrieve deployed cluster configuration.')
+        'deploy', help='Deploy a staged cluster configuration.')
+    sub_parser.set_defaults(run_cmd=cmd_deploy)
+
+    sub_parser = command_parser.add_parser(
+        'get-config', help='Retrieve staged or deployed cluster configuration.')
     sub_parser.set_defaults(run_cmd=cmd_get_config)
     sub_parser.add_argument('--filename', '-f', metavar='FILE', default='-',
                             help='Output file for the configuration, default stdout')
@@ -153,7 +159,7 @@ def create_parser():
     sub_parser.set_defaults(run_cmd=cmd_monitor)
 
     sub_parser = command_parser.add_parser(
-        'set-config', help='Deploy cluster configuration.')
+        'set-config', help='Upload a cluster configuration.')
     sub_parser.set_defaults(run_cmd=cmd_set_config)
     sub_parser.add_argument('config', metavar='FILE',
                             help='Cluster configuration file, "-" for stdin')
@@ -169,6 +175,80 @@ def create_parser():
                             help='Make request stateful in the controller.')
 
     return parser
+
+
+def cmd_deploy(args):
+    controller = create_controller()
+    if controller is None:
+        return 1
+
+    controller.publish(DeployRequest(make_uuid()))
+    resp, msg = controller.receive()
+
+    if resp is None:
+        LOG.error('no response received: %s', msg)
+        return 1
+
+    if not isinstance(resp, DeployResponse):
+        LOG.error('received unexpected event: %s', resp)
+        return 1
+
+    retval = 0
+    json_data = {
+        'results': {},
+        'errors': [],
+    }
+
+    for broker_data in resp.results:
+        res = Result.from_broker(broker_data)
+
+        if not res.success:
+            retval = 1
+
+        if not res.success and res.node is None and res.error:
+            # If a failure doesn't mention a node, it's either an agent
+            # reporting an internal error, or the controller reporting a
+            # config validation error.
+            json_data['errors'].append(res.error)
+            continue
+
+        if res.success and res.node is None and res.instance is None and res.data:
+            # It's success from the controller (since the instance field is
+            # empty): the data field contains the ID of the deployed config.
+            json_data['results']['id'] = res.data
+            continue
+
+        # At this point we only expect responses from the agents:
+        if res.instance is None:
+            LOG.warning('skipping unexpected response %s', res)
+            continue
+
+        if res.node is None:
+            # This happens when an agent handles deployment successfully, and
+            # had no nodes to deploy. We skip this silently.
+            continue
+
+        # Everything else is node-specific results from agents.
+
+        if 'nodes' not in json_data['results']:
+            json_data['results']['nodes'] = {}
+
+        json_data['results']['nodes'][res.node] = {
+            'success': res.success,
+            'instance': res.instance,
+        }
+
+        # If launching this node failed, we should have a NodeOutputs record as
+        # data member in the result record. ("should", because on occasion
+        # buffering in the node -> stem -> supervisor pipeline delays the
+        # output.)
+        if res.data:
+            node_outputs = NodeOutputs.from_broker(res.data)
+            json_data['results']['nodes'][res.node]['stdout'] = node_outputs.stdout
+            json_data['results']['nodes'][res.node]['stderr'] = node_outputs.stderr
+
+    print(json_dumps(json_data))
+    return retval
 
 
 def cmd_get_config(args):
@@ -418,7 +498,7 @@ def cmd_set_config(args):
     config = Configuration.from_config_parser(cfp)
 
     if config is None:
-        LOG.error('configuration has errors, not deploying')
+        LOG.error('configuration has errors, not sending')
         return 1
 
     controller = create_controller()
@@ -448,26 +528,14 @@ def cmd_set_config(args):
         if not res.success:
             retval = 1
 
-        if res.node is None:
-            # If a failure doesn't mention a node, an agent reported an error
-            # about itself. If it's success, it's an empty response from an
-            # agent that didn't launch any nodes, and we render no particular
-            # output for it.
-            if res.error:
-                json_data['errors'].append(res.error)
+            # Failures are config validation problems, trouble while
+            # auto-assigning ports, or internal controller errors.
+            # They should all come with error messages.
+            json_data['errors'].append(res.error if res.error else 'no reason given')
             continue
 
-        json_data['results'][res.node] = {
-            'success': res.success,
-            'instance': res.instance,
-        }
-
-        # If launching this node failed, we should have a NodeOutputs record as
-        # data member in the result record.
         if res.data:
-            node_outputs = NodeOutputs.from_broker(res.data)
-            json_data['results'][res.node]['stdout'] = node_outputs.stdout
-            json_data['results'][res.node]['stderr'] = node_outputs.stderr
+            json_data['results']['id'] = res.data
 
     print(json_dumps(json_data))
     return retval

@@ -110,6 +110,14 @@ class Registry:
 # Any Zeek object/record that's an event argument gets represented as a
 # tuple below, reflecting Broker's representation thereof.
 
+DeployRequest = Registry.make_event_class(
+    'Management::Controller::API::deploy_request',
+    ('requid',), (str,))
+
+DeployResponse = Registry.make_event_class(
+    'Management::Controller::API::deploy_response',
+    ('reqid', 'results'), (str, tuple))
+
 GetConfigurationRequest = Registry.make_event_class(
     'Management::Controller::API::get_configuration_request',
     ('reqid', 'deployed'), (str, bool))
