@@ -124,6 +124,12 @@ def create_parser():
                             help='Output file for the configuration, default stdout')
     sub_parser.add_argument('--as-json', action='store_true',
                             help='Report in JSON instead of INI-style config file')
+    get_config_group = sub_parser.add_mutually_exclusive_group()
+    get_config_group.add_argument('--deployed', action='store_true',
+                                  dest='deployed', default=False,
+                                  help='Return deployed configuration')
+    get_config_group.add_argument('--staged', action='store_false', dest='deployed',
+                                  help='Return staged configuration (default)')
 
     sub_parser = command_parser.add_parser(
         'get-id-value', help='Show the value of a given identifier in Zeek cluster nodes.')
@@ -170,7 +176,7 @@ def cmd_get_config(args):
     if controller is None:
         return 1
 
-    controller.publish(GetConfigurationRequest(make_uuid()))
+    controller.publish(GetConfigurationRequest(make_uuid(), args.deployed))
     resp, msg = controller.receive()
 
     if resp is None:

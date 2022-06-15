@@ -112,7 +112,7 @@ class Registry:
 
 GetConfigurationRequest = Registry.make_event_class(
     'Management::Controller::API::get_configuration_request',
-    ('reqid',), (str,))
+    ('reqid', 'deployed'), (str, bool))
 
 GetConfigurationResponse = Registry.make_event_class(
     'Management::Controller::API::get_configuration_response',
