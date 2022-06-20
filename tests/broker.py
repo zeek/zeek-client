@@ -48,6 +48,9 @@ class Subscriber:
         self.topic = ""
         self.data = ()
 
+    def available(self):
+        return True
+
     def fd(self):
         return 0
 
@@ -63,6 +66,9 @@ class StatusSubscriber:
     def __init__(self):
         self.fd_val = 0
         self.status = Status()
+
+    def available(self):
+        return True
 
     def fd(self):
         return self.fd_val

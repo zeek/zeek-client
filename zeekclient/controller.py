@@ -31,28 +31,41 @@ class Controller:
                 self.controller_port))
             return False
 
-        # We add retries around Broker's peering because some problems don't
-        # fall under its built-in retry umbrella. Our explicit retries simplify
-        # testing setups, where they mask the bootstrapping of the services
-        # involved.
-        attempts = CONFIG.getint('client', 'connect_attempts')
-        for i in range(attempts):
-            self.ept.peer_nosync(self.controller_host, self.controller_port,
-                                 CONFIG.getfloat('client', 'connect_peer_retry_secs'))
+        LOG.info('connecting to controller %s:%s', self.controller_host,
+                 self.controller_port)
 
-            # Wait for outcome of the peering attempt:
+        self.ept.peer_nosync(self.controller_host, self.controller_port,
+                             CONFIG.getfloat('client', 'peer_retry_secs'))
+
+        # Wait for successful peering in the status subscriber, to ensure we can
+        # communicate events reliably. We need to time this out since this
+        # status may never arrive -- the plain get() in the Broker example is
+        # dangerous. The version of get() with a timeout currently throws a
+        # Python bindings error, so we resort to our own timeout mechanism. Note
+        # that we see other status updates in a successful connection setup: the
+        # first status update will usually be endpoint_discovered, followed by
+        # peer_added.
+        attempts = CONFIG.getint('client', 'peering_status_attempts')
+
+        for i in range(attempts):
+            if not self.ssub.available():
+                time.sleep(CONFIG.getfloat('client', 'peering_status_retry_delay_secs'))
+                continue
+
             status = self.ssub.get()
+            LOG.debug('status update, attempt %s/%s to connect to %s:%s: %s',
+                      i, attempts, self.controller_host, self.controller_port,
+                      status)
+
+            # The return can be an error or a status, so we need to typecheck
             if isinstance(status, broker.Status) and status.code() == broker.SC.PeerAdded:
                 LOG.info('peered with controller %s:%s', self.controller_host,
-                          self.controller_port)
+                         self.controller_port)
                 return True
 
-            LOG.debug('broker endpoint status: %s', status)
+            time.sleep(CONFIG.getfloat('client', 'peering_status_retry_delay_secs'))
 
-            if i < attempts - 1:
-                time.sleep(CONFIG.getfloat('client', 'connect_retry_delay_secs'))
-
-        LOG.error('could not connect to controller %s:%s',
+        LOG.error('could not peer with controller %s:%s',
                   self.controller_host, self.controller_port)
         return False
 
@@ -83,11 +96,10 @@ class Controller:
         if timeout_msecs is not None:
             timeout_msecs *= 1000
 
-        # XXX this is quite basic -- no event dispatch mechanism, event loop,
-        # etc. For now we just poll on the fds of the subscriber and status
-        # subscriber so we get notified when something arrives or an error
-        # occurs. Might have to handle POLLERR and POLLHUP here too to be more
-        # robust.
+        # This is quite basic: no event dispatch mechanism, event loop, etc. For
+        # now we just poll on the fds of the subscriber and status subscriber so
+        # we get notified when something arrives or an error occurs. Might have
+        # to handle POLLERR and POLLHUP here too to be more robust.
         while True:
             try:
                 resps = self.poll.poll(timeout_msecs)
@@ -107,4 +119,7 @@ class Controller:
 
                 if fdesc == self.ssub.fd() and event & select.POLLIN:
                     status = self.ssub.get()
-                    return None, 'status change: {}'.format(status)
+                    # Fail on errors, but swallow regular status updates:
+                    if not isinstance(status, broker.Status):
+                        return None, 'broker error: {}'.format(status)
+                    LOG.debug('broker status change: {}'.format(status))
