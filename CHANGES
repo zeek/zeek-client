@@ -1,3 +1,7 @@
+0.3.0-30 | 2022-06-21 16:55:12 -0700
+
+  * Tweak set-config results rendering for empty, successful agent responses (Christian Kreibich, Corelight)
+
 0.3.0-28 | 2022-06-14 12:11:00 -0700
 
   * Allow skipping the instances section in config .ini files when redundant (Christian Kreibich, Corelight)

@@ -442,11 +442,14 @@ def cmd_set_config(args):
         if not res.success:
             retval = 1
 
-            # If the failure doesn't mention a node, it's the response of an
-            # agent.
-            if res.node is None and res.error:
+        if res.node is None:
+            # If a failure doesn't mention a node, an agent reported an error
+            # about itself. If it's success, it's an empty response from an
+            # agent that didn't launch any nodes, and we render no particular
+            # output for it.
+            if res.error:
                 json_data['errors'].append(res.error)
-                continue
+            continue
 
         json_data['results'][res.node] = {
             'success': res.success,
