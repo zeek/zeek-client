@@ -150,12 +150,12 @@ GetNodesResponse = Registry.make_event_class(
     'Management::Controller::API::get_nodes_response',
     ('reqid', 'results'), (str, tuple))
 
-SetConfigurationRequest = Registry.make_event_class(
-    'Management::Controller::API::set_configuration_request',
+StageConfigurationRequest = Registry.make_event_class(
+    'Management::Controller::API::stage_configuration_request',
     ('reqid', 'config'), (str, tuple))
 
-SetConfigurationResponse = Registry.make_event_class(
-    'Management::Controller::API::set_configuration_response',
+StageConfigurationResponse = Registry.make_event_class(
+    'Management::Controller::API::stage_configuration_response',
     ('reqid', 'results'), (str, tuple))
 
 TestNoopRequest = Registry.make_event_class(

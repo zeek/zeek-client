@@ -28,8 +28,8 @@ from .events import (
     GetInstancesResponse,
     GetNodesRequest,
     GetNodesResponse,
-    SetConfigurationRequest,
-    SetConfigurationResponse,
+    StageConfigurationRequest,
+    StageConfigurationResponse,
     TestTimeoutRequest,
     TestTimeoutResponse
 )
@@ -165,8 +165,8 @@ def create_parser():
     sub_parser.set_defaults(run_cmd=cmd_monitor)
 
     sub_parser = command_parser.add_parser(
-        'set-config', help='Upload a cluster configuration.')
-    sub_parser.set_defaults(run_cmd=cmd_set_config)
+        'stage-config', help='Upload a cluster configuration for later deployment.')
+    sub_parser.set_defaults(run_cmd=cmd_stage_config)
     sub_parser.add_argument('config', metavar='FILE',
                             help='Cluster configuration file, "-" for stdin')
 
@@ -480,8 +480,8 @@ def cmd_monitor(_args):
     return 0
 
 
-def cmd_set_config_impl(args):
-    """Internals of cmd_set_config() to enable chaining with other commands.
+def cmd_stage_config_impl(args):
+    """Internals of cmd_stage_config() to enable chaining with other commands.
 
     Returns a tuple of exit code and any JSON data to show to the user/caller.
     """
@@ -515,14 +515,14 @@ def cmd_set_config_impl(args):
     if controller is None:
         return 1, None
 
-    controller.publish(SetConfigurationRequest(make_uuid(), config.to_broker()))
+    controller.publish(StageConfigurationRequest(make_uuid(), config.to_broker()))
     resp, msg = controller.receive()
 
     if resp is None:
         LOG.error('no response received: %s', msg)
         return 1, None
 
-    if not isinstance(resp, SetConfigurationResponse):
+    if not isinstance(resp, StageConfigurationResponse):
         LOG.error('received unexpected event: %s', resp)
         return 1, None
 
@@ -550,8 +550,8 @@ def cmd_set_config_impl(args):
     return retval, json_data
 
 
-def cmd_set_config(args):
-    ret, json_data = cmd_set_config_impl(args)
+def cmd_stage_config(args):
+    ret, json_data = cmd_stage_config_impl(args)
 
     if json_data:
         print(json_dumps(json_data))
@@ -560,7 +560,7 @@ def cmd_set_config(args):
 
 
 def cmd_deploy_config(args):
-    ret, json_data = cmd_set_config_impl(args)
+    ret, json_data = cmd_stage_config_impl(args)
 
     if ret != 0:
         if json_data:
