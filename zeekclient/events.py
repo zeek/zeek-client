@@ -110,9 +110,17 @@ class Registry:
 # Any Zeek object/record that's an event argument gets represented as a
 # tuple below, reflecting Broker's representation thereof.
 
+DeployRequest = Registry.make_event_class(
+    'Management::Controller::API::deploy_request',
+    ('requid',), (str,))
+
+DeployResponse = Registry.make_event_class(
+    'Management::Controller::API::deploy_response',
+    ('reqid', 'results'), (str, tuple))
+
 GetConfigurationRequest = Registry.make_event_class(
     'Management::Controller::API::get_configuration_request',
-    ('reqid',), (str,))
+    ('reqid', 'deployed'), (str, bool))
 
 GetConfigurationResponse = Registry.make_event_class(
     'Management::Controller::API::get_configuration_response',
@@ -142,12 +150,12 @@ GetNodesResponse = Registry.make_event_class(
     'Management::Controller::API::get_nodes_response',
     ('reqid', 'results'), (str, tuple))
 
-SetConfigurationRequest = Registry.make_event_class(
-    'Management::Controller::API::set_configuration_request',
+StageConfigurationRequest = Registry.make_event_class(
+    'Management::Controller::API::stage_configuration_request',
     ('reqid', 'config'), (str, tuple))
 
-SetConfigurationResponse = Registry.make_event_class(
-    'Management::Controller::API::set_configuration_response',
+StageConfigurationResponse = Registry.make_event_class(
+    'Management::Controller::API::stage_configuration_response',
     ('reqid', 'results'), (str, tuple))
 
 TestNoopRequest = Registry.make_event_class(

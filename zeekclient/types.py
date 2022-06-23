@@ -589,10 +589,10 @@ class NodeStatus(BrokerType):
 
 class Result(BrokerType):
     """Equivalent of Management::Result."""
-    def __init__(self, reqid, instance, success=True, data=None, error=None, node=None):
+    def __init__(self, reqid, success=True, instance=None, data=None, error=None, node=None):
         self.reqid = reqid
-        self.instance = instance
         self.success = success
+        self.instance = instance
         self.data = data
         self.error = error
         self.node = node
@@ -601,10 +601,15 @@ class Result(BrokerType):
         """Support sorting. Sort first by instance name the result comes from, second by
         the node name if present.
         """
-        if self.instance < other.instance:
-            return True
-        if self.instance > other.instance:
+        if self.instance is None and other.instance is not None:
             return False
+        if self.instance is not None and other.instance is None:
+            return True
+        if self.instance is not None and other.instance is not None:
+            if self.instance < other.instance:
+                return True
+            if self.instance > other.instance:
+                return False
 
         # Be more specific if we have a node name -- we can use it to sort when
         # two results come from the same instance.

@@ -32,16 +32,20 @@ class Config(configparser.ConfigParser):
                 # events can fire & propagate in Zeek before we give up here.
                 'request_timeout_secs': 20,
 
-                # How long Broker's endpoint.peer() should wait until it retries
-                # a peering. Its default is 10 seconds; we dial that down
-                # because we retry anyway, per the next setting. 0 disables.
-                'connect_peer_retry_secs': 1,
+                # How long the client's Broker's endpoint should wait internally
+                # until it retries a peering upon connection or when the
+                # connection goes away. Its default is 10 seconds; we dial that
+                # down to be more interactive.
+                'peer_retry_secs': 1,
 
-                # How often to attempt peerings within Controller.connect():
-                'connect_attempts': 4,
+                # Successful peering requires the client's Broker status
+                # subscriber to observe a PeerAdded update, which may or may not
+                # arrive after connection establishment. This is the number of
+                # times we check for status updates:
+                'peering_status_attempts': 10,
 
-                # Delay between our connection attempts.
-                'connect_retry_delay_secs': 0.25,
+                # How long to wait between status update checks.
+                'peering_status_retry_delay_secs': 0.5,
 
                 # The way zeek-client reports informational messages on stderr
                 'rich_logging_format': False,

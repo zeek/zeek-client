@@ -61,22 +61,26 @@ class TestRendering(unittest.TestCase):
         self.assertTrue(controller.connect())
         self.assertEqualStripped(
             self.logbuf.getvalue(),
+            'info: connecting to controller 127.0.0.1:2150\n' +
             'info: peered with controller 127.0.0.1:2150')
 
     def test_connect_fails(self):
         controller = zeekclient.controller.Controller('127.0.0.1', 2150)
         # Ensure the connects keep failing:
         controller.ssub.status = broker.Status(broker.SC.Unspecified)
+        # Dial down attempts to make this fast:
+        zeekclient.CONFIG.set('client', 'peering_status_attempts', '2')
         self.assertFalse(controller.connect())
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'error: could not connect to controller 127.0.0.1:2150')
+            'info: connecting to controller 127.0.0.1:2150\n' +
+            'error: could not peer with controller 127.0.0.1:2150')
 
     def test_publish(self):
         controller = zeekclient.controller.Controller('127.0.0.1', 2150)
         event = zeekclient.Registry.make_event(
             ('Management::Controller::API::get_configuration_request',
-             zeekclient.utils.make_uuid()))
+             zeekclient.utils.make_uuid(), True))
 
         controller.publish(event)
 

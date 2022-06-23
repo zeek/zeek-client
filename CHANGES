@@ -1,3 +1,19 @@
+0.3.0-38 | 2022-06-22 22:31:35 -0700
+
+  * Rename the set-config command to stage-config (Christian Kreibich, Corelight)
+
+  * Simplification and robustness fixes to connection establishment and event retrieval (Christian Kreibich, Corelight)
+
+  * Add deploy-config command, chaining set-config and deploy (Christian Kreibich, Corelight)
+
+  * Add deploy command and adjust set-config (Christian Kreibich, Corelight)
+
+  * Expand get-config to support deployed vs staged configs (Christian Kreibich, Corelight)
+
+  * Minor logging tweak (Christian Kreibich, Corelight)
+
+  * Reflect Zeek-side result record updates (Christian Kreibich, Corelight)
+
 0.3.0-30 | 2022-06-21 16:55:12 -0700
 
   * Tweak set-config results rendering for empty, successful agent responses (Christian Kreibich, Corelight)
