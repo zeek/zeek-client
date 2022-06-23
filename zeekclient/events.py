@@ -150,6 +150,14 @@ GetNodesResponse = Registry.make_event_class(
     'Management::Controller::API::get_nodes_response',
     ('reqid', 'results'), (str, tuple))
 
+RestartRequest = Registry.make_event_class(
+    'Management::Controller::API::restart_request',
+    ('reqid', 'nodes'), (str, set))
+
+RestartResponse = Registry.make_event_class(
+    'Management::Controller::API::restart_response',
+    ('reqid', 'results'), (str, tuple))
+
 StageConfigurationRequest = Registry.make_event_class(
     'Management::Controller::API::stage_configuration_request',
     ('reqid', 'config'), (str, tuple))

@@ -1,3 +1,9 @@
+1.0.0 | 2022-06-23 12:17:11 -0700
+
+  * Add "restart" command to allow restarting a set of Zeek cluster nodes (Christian Kreibich, Corelight)
+
+  * Avoid installing anything but .py files in zeekclient directory (Christian Kreibich, Corelight)
+
 0.3.0-38 | 2022-06-22 22:31:35 -0700
 
   * Rename the set-config command to stage-config (Christian Kreibich, Corelight)

@@ -18,9 +18,13 @@ configure_file(
 install(DIRECTORY DESTINATION bin)
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/zeek-client DESTINATION bin)
 
-# Install the Python module tree
+# Install the Python module tree. Use a pattern match to avoid installing any
+# .pyc or __pycache__ files that might reside in the directory due to local
+# unit-testing.
 install(DIRECTORY DESTINATION ${PY_MOD_INSTALL_DIR})
-install(DIRECTORY zeekclient DESTINATION ${PY_MOD_INSTALL_DIR})
+install(DIRECTORY zeekclient DESTINATION ${PY_MOD_INSTALL_DIR}
+    FILES_MATCHING PATTERN "zeekclient/*.py"
+    PATTERN "__pycache__" EXCLUDE)
 
 # Install the constants file with updated content:
 configure_file(
