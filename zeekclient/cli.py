@@ -4,6 +4,8 @@ import configparser
 import ipaddress
 import json
 import os
+import re
+import socket
 import sys
 import traceback
 
@@ -172,6 +174,12 @@ def create_parser():
     sub_parser.add_argument('nodes', metavar='NODES', nargs='*', default=[],
                             help='Name(s) of Zeek cluster nodes to restart. '
                             'When omitted, restarts all nodes.')
+
+    sub_parser = command_parser.add_parser(
+        'sample-config', help='Prints a sample cluster config file for your system.')
+    sub_parser.set_defaults(run_cmd=cmd_sample_config)
+    sub_parser.add_argument('--no-comments', action='store_true',
+                            help='Skip explanatory comments')
 
     sub_parser = command_parser.add_parser(
         'stage-config', help='Upload a cluster configuration for later deployment.')
@@ -537,6 +545,96 @@ def cmd_restart(args):
 
     print(json_dumps(json_data))
     return 0 if len(json_data['errors']) == 0 else 1
+
+
+def cmd_sample_config(args):
+    fixed_part = """# This is a sample zeek-client configuration file.
+# To obtain an updated version, run "zeek-client sample-config".
+
+# The instances section describes where you run Management agents
+# and whether these agents connect to the controller, or the controller
+# connects to them. Each instance (or, equivalently, the agent running
+# on it) is identified by a unique name. The names in this configuration
+# must match the names the agents use in the Zeek configuration. Without
+# customization, that name is "agent-<hostname>".
+#
+# If you only use agents connecting to to the controller, you can omit
+# this section since the list is also implicitly defined by the set
+# of instances mentioned by the cluster nodes, below.
+[instances]
+# A value-less entry means this agent connects to the controller:
+agent-{hostname}
+# An entry with a value of the form "<host>:<port>" means the controller will
+# connect to them. (This isn't fully automatic; you need to configure agents to
+# listen if you want to use this mode -- see the documentation for details.)
+#
+# agent-{hostname} = 12.34.56.78:1234
+
+# All other sections identify Zeek cluster nodes. The section name sets
+# the name of the node:
+[manager]
+
+# Every node needs to state on which instance it runs:
+instance = agent-{hostname}
+
+# Every node needs to define its role. Possible values are "manager",
+# "logger", "proxy", and "worker".
+role = manager
+
+# For nodes that require a listening port (all roles but workers),
+# you can choose to define a port. If you omit it, the framework will
+# define ports for you.
+#
+# port = 1234
+
+# You can provide additional scripts that a node should run. These scripts
+# must be available on the instance. Space-separate multiple scripts.
+#
+# scripts = policy/tuning/json-logs policy/misc/loaded-scripts
+
+# You can define environment variables for the node. List them as <key>=<value>,
+# space-separated if you provide multiple. If the value has whitespace, say
+# <key>="<the value>'
+#
+# env = FOO=BAR
+
+# For workers, specify a sniffing interface as follows:
+#
+# interface = <name>
+
+# To express CPU affinity, use the following:
+#
+# cpu_affinity = <num>
+
+[logger]
+instance = agent-{hostname}
+role = logger
+
+[proxy-01]
+instance = agent-{hostname}
+role = proxy
+"""
+    worker_part = """[worker-{num:02d}
+instance = agent-{hostname}
+role = worker
+interface = {iface}
+"""
+    hostname = socket.gethostname() or "localhost"
+    try:
+        ifaces = [info[1] for info in socket.if_nameindex()]
+    except OSError:
+        ifaces = ['eth0']
+
+    def finalize(s):
+        if args.no_comments:
+            s = re.sub(r'^#.*$', '', s)
+        return s
+
+    print(finalize(fixed_part.format(hostname=hostname)))
+
+    for num, iface in enumerate(ifaces):
+        print(finalize(worker_part.format(
+            hostname=hostname, num=num+1, iface=iface)))
 
 
 def cmd_stage_config_impl(args):
