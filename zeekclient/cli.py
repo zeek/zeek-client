@@ -28,6 +28,8 @@ from .events import (
     GetInstancesResponse,
     GetNodesRequest,
     GetNodesResponse,
+    RestartRequest,
+    RestartResponse,
     StageConfigurationRequest,
     StageConfigurationResponse,
     TestTimeoutRequest,
@@ -149,7 +151,7 @@ def create_parser():
     sub_parser.add_argument('id', metavar='IDENTIFIER',
                             help='Name of the Zeek script identifier to retrieve.')
     sub_parser.add_argument('nodes', metavar='NODES', nargs='*', default=[],
-                            help='Name(s) of select Zeek cluster nodes to query. '
+                            help='Name(s) of Zeek cluster nodes to query. '
                             'When omitted, queries all nodes.')
 
     sub_parser = command_parser.add_parser(
@@ -163,6 +165,13 @@ def create_parser():
     sub_parser = command_parser.add_parser(
         'monitor', help='For troubleshooting: do nothing, just report events.')
     sub_parser.set_defaults(run_cmd=cmd_monitor)
+
+    sub_parser = command_parser.add_parser(
+        'restart', help='Restart cluster nodes.')
+    sub_parser.set_defaults(run_cmd=cmd_restart)
+    sub_parser.add_argument('nodes', metavar='NODES', nargs='*', default=[],
+                            help='Name(s) of Zeek cluster nodes to restart. '
+                            'When omitted, restarts all nodes.')
 
     sub_parser = command_parser.add_parser(
         'stage-config', help='Upload a cluster configuration for later deployment.')
@@ -478,6 +487,56 @@ def cmd_monitor(_args):
             print('received "{}"'.format(resp))
 
     return 0
+
+
+def cmd_restart(args):
+    controller = create_controller()
+    if controller is None:
+        return 1
+
+    controller.publish(RestartRequest(make_uuid(), set(args.nodes)))
+    resp, msg = controller.receive()
+
+    if resp is None:
+        LOG.error('no response received: %s', msg)
+        return 1
+
+    if not isinstance(resp, RestartResponse):
+        LOG.error('received unexpected event: %s', resp)
+        return 1
+
+    json_data = {
+        'results': {},
+        'errors': [],
+    }
+
+    # The Result records have both instance and node filled in, so use both for
+    # ordering. While for the JSON serialization we can outsource the ordering
+    # task to Python, for our error reporting it's up to us, and we want be
+    # reproducible.
+
+    results = [Result.from_broker(broker_data) for broker_data in resp.results]
+
+    for res in sorted(results):
+        if not res.success and res.instance is None:
+            # The controller generated this one, so add to errors section.
+            json_data['errors'].append({
+                'source': res.node,
+                'error': res.error,
+            })
+            continue
+
+        # Upon success, we should always have a node filled in. But guard anyway.
+        if res.node:
+            json_data['results'][res.node] = res.success
+            continue
+
+        json_data['errors'].append({
+            'error': 'result lacking node: {}'.format(res),
+        })
+
+    print(json_dumps(json_data))
+    return 0 if len(json_data['errors']) == 0 else 1
 
 
 def cmd_stage_config_impl(args):
