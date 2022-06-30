@@ -508,7 +508,7 @@ class Configuration(BrokerType, ConfigParserMixin):
             # All keys for sections other than "instances" need to have a value.
             for key, val in cfp.items(section):
                 if val is None:
-                    LOG.error('config item %s/%s needs a value', section, key)
+                    LOG.error('config item %s.%s needs a value', section, key)
                     return None
 
             # The other sections are cluster nodes. Each section name corresponds to
