@@ -275,23 +275,6 @@ role = manager
             self.logbuf.getvalue(),
             'error: invalid node "manager" configuration: node requires an instance')
 
-    def test_config_missing_instance(self):
-        ini_input = """
-[instances]
-agent
-
-[manager]
-port = 80
-role = manager
-"""
-        cfp = self.parserFromString(ini_input)
-        config = zeekclient.Configuration.from_config_parser(cfp)
-        self.assertFalse(config)
-
-        self.assertEqualStripped(
-            self.logbuf.getvalue(),
-            'error: invalid node "manager" configuration: node requires an instance')
-
     def test_config_missing_role(self):
         ini_input = """
 [instances]
