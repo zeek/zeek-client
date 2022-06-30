@@ -264,7 +264,6 @@ role = manager
 agent
 
 [manager]
-port = 80
 role = manager
 """
         cfp = self.parserFromString(ini_input)
@@ -273,7 +272,24 @@ role = manager
 
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'error: invalid node "manager" configuration: node requires an instance')
+            'error: omit instances section when skipping instances in node definitions')
+
+    def test_config_mixed_instances(self):
+        ini_input = """
+[manager]
+role = manager
+
+[worker]
+role = worker
+instance = agent1
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertFalse(config)
+
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'error: either all or no nodes must state instances')
 
     def test_config_missing_role(self):
         ini_input = """
