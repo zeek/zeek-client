@@ -3,6 +3,7 @@ import configparser
 import enum
 import ipaddress
 import shlex
+import socket
 
 import broker
 
@@ -337,7 +338,11 @@ class Node(BrokerType, ConfigParserMixin):
 
         # Validate the specified values
         if not instance:
-            raise ValueError('node requires an instance')
+            # When a node features no instance name, default to
+            # "agent-<hostname>", assuming the config targets host-local
+            # deployment.
+            hostname = socket.gethostname() or 'localhost'
+            instance = 'agent-' + hostname
 
         if not role:
             raise ValueError('node requires a role')
