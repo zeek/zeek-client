@@ -492,6 +492,11 @@ class Configuration(BrokerType, ConfigParserMixin):
     def from_config_parser(cls, cfp, _section=None):
         config = Configuration()
 
+        # The nodes in this configuration that do not specify an instance.
+        # This is a convenience this client offers, so let's be consistent:
+        # if we use this feature, the entire config must be instance-free.
+        instance_free_nodes = set()
+
         for section in cfp.sections():
             if section == 'instances':
                 # The [instances] section is special: each key in it is the name of
@@ -523,9 +528,21 @@ class Configuration(BrokerType, ConfigParserMixin):
                 continue
 
             try:
+                if 'instance' not in cfp[section]:
+                    instance_free_nodes.add(section)
                 config.nodes.append(Node.from_config_parser(cfp, section))
             except ValueError as err:
                 LOG.error('invalid node "%s" configuration: %s', section, err)
+                return None
+
+        # Reject if this config mixes instance-free and instance-claiming nodes,
+        # or if it uses an instances section while omitting instances in nodes.
+        if len(instance_free_nodes) > 0:
+            if len(instance_free_nodes) != len(config.nodes):
+                LOG.error('either all or no nodes must state instances')
+                return None
+            if 'instances' in cfp.sections():
+                LOG.error('omit instances section when skipping instances in node definitions')
                 return None
 
         # When the configuration has no "instances" section, then any instance
@@ -538,6 +555,10 @@ class Configuration(BrokerType, ConfigParserMixin):
             for node in config.nodes:
                 names.add(node.instance)
             config.instances = sorted([Instance(name) for name in names])
+
+        # We don't cross-check the set of instances claimed by the nodes vs the
+        # set of instances declared in the config, because the controller
+        # already does this.
 
         return config
 
