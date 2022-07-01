@@ -10,6 +10,8 @@ import os
 import sys
 import unittest
 
+from unittest.mock import patch, MagicMock
+
 TESTS = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.normpath(os.path.join(TESTS, '..'))
 
@@ -262,7 +264,6 @@ role = manager
 agent
 
 [manager]
-port = 80
 role = manager
 """
         cfp = self.parserFromString(ini_input)
@@ -271,16 +272,16 @@ role = manager
 
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'error: invalid node "manager" configuration: node requires an instance')
+            'error: omit instances section when skipping instances in node definitions')
 
-    def test_config_missing_instance(self):
+    def test_config_mixed_instances(self):
         ini_input = """
-[instances]
-agent
-
 [manager]
-port = 80
 role = manager
+
+[worker]
+role = worker
+instance = agent1
 """
         cfp = self.parserFromString(ini_input)
         config = zeekclient.Configuration.from_config_parser(cfp)
@@ -288,7 +289,7 @@ role = manager
 
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'error: invalid node "manager" configuration: node requires an instance')
+            'error: either all or no nodes must state instances')
 
     def test_config_missing_role(self):
         ini_input = """
@@ -360,6 +361,29 @@ role = manager
         self.assertEqualStripped(
             self.logbuf.getvalue(),
             'error: invalid node "manager" configuration: port 70000 outside valid range')
+
+    @patch('zeekclient.types.socket.gethostname', new=MagicMock(return_value='testbox'))
+    def test_config_no_instances(self):
+        ini_input = """
+[manager]
+role = manager
+"""
+        ini_expected = """
+[instances]
+agent-testbox
+
+[manager]
+instance = agent-testbox
+role = MANAGER
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.Configuration.from_config_parser(cfp)
+        self.assertTrue(config is not None)
+
+        cfp = config.to_config_parser()
+        with io.StringIO() as buf:
+            cfp.write(buf)
+            self.assertEqualStripped(buf.getvalue(), ini_expected)
 
     def test_config_missing_instance_section(self):
         ini_input = """
