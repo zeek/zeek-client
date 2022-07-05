@@ -1,3 +1,7 @@
+1.1.0 | 2022-07-01 11:07:51 -0700
+
+  * Release 1.1.0.
+
 1.0.0-8 | 2022-07-01 11:07:04 -0700
 
   * When a cluster node definition omits its instance, default to the local agent (Christian Kreibich, Corelight)
