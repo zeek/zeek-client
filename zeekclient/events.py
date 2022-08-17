@@ -112,7 +112,7 @@ class Registry:
 
 DeployRequest = Registry.make_event_class(
     'Management::Controller::API::deploy_request',
-    ('requid',), (str,))
+    ('reqid',), (str,))
 
 DeployResponse = Registry.make_event_class(
     'Management::Controller::API::deploy_response',
