@@ -49,8 +49,6 @@ from .types import (
     Result
 )
 
-from .utils import make_uuid
-
 
 # Broker's basic types aren't JSON-serializable, so patch that up
 # in this json.dumps() wrapper for JSON serialization of any object.
@@ -197,15 +195,10 @@ def cmd_deploy(args):
     if controller is None:
         return 1
 
-    controller.publish(DeployRequest(make_uuid()))
-    resp, msg = controller.receive()
+    resp, msg = controller.transact(DeployRequest, DeployResponse)
 
     if resp is None:
         LOG.error('no response received: %s', msg)
-        return 1
-
-    if not isinstance(resp, DeployResponse):
-        LOG.error('received unexpected event: %s', resp)
         return 1
 
     retval = 0
@@ -271,15 +264,12 @@ def cmd_get_config(args):
     if controller is None:
         return 1
 
-    controller.publish(GetConfigurationRequest(make_uuid(), args.deployed))
-    resp, msg = controller.receive()
+    resp, msg = controller.transact(GetConfigurationRequest,
+                                    GetConfigurationResponse,
+                                    args.deployed)
 
     if resp is None:
         LOG.error('no response received: %s', msg)
-        return 1
-
-    if not isinstance(resp, GetConfigurationResponse):
-        LOG.error('received unexpected event: %s', resp)
         return 1
 
     res = Result.from_broker(resp.result)
@@ -310,15 +300,12 @@ def cmd_get_id_value(args):
     if controller is None:
         return 1
 
-    controller.publish(GetIdValueRequest(make_uuid(), args.id, set(args.nodes)))
-    resp, msg = controller.receive()
+    resp, msg = controller.transact(GetIdValueRequest,
+                                    GetIdValueResponse,
+                                    args.id, set(args.nodes))
 
     if resp is None:
         LOG.error('no response received: %s', msg)
-        return 1
-
-    if not isinstance(resp, GetIdValueResponse):
-        LOG.error('received unexpected event: %s', resp)
         return 1
 
     json_data = {
@@ -367,15 +354,10 @@ def cmd_get_instances(_args):
     if controller is None:
         return 1
 
-    controller.publish(GetInstancesRequest(make_uuid()))
-    resp, msg = controller.receive()
+    resp, msg = controller.transact(GetInstancesRequest, GetInstancesResponse)
 
     if resp is None:
         LOG.error('no response received: %s', msg)
-        return 1
-
-    if not isinstance(resp, GetInstancesResponse):
-        LOG.error('received unexpected event: %s', resp)
         return 1
 
     res = Result.from_broker(resp.result)
@@ -410,15 +392,10 @@ def cmd_get_nodes(_args):
     if controller is None:
         return 1
 
-    controller.publish(GetNodesRequest(make_uuid()))
-    resp, msg = controller.receive()
+    resp, msg = controller.transact(GetNodesRequest, GetNodesResponse)
 
     if resp is None:
         LOG.error('no response received: %s', msg)
-        return 1
-
-    if not isinstance(resp, GetNodesResponse):
-        LOG.error('received unexpected event: %s', resp)
         return 1
 
     json_data = {
@@ -479,7 +456,7 @@ def cmd_monitor(_args):
         return 1
 
     while True:
-        resp, msg = controller.receive(None)
+        resp, msg = controller.receive(timeout_secs=None)
 
         if resp is None:
             print('no response received: {}'.format(msg))
@@ -494,15 +471,11 @@ def cmd_restart(args):
     if controller is None:
         return 1
 
-    controller.publish(RestartRequest(make_uuid(), set(args.nodes)))
-    resp, msg = controller.receive()
+    resp, msg = controller.transact(RestartRequest, RestartResponse,
+                                    set(args.nodes))
 
     if resp is None:
         LOG.error('no response received: %s', msg)
-        return 1
-
-    if not isinstance(resp, RestartResponse):
-        LOG.error('received unexpected event: %s', resp)
         return 1
 
     json_data = {
@@ -574,15 +547,12 @@ def cmd_stage_config_impl(args):
     if controller is None:
         return 1, None
 
-    controller.publish(StageConfigurationRequest(make_uuid(), config.to_broker()))
-    resp, msg = controller.receive()
+    resp, msg = controller.transact(StageConfigurationRequest,
+                                    StageConfigurationResponse,
+                                    config.to_broker())
 
     if resp is None:
         LOG.error('no response received: %s', msg)
-        return 1, None
-
-    if not isinstance(resp, StageConfigurationResponse):
-        LOG.error('received unexpected event: %s', resp)
         return 1, None
 
     retval = 0
@@ -639,15 +609,11 @@ def cmd_test_timeout(args):
     if controller is None:
         return 1
 
-    controller.publish(TestTimeoutRequest(make_uuid(), args.with_state))
-    resp, msg = controller.receive()
+    resp, msg = controller.transact(TestTimeoutRequest, TestTimeoutResponse,
+                                    args.with_state)
 
     if resp is None:
         LOG.error('no response received: %s', msg)
-        return 1
-
-    if not isinstance(resp, TestTimeoutResponse):
-        LOG.error('received unexpected event: %s', resp)
         return 1
 
     res = Result.from_broker(resp.result)
