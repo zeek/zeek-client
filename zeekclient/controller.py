@@ -8,6 +8,7 @@ from .config import CONFIG
 from .consts import CONTROLLER_TOPIC
 from .events import Registry
 from .logs import LOG
+from .utils import make_uuid
 
 
 class Controller:
@@ -77,7 +78,7 @@ class Controller:
         """
         self.ept.publish(self.controller_topic, event)
 
-    def receive(self, timeout_secs=None):
+    def receive(self, timeout_secs=None, filter_pred=None):
         """Receive an event from the controller's event subscriber.
 
         Args:
@@ -85,6 +86,14 @@ class Controller:
                 Has sematics of the poll.poll() timeout argument, i.e.
                 None and negative values mean no timeout. The default
                 is a 10-second timeout.
+
+            filter_pred: a predicate function for filtering out unacceptable
+                events. The function takes a received event as only input,
+                returning True if the event is acceptable for returning to the
+                `receive()` caller, and False otherwise. When not provided,
+                any received event is acceptable. When the predicate returns
+                false, the wait for a suitable event continues, subject to the
+                same overall timeout.
 
         Returns:
             A tuple of (1) an instance of one of the Event classes defined for
@@ -114,7 +123,7 @@ class Controller:
                     _, data = self.sub.get()
 
                     res = Registry.make_event(data)
-                    if res is not None:
+                    if res is not None and (filter_pred is None or filter_pred(res)):
                         return res, ''
 
                 if fdesc == self.ssub.fd() and event & select.POLLIN:
@@ -123,3 +132,56 @@ class Controller:
                     if not isinstance(status, broker.Status):
                         return None, 'broker error: {}'.format(status)
                     LOG.debug('broker status change: {}'.format(status))
+
+    def transact(self, request_type, response_type, *request_args, reqid=None):
+        """Pairs publishing a request event with receiving its response event.
+
+        This is a wrapper around :meth:`.Controller.publish()` with subsequent
+        :meth:`.Controller.receive()`, with automatic provision of a request ID
+        in the request event, and validation of a matching request ID in the
+        response. Mismatching response events are ignored, and lack of a
+        suitable event in the timeout period leads to an empty result with
+        according error message, just like :meth:`.Controller.receive()`.
+
+        The function works only with request and response event types that take
+        a "reqid" string as first argument. The function verifies this lightly,
+        just by looking at the name of the first argument. See
+        `zeekclient.events` for suitable event types.
+
+        Args:
+            request_type (zeekclient.event.Event class): the request event type.
+
+            response_type (zeekclient.event.Event class): the response event type.
+
+            request_args: any event arguments in addition to the initial "reqid" string.
+
+            reqid (str): the request ID to use in the request event, and expect
+                in the response event. When omitted, the function produces its
+                own ID.
+
+        Returns:
+            The same as Controller.receive(): tuple of an event instance
+            and a string indicating any error.
+        """
+        # Verify that the first arguments of the event types are actually a
+        # request ID -- we just look at the name:
+        if request_type.ARG_NAMES[0] != 'reqid':
+            return None, 'type error: event type {} does not have request ID'.format(
+                request_type.__name__)
+        if response_type.ARG_NAMES[0] != 'reqid':
+            return None, 'type error: event type {} does not have request ID'.format(
+                response_type.__name__)
+
+        if reqid is None:
+            reqid = make_uuid()
+
+        evt = request_type(reqid, *request_args)
+
+        def is_response(evt):
+            try:
+                return isinstance(evt, response_type) and evt.reqid == reqid
+            except AttributeError:
+                return False
+
+        self.publish(evt)
+        return self.receive(filter_pred=is_response)
