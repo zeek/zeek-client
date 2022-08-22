@@ -94,16 +94,55 @@ class TestRendering(unittest.TestCase):
         controller = zeekclient.controller.Controller('127.0.0.1', 2150)
 
         # Fill the subscriber with data:
-        controller.sub.topic = "dummy/topic"
-        controller.sub.data = (
-            'Management::Controller::API::get_configuration_response',
-            zeekclient.utils.make_uuid(),
-            ())
+        controller.sub.mock_data.append(
+            ('dummy/topic',
+             ('Management::Controller::API::get_configuration_response',
+              zeekclient.utils.make_uuid(), ())))
 
         event, error = controller.receive()
 
         self.assertIsInstance(event, zeekclient.events.GetConfigurationResponse)
         self.assertEqual(error, '')
+
+    @patch('zeekclient.controller.select.poll', mock_poll)
+    def test_transact(self):
+        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        reqid = zeekclient.utils.make_uuid()
+
+        # Fill the subscriber with data:
+        controller.sub.mock_data.append(
+            ('dummy/topic',
+             ('Management::Controller::API::deploy_response', reqid, ())))
+
+        event, error = controller.transact(zeekclient.events.DeployRequest,
+                                           zeekclient.events.DeployResponse,
+                                           reqid=reqid)
+
+        self.assertIsInstance(event, zeekclient.events.DeployResponse)
+        self.assertEqual(error, '')
+        self.assertEqual(event.reqid, reqid)
+
+    @patch('zeekclient.controller.select.poll', mock_poll)
+    def test_transact_data_mismatches(self):
+        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        reqid = zeekclient.utils.make_uuid()
+
+        # Fill the subscriber with data. The first response mismatches in its
+        # type, the second in its reqid, the third checks out.
+        controller.sub.mock_data.extend([
+            ('dummy/topic', ('Management::Controller::API::mismatched_response', reqid, ())),
+            ('dummy/topic', ('Management::Controller::API::deploy_response', 'xxxx', ())),
+            ('dummy/topic', ('Management::Controller::API::deploy_response', reqid, ())),
+        ])
+
+        event, error = controller.transact(zeekclient.events.DeployRequest,
+                                           zeekclient.events.DeployResponse,
+                                           reqid=reqid)
+
+        self.assertIsInstance(event, zeekclient.events.DeployResponse)
+        self.assertEqual(error, '')
+        self.assertEqual(event.reqid, reqid)
+
 
 def test():
     """Entry point for testing this module.

@@ -1,3 +1,13 @@
+1.1.0-5 | 2022-08-22 16:17:43 -0700
+
+  * Add unit tests for Controller.transact() (Christian Kreibich, Corelight)
+
+  * Switch the CLI command implementations to Controller.transact() (Christian Kreibich, Corelight)
+
+  * Expand Controller class with a helper for transactional event pairs (Christian Kreibich, Corelight)
+
+  * Fix typo in event argument name (Christian Kreibich, Corelight)
+
 1.1.0 | 2022-07-01 11:07:51 -0700
 
   * Release 1.1.0.

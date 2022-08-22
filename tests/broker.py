@@ -44,9 +44,10 @@ class Endpoint:
 
 
 class Subscriber:
-    def __init_(self):
-        self.topic = ""
-        self.data = ()
+    def __init__(self):
+        # A sequence of (topic, data) tuples, that iterative
+        # get() calls will retrieve tuple by tuple.
+        self.mock_data = []
 
     def available(self):
         return True
@@ -55,7 +56,8 @@ class Subscriber:
         return 0
 
     def get(self, secs=None, num=None):
-        return self.topic, self.data
+        assert self.mock_data, 'subscriber mock ran out of data'
+        return self.mock_data.pop(0)
 
 
 class SafeSubscriber(Subscriber):
