@@ -1,22 +1,15 @@
-"""Convenience infrastructure for easier Zeek event handling via Broker."""
+"""Infrastructure for typed Zeek events."""
 import broker
 
 from .logs import LOG
+from .types import BrokerType
 
+class Event(BrokerType):
+    NAME = None # Name of the event, e.g. "Management::Controller::API::deploy_request"
+    ARG_NAMES = [] # Names of the arguments, e.g. "reqid"
+    ARG_TYPES = [] # Types in Pythonn, e.g. str
 
-class Event(broker.zeek.SafeEvent):
-    """A specialization of Broker's Event class to make it printable, make arguments
-    and their types explicit, and allow us to register instances as known event
-    types."""
-    # XXX at least the printability could go into Broker bindings
-
-    # Contextualize the event: name, argument names, and argument types (in
-    # Broker rendition).
-    NAME = None
-    ARG_NAMES = []
-    ARG_TYPES = []
-
-    def __init__(self, *args):
+    def __init__(self, args):
         """Creates a Zeek event object.
 
         This expects the number of arguments contextualized above. The event
@@ -42,27 +35,34 @@ class Event(broker.zeek.SafeEvent):
             if typ0 != typ1:
                 raise TypeError('event type mismatch: argument %d is %s, should be %s'
                                 % (tpl[2]+1, typ0, typ1))
-        args = [self.NAME] + list(args)
-        super().__init__(*args)
+        self.args = list(args)
 
     def __getattr__(self, name):
         try:
             idx = self.ARG_NAMES.index(name)
-            return self.args()[idx]
+            return self.args[idx]
         except ValueError as err:
             raise AttributeError from err
 
     def __str__(self):
         # A list of pairs (argument name, typename)
-        zeek_style_args = zip(self.ARG_NAMES, [str(type(arg)) for arg in self.args()])
+        zeek_style_args = zip(self.ARG_NAMES, [str(type(arg)) for arg in self.args])
         # That list, with each item now a string "<name>: <typename"
         zeek_style_arg_strings = [': '.join(arg) for arg in zeek_style_args]
         # A Zeek-looking event signature
-        return self.name() + '(' + ', '.join(zeek_style_arg_strings) + ')'
+        return self.NAME + '(' + ', '.join(zeek_style_arg_strings) + ')'
+
+    def to_broker(self):
+        return broker.zeek.SafeEvent(*self.args)
+
+    @classmethod
+    def from_broker(cls, broker_data):
+        evt = broker.zeek.SafeEvent(broker_data)
+        return Registry.make_event(evt.name(), evt.args())
 
 
 class Registry:
-    """Functionality for event types and to instantiate events from data."""
+    """Functionality for event types and to instantiate typed events from data."""
 
     # Map from Zeek-level event names to Event classes. The make_event()
     # function uses this map to instantiate the right event class from
@@ -88,23 +88,13 @@ class Registry:
         return res
 
     @staticmethod
-    def make_event(args):
-        """Transform Broker-level data into Zeek event instance.
-
-        The function takes received Broker-level data, instantiates a
-        Broker-level event object from them, and uses the identified name to
-        create a new Zeek event instance. Returns None if the event wasn't
-        understood.
-        """
-        evt = broker.zeek.SafeEvent(args)
-        args = evt.args()
-
-        if evt.name() not in Registry.EVENT_TYPES:
-            LOG.warning('received unexpected event "%s", skipping', evt.name())
+    def make_event(name, args):
+        if name not in Registry.EVENT_TYPES:
+            LOG.warning('received unexpected event "%s", skipping', name)
             return None
 
-        LOG.debug('received event "%s"', evt.name())
-        return Registry.EVENT_TYPES[evt.name()](*args)
+        LOG.debug('received event "%s"', name)
+        return Registry.EVENT_TYPES[name](args)
 
 
 # Any Zeek object/record that's an event argument gets represented as a

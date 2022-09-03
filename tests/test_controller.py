@@ -79,8 +79,8 @@ class TestRendering(unittest.TestCase):
     def test_publish(self):
         controller = zeekclient.controller.Controller('127.0.0.1', 2150)
         event = zeekclient.Registry.make_event(
-            ('Management::Controller::API::get_configuration_request',
-             zeekclient.utils.make_uuid(), True))
+            'Management::Controller::API::get_configuration_request',
+             (zeekclient.utils.make_uuid(), True))
 
         controller.publish(event)
 

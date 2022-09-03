@@ -122,7 +122,7 @@ class Controller:
                 if fdesc == self.sub.fd() and event & select.POLLIN:
                     _, data = self.sub.get()
 
-                    res = Registry.make_event(data)
+                    res = Registry.make_event(data[0], data[1:])
                     if res is not None and (filter_pred is None or filter_pred(res)):
                         return res, ''
 
@@ -175,7 +175,8 @@ class Controller:
         if reqid is None:
             reqid = make_uuid()
 
-        evt = request_type(reqid, *request_args)
+        evt = request_type((reqid,) + request_args)
+        self.publish(evt.to_broker())
 
         def is_response(evt):
             try:
@@ -183,5 +184,4 @@ class Controller:
             except AttributeError:
                 return False
 
-        self.publish(evt)
         return self.receive(filter_pred=is_response)
