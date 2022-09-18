@@ -60,13 +60,13 @@ class TestConfig(unittest.TestCase):
         args = parser.parse_args(['--controller', 'foo'])
         self.config.update_from_args(args)
         self.assertEqual(self.config.get('controller', 'host'), 'foo')
-        self.assertEqual(self.config.getint('controller', 'port'), 2150)
+        self.assertEqual(self.config.getint('controller', 'port'), 2149)
 
         parser = zeekclient.cli.create_parser()
         args = parser.parse_args(['--controller', 'foo:'])
         self.config.update_from_args(args)
         self.assertEqual(self.config.get('controller', 'host'), 'foo')
-        self.assertEqual(self.config.getint('controller', 'port'), 2150)
+        self.assertEqual(self.config.getint('controller', 'port'), 2149)
 
     def test_update_from_args_controller_port(self):
         parser = zeekclient.cli.create_parser()

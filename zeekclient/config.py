@@ -62,8 +62,8 @@ class Config(configparser.ConfigParser):
                 # Default host name/address where we contact the controller.
                 'host': '127.0.0.1',
 
-                # Default port of the controller.
-                'port': 2150,
+                # Default WebSocket port of the controller.
+                'port': 2149,
             },
         })
 

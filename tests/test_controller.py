@@ -38,15 +38,15 @@ class TestController(unittest.TestCase):
         self.assertEqual(str1.strip(), str2.strip())
 
     def test_connect_successful(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
         self.assertTrue(controller.connect())
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'info: connecting to controller 127.0.0.1:2150\n' +
-            'info: peered with controller 127.0.0.1:2150')
+            'info: connecting to controller 127.0.0.1:2149\n' +
+            'info: peered with controller 127.0.0.1:2149')
 
     def test_connect_fails_with_timeout(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
         controller.wsock.keep_timing_out = True
         # Dial down attempts and waits to make this fast:
         zeekclient.CONFIG.set('client', 'peering_attempts', '2')
@@ -54,20 +54,20 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'info: connecting to controller 127.0.0.1:2150\n' +
-            'error: websocket connection to 127.0.0.1:2150 timed out')
+            'info: connecting to controller 127.0.0.1:2149\n' +
+            'error: websocket connection to 127.0.0.1:2149 timed out')
 
     def test_connect_fails_with_websocket_error(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
         controller.wsock.websocket_exception = True
         self.assertFalse(controller.connect())
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'info: connecting to controller 127.0.0.1:2150\n' +
-            'error: websocket error with controller 127.0.0.1:2150: uh-oh')
+            'info: connecting to controller 127.0.0.1:2149\n' +
+            'error: websocket error with controller 127.0.0.1:2149: uh-oh')
 
     def test_connect_fails_with_unknown_error(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
         controller.wsock.unknown_exception = True
         self.assertFalse(controller.connect())
         # logbuf's content contains a backtrace. We focus on first
@@ -75,11 +75,11 @@ class TestController(unittest.TestCase):
         buf = self.logbuf.getvalue().split('\n')
         self.assertEqualStripped(
             '\n'.join(buf[0:2]),
-            'info: connecting to controller 127.0.0.1:2150\n' +
-            'error: unexpected error with controller 127.0.0.1:2150: surprise')
+            'info: connecting to controller 127.0.0.1:2149\n' +
+            'error: unexpected error with controller 127.0.0.1:2149: surprise')
 
     def test_publish(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
         self.assertTrue(controller.connect())
 
         reqid = zeekclient.utils.make_uuid()
@@ -95,7 +95,7 @@ class TestController(unittest.TestCase):
         self.assertEqual(event.to_brokertype().serialize(), message.data.serialize())
 
     def test_receive(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
         self.assertTrue(controller.connect())
 
         event = zeekclient.events.GetConfigurationResponse(zeekclient.utils.make_uuid(), ())
@@ -111,7 +111,7 @@ class TestController(unittest.TestCase):
         self.assertEqual(error, '')
 
     def test_transact(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
         self.assertTrue(controller.connect())
 
         reqid = zeekclient.utils.make_uuid()
@@ -131,7 +131,7 @@ class TestController(unittest.TestCase):
         self.assertEqual(event.reqid.to_py(), reqid)
 
     def test_transact_data_mismatches(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
         self.assertTrue(controller.connect())
 
         reqid = zeekclient.utils.make_uuid()
