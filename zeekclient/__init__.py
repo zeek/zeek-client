@@ -8,6 +8,7 @@ import sys
 
 from . import brokertypes
 from . import events
+from . import ssl
 from . import types
 
 from .config import *
@@ -19,4 +20,4 @@ from .utils import *
 
 __version__ = "1.1.0-5"
 __all__ = ['brokertypes', 'cli', 'config', 'consts', 'controller',
-           'events', 'logging', 'types', 'utils']
+           'events', 'logging', 'ssl', 'types', 'utils']
