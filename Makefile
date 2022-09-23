@@ -11,4 +11,5 @@ test-coverage:
 	       test_config_io.py \
 	       test_config_overrides.py \
 	       test_controller.py \
+	       test_types.py \
 	    && coverage report -m

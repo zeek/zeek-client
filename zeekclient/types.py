@@ -205,7 +205,9 @@ class Instance(ZeekType):
     def __init__(self, name, addr=None, port=None):
         self.name = name
         # This is a workaround until we've resolved addresses in instances
-        self.host = addr or '0.0.0.0' # string or ipaddress type ... TBD
+        self.host = '0.0.0.0' # XXX needs proper optionality
+        if addr is not None:
+            self.host = str(addr)
         self.port = port # None or integer value; we always mean TCP
 
     def __lt__(self, other):
