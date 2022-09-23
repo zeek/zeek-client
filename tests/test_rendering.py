@@ -1,6 +1,7 @@
 #! /usr/bin/env python
-"""This verifies zeekclient's ability to ingest configurations and their related
-data structures from INI, and render them back to INI/JSON as expected.
+"""This verifies zeekclient's ability to ingest cluster configurations, validate
+their content (excluding deeper validations happening in the cluster
+controller), and serialize them correctly to INI/JSON.
 """
 import configparser
 import io

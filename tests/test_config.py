@@ -1,6 +1,7 @@
 #! /usr/bin/env python
-"""This verifies zeekclient's ability to ingest configurations and their related
-data structures from INI, and render them back to INI/JSON as expected.
+"""This verifies zeekclient's ability to load configurations and update
+individual settings via command-line arguments, environment variables, and
+files.
 """
 import configparser
 import io
