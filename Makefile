@@ -10,4 +10,4 @@ test-coverage:
 	       test_config.py \
                test_controller.py \
                test_rendering.py \
-	    && coverage report
+	    && coverage report -m
