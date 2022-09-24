@@ -6,7 +6,7 @@ in the following architecture design doc:
 https://docs.google.com/document/d/1r0wXnihx4yESOpLJ87Wh2g1V-aHOFUkbgiFe8RHJpZo/edit
 
 Work on this client is currently in progress and maturing over the course of
-the Zeek 4.x series. Feedback is welcome. This implementation adopts many of
+the Zeek 5.x series. Feedback is welcome. This implementation adopts many of
 the idioms and primitives also used by the zkg package manager.
 """
 # https://pypi.org/project/argcomplete/#global-completion
