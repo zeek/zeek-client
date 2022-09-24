@@ -12,17 +12,6 @@ the idioms and primitives also used by the zkg package manager.
 # https://pypi.org/project/argcomplete/#global-completion
 # PYTHON_ARGCOMPLETE_OK
 
-# Broker lessons learned:
-#
-# - When sending an event from Python results in an error message like the
-#   following on the Zeek side ...
-#
-#     warning: failed to convert remote event '<some event type>' arg #<n>,
-#         got vector, expected record
-#
-#   ... the reason is that some member of the structure in question (here,
-#   a record) could not be unserialized properly.
-
 import os.path
 import sys
 
@@ -32,13 +21,6 @@ try:
     import argcomplete  # pylint: disable=import-error
 except ImportError:
     pass
-
-# Prepend the Python path of the Zeek installation. This ensures we find the
-# Zeek-bundled Broker Python bindings, if available, before any system-wide
-# ones.
-ZEEK_PYTHON_DIR = '@PY_MOD_INSTALL_DIR@'
-if os.path.isdir(ZEEK_PYTHON_DIR):
-    sys.path.insert(0, os.path.abspath(ZEEK_PYTHON_DIR))
 
 import zeekclient  # pylint: disable=wrong-import-position
 
