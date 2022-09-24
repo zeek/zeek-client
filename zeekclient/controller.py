@@ -1,8 +1,17 @@
 """This module provides Broker-based communication with a Zeek cluster controller."""
-import select
 import time
 
-import broker
+# https://websocket-client.readthedocs.io
+import websocket
+
+from .brokertypes import (
+    ZeekEvent,
+    HandshakeMessage,
+    HandshakeAckMessage,
+    DataMessage,
+    ErrorMessage,
+    unserialize
+)
 
 from .config import CONFIG
 from .consts import CONTROLLER_TOPIC
@@ -10,82 +19,110 @@ from .events import Registry
 from .logs import LOG
 from .utils import make_uuid
 
+class Error(Exception):
+    """Catch-all for exceptions arising from use of Controller objects."""
+
+class UsageError(Error):
+    """Invalid sequence of operations on a Controller object."""
+
 
 class Controller:
-    """A class representing our Broker connection to the Zeek cluster controller."""
+    """A class managing a connection to the Zeek cluster controller."""
     def __init__(self, controller_host, controller_port,
                  controller_topic=CONTROLLER_TOPIC):
         self.controller_host = controller_host
         self.controller_port = controller_port
         self.controller_topic = controller_topic
-        self.ept = broker.Endpoint()
-        self.sub = self.ept.make_safe_subscriber(controller_topic)
-        self.ssub = self.ept.make_status_subscriber(True)
-
-        self.poll = select.poll()
-        self.poll.register(self.sub.fd())
-        self.poll.register(self.ssub.fd())
+        self.controller_broker_id = None # Defined when we receive ACK message
+        self.wsock = websocket.WebSocket()
 
     def connect(self):
         if self.controller_port < 1 or self.controller_port > 65535:
-            LOG.error('controller port number {} outside valid range'.format(
-                self.controller_port))
+            LOG.error('controller port number %s outside valid range',
+                      self.controller_port)
             return False
 
         LOG.info('connecting to controller %s:%s', self.controller_host,
                  self.controller_port)
 
-        self.ept.peer_nosync(self.controller_host, self.controller_port,
-                             CONFIG.getfloat('client', 'peer_retry_secs'))
+        attempts = CONFIG.getint('client', 'peering_attempts')
+        retry_delay = CONFIG.getfloat('client', 'peering_retry_delay_secs')
 
-        # Wait for successful peering in the status subscriber, to ensure we can
-        # communicate events reliably. We need to time this out since this
-        # status may never arrive -- the plain get() in the Broker example is
-        # dangerous. The version of get() with a timeout currently throws a
-        # Python bindings error, so we resort to our own timeout mechanism. Note
-        # that we see other status updates in a successful connection setup: the
-        # first status update will usually be endpoint_discovered, followed by
-        # peer_added.
-        attempts = CONFIG.getint('client', 'peering_status_attempts')
+        handshake = HandshakeMessage([self.controller_topic])
 
-        for i in range(attempts):
-            if not self.ssub.available():
-                time.sleep(CONFIG.getfloat('client', 'peering_status_retry_delay_secs'))
+        while attempts > 0:
+            try:
+                self.wsock.connect(
+                    'ws://{}:{}'.format(self.controller_host,
+                                        self.controller_port),
+                    timeout=retry_delay)
+                self.wsock.send(handshake.serialize())
+                break
+            except websocket.WebSocketTimeoutException:
+                time.sleep(retry_delay)
+                attempts -= 1
+                continue
+            except websocket.WebSocketException as err:
+                LOG.error('websocket error with controller %s:%s: %s',
+                          self.controller_host, self.controller_port, err)
+                return False
+            except Exception as err:
+                LOG.exception('unexpected error with controller %s:%s: %s',
+                              self.controller_host, self.controller_port, err)
+                return False
+
+        if attempts == 0:
+            LOG.error('websocket connection to %s:%s timed out',
+                      self.controller_host, self.controller_port)
+            return
+
+        while attempts > 0:
+            try:
+                msg = HandshakeAckMessage.unserialize(self.wsock.recv())
+            except TypeError as err:
+                LOG.exception('protocol data error: %s', err)
+                return False
+            except websocket.WebSocketTimeoutException:
+                time.sleep(retry_delay)
+                attempts -= 1
                 continue
 
-            status = self.ssub.get()
-            LOG.debug('status update, attempt %s/%s to connect to %s:%s: %s',
-                      i, attempts, self.controller_host, self.controller_port,
-                      status)
+            if not isinstance(msg, HandshakeAckMessage):
+                LOG.error('protocol error, received %s: %s',
+                          msg.__class__.__name__, msg)
+                return False
 
-            # The return can be an error or a status, so we need to typecheck
-            if isinstance(status, broker.Status) and status.code() == broker.SC.PeerAdded:
-                LOG.info('peered with controller %s:%s', self.controller_host,
-                         self.controller_port)
-                return True
+            self.controller_broker_id = msg.endpoint
+            LOG.info('peered with controller %s:%s', self.controller_host,
+                     self.controller_port)
+            return True
 
-            time.sleep(CONFIG.getfloat('client', 'peering_status_retry_delay_secs'))
-
-        LOG.error('could not peer with controller %s:%s',
-                  self.controller_host, self.controller_port)
         return False
 
     def publish(self, event):
         """Publishes the given event to the controller topic.
 
+        Raises UsageError when invoked without an earlier connect().
+
         Args:
-            event (Event): the event to publish.
+            event (zeekclient.event.Event): the event to publish.
         """
-        self.ept.publish(self.controller_topic, event)
+        if self.controller_broker_id is None:
+            raise UsageError('cannot publish without established peering')
+
+        msg = DataMessage(self.controller_topic, event.to_brokertype())
+        self.wsock.send(msg.serialize())
 
     def receive(self, timeout_secs=None, filter_pred=None):
         """Receive an event from the controller's event subscriber.
+
+        Raises UsageError when invoked without an earlier connect().
 
         Args:
             timeout_secs (int): number of seconds before we time out.
                 Has sematics of the poll.poll() timeout argument, i.e.
                 None and negative values mean no timeout. The default
-                is a 10-second timeout.
+                is client.request_timeout_secs.
 
             filter_pred: a predicate function for filtering out unacceptable
                 events. The function takes a received event as only input,
@@ -101,37 +138,46 @@ class Controller:
             and (2) a string indicating any occurring errors. The string is
             empty when no error occurs.
         """
-        timeout_msecs = timeout_secs or CONFIG.getint('client', 'request_timeout_secs')
-        if timeout_msecs is not None:
-            timeout_msecs *= 1000
+        if self.controller_broker_id is None:
+            raise UsageError('cannot receive without established peering')
 
-        # This is quite basic: no event dispatch mechanism, event loop, etc. For
-        # now we just poll on the fds of the subscriber and status subscriber so
-        # we get notified when something arrives or an error occurs. Might have
-        # to handle POLLERR and POLLHUP here too to be more robust.
-        while True:
-            try:
-                resps = self.poll.poll(timeout_msecs)
-            except OSError as err:
-                return None, 'polling error: {}'.format(err)
+        timeout = timeout_secs or CONFIG.getint('client', 'request_timeout_secs')
+        old_timeout = self.wsock.gettimeout()
 
-            if not resps:
-                return None, 'connection timed out'
+        try:
+            self.wsock.settimeout(timeout)
 
-            for fdesc, event in resps:
-                if fdesc == self.sub.fd() and event & select.POLLIN:
-                    _, data = self.sub.get()
+            while True:
+                # Reading the event proceeds in three steps:
+                # (1) read data from the websocket
+                # (2) ensure it's a data message
+                # (3) try to extract data message payload as event
+                try:
+                    msg = unserialize(self.wsock.recv())
+                except TypeError as err:
+                    return None, 'messaging error: {}'.format(err)
+                except websocket.WebSocketTimeoutException as err:
+                    return None, 'connection timed out'
 
-                    res = Registry.make_event(data[0], data[1:])
+                if not isinstance(msg, DataMessage):
+                    return None, 'Broker error, received {}: {}'.format(
+                        msg.__class__.__type__, msg)
+
+                try:
+                    # Events are a specially laid-out vector of vectors:
+                    # https://docs.zeek.org/projects/broker/en/current/web-socket.html#encoding-of-zeek-events
+                    evt = ZeekEvent.from_vector(msg.data)
+
+                    # Turn Broker-level event data into a zeekclient.event.Event:
+                    res = Registry.make_event(evt.name, *evt.args)
                     if res is not None and (filter_pred is None or filter_pred(res)):
                         return res, ''
 
-                if fdesc == self.ssub.fd() and event & select.POLLIN:
-                    status = self.ssub.get()
-                    # Fail on errors, but swallow regular status updates:
-                    if not isinstance(status, broker.Status):
-                        return None, 'broker error: {}'.format(status)
-                    LOG.debug('broker status change: {}'.format(status))
+                    # This wasn't the event type we wanted, try again.
+                except TypeError as err:
+                    return None, 'Broker error: {}'.format(err)
+        finally:
+            self.wsock.settimeout(old_timeout)
 
     def transact(self, request_type, response_type, *request_args, reqid=None):
         """Pairs publishing a request event with receiving its response event.
@@ -147,6 +193,8 @@ class Controller:
         a "reqid" string as first argument. The function verifies this lightly,
         just by looking at the name of the first argument. See
         `zeekclient.events` for suitable event types.
+
+        Raises UsageError when invoked without an earlier connect().
 
         Args:
             request_type (zeekclient.event.Event class): the request event type.
@@ -175,12 +223,12 @@ class Controller:
         if reqid is None:
             reqid = make_uuid()
 
-        evt = request_type((reqid,) + request_args)
-        self.publish(evt.to_broker())
+        evt = request_type(reqid, *request_args)
+        self.publish(evt)
 
         def is_response(evt):
             try:
-                return isinstance(evt, response_type) and evt.reqid == reqid
+                return isinstance(evt, response_type) and evt.reqid.to_py() == reqid
             except AttributeError:
                 return False
 

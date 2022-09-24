@@ -32,20 +32,17 @@ class Config(configparser.ConfigParser):
                 # events can fire & propagate in Zeek before we give up here.
                 'request_timeout_secs': 20,
 
+                # Successful peering requires a successful WebSocket connection
+                # to the controller and the successful exchange of peering
+                # handshake and response. We retry both, counting connection as
+                # well as handshake attempts toward this total:
+                'peering_attempts': 10,
+
                 # How long the client's Broker's endpoint should wait internally
                 # until it retries a peering upon connection or when the
                 # connection goes away. Its default is 10 seconds; we dial that
                 # down to be more interactive.
-                'peer_retry_secs': 1,
-
-                # Successful peering requires the client's Broker status
-                # subscriber to observe a PeerAdded update, which may or may not
-                # arrive after connection establishment. This is the number of
-                # times we check for status updates:
-                'peering_status_attempts': 10,
-
-                # How long to wait between status update checks.
-                'peering_status_retry_delay_secs': 0.5,
+                'peering_retry_delay_secs': 1.0,
 
                 # The way zeek-client reports informational messages on stderr
                 'rich_logging_format': False,
