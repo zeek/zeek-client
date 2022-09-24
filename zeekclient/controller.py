@@ -1,4 +1,5 @@
 """This module provides Broker-based communication with a Zeek cluster controller."""
+import ssl
 import time
 
 # https://websocket-client.readthedocs.io
@@ -17,6 +18,7 @@ from .config import CONFIG
 from .consts import CONTROLLER_TOPIC
 from .events import Registry
 from .logs import LOG
+from .ssl import get_websocket_sslopt
 from .utils import make_uuid
 
 class Error(Exception):
@@ -28,20 +30,32 @@ class UsageError(Error):
 
 class Controller:
     """A class managing a connection to the Zeek cluster controller."""
-    def __init__(self, controller_host, controller_port,
+    def __init__(self, controller_host=None, controller_port=None,
                  controller_topic=CONTROLLER_TOPIC):
-        self.controller_host = controller_host
-        self.controller_port = controller_port
+        """Controller connection constructor.
+
+        This may raise SSLError and OSError in case of trouble with the
+        connection settings.
+        """
+        self.controller_host = controller_host or CONFIG.get('controller', 'host')
+        self.controller_port = controller_port or CONFIG.getint('controller', 'port')
         self.controller_topic = controller_topic
-        self.controller_broker_id = None # Defined when we receive ACK message
-        self.wsock = websocket.WebSocket()
+        self.controller_broker_id = None # Defined in Handshake ACK message
+
+        if self.controller_port < 1 or self.controller_port > 65535:
+            raise ValueError('controller port number {} outside valid range'
+                             .format(self.controller_port))
+
+        disable_ssl = CONFIG.getboolean('ssl', 'disable')
+
+        self.wsock_url = '{}://{}:{}/v1/messages/json'.format(
+            'ws' if disable_ssl else 'wss',
+            self.controller_host, self.controller_port)
+
+        sslopt = None if disable_ssl else get_websocket_sslopt()
+        self.wsock = websocket.WebSocket(sslopt=sslopt)
 
     def connect(self):
-        if self.controller_port < 1 or self.controller_port > 65535:
-            LOG.error('controller port number %s outside valid range',
-                      self.controller_port)
-            return False
-
         LOG.info('connecting to controller %s:%s', self.controller_host,
                  self.controller_port)
 
@@ -52,10 +66,7 @@ class Controller:
 
         while attempts > 0:
             try:
-                self.wsock.connect(
-                    'ws://{}:{}'.format(self.controller_host,
-                                        self.controller_port),
-                    timeout=retry_delay)
+                self.wsock.connect(self.wsock_url, timeout=retry_delay)
                 self.wsock.send(handshake.serialize())
                 break
             except websocket.WebSocketTimeoutException:
@@ -64,6 +75,14 @@ class Controller:
                 continue
             except websocket.WebSocketException as err:
                 LOG.error('websocket error with controller %s:%s: %s',
+                          self.controller_host, self.controller_port, err)
+                return False
+            except ConnectionError as err:
+                LOG.error('websocket connection error with controller %s:%s: %s',
+                          self.controller_host, self.controller_port, err)
+                return False
+            except ssl.SSLError as err:
+                LOG.error('websocket TLS error with controller %s:%s: %s',
                           self.controller_host, self.controller_port, err)
                 return False
             except Exception as err:
@@ -86,6 +105,14 @@ class Controller:
                 time.sleep(retry_delay)
                 attempts -= 1
                 continue
+            except ConnectionError as err:
+                LOG.error('websocket connection error with controller %s:%s: %s',
+                          self.controller_host, self.controller_port, err)
+                return False
+            except Exception as err:
+                LOG.exception('unexpected error with controller %s:%s: %s',
+                              self.controller_host, self.controller_port, err)
+                return False
 
             if not isinstance(msg, HandshakeAckMessage):
                 LOG.error('protocol error, received %s: %s',

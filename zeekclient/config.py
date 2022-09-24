@@ -65,6 +65,35 @@ class Config(configparser.ConfigParser):
                 # Default WebSocket port of the controller.
                 'port': 2149,
             },
+            'ssl': {
+                # These settings control the security settings of the connection
+                # to the controller. They mirror Broker's approach and naming:
+                # by default, SSL is active, but unvalidated. Providing
+                # certificate, private key, and possibly CA & passphrase secure
+                # the connection properly.  Compare to Zeek's Broker framework.
+
+                # Whether to use SSL at all. Disabling this yields plaintext
+                # communication. This mirrors Broker::disable_ssl on the Zeek
+                # side.
+                'disable': False,
+
+                # Path to a file containing a X.509 certificate in PEM format.
+                'certificate': '',
+
+                # Path to a file containing the private key for the certificate,
+                # in PEM format.
+                'keyfile': '',
+
+                # Path to a file containing concatenated, trusted certificates,
+                # in PEM format.
+                'cafile': '',
+
+                # Path to an OpenSSL-style directory of trusted certificates.
+                'capath': '',
+
+                # A passphrase to decrypt the private key, if required.
+                'passphrase': '',
+            }
         })
 
     def update_from_file(self, config_file=CONFIG_FILE):
