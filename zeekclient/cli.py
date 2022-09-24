@@ -7,15 +7,13 @@ import os
 import sys
 import traceback
 
-import broker
+from . import brokertypes as bt
 
 from .config import CONFIG
 
 from .controller import Controller
 
-from .consts import (
-    CONFIG_FILE
-)
+from .consts import CONFIG_FILE
 
 from .events import (
     DeployRequest,
@@ -39,7 +37,7 @@ from .events import (
 from .logs import LOG
 
 from .types import (
-    BrokerEnumType,
+    Enum,
     ClusterRole,
     Configuration,
     Instance,
@@ -56,14 +54,26 @@ from .types import (
 # dependencies.
 def json_dumps(obj):
     def default(obj):
+        # Check specific Python types:
         if isinstance(obj, ipaddress.IPv4Address):
             return str(obj)
         if isinstance(obj, ipaddress.IPv6Address):
             return str(obj)
-        if isinstance(obj, broker.Port):
-            return str(obj)
-        if isinstance(obj, BrokerEnumType):
+
+        # Specific zeek-client types (types.py):
+        if isinstance(obj, Enum):
             return obj.to_json_data()
+
+        # Specific brokertypes:
+        if isinstance(obj, bt.Port):
+            return str(obj.number)
+        if isinstance(obj, bt.Timespan):
+            return '{}{}'.format(obj.value, obj.unit.value)
+        # Fallback: assume the type's own Python representation is right.
+        # json.dumps() will complain when that does not work.
+        if isinstance(obj, bt.Type):
+            return obj.to_py()
+
         raise TypeError('cannot serialize {} ({})'.format(type(obj), str(obj)))
 
     indent = 2 if CONFIG.getboolean('client', 'pretty_json') else None
@@ -71,8 +81,7 @@ def json_dumps(obj):
 
 
 def create_controller():
-    controller = Controller(CONFIG.get('controller', 'host'),
-                            CONFIG.getint('controller', 'port'))
+    controller = Controller()
 
     if not controller.connect():
         return None
@@ -211,7 +220,7 @@ def cmd_deploy(args, controller=None):
     }
 
     for broker_data in resp.results:
-        res = Result.from_broker(broker_data)
+        res = Result.from_brokertype(broker_data)
 
         if not res.success:
             retval = 1
@@ -254,7 +263,7 @@ def cmd_deploy(args, controller=None):
         # buffering in the node -> stem -> supervisor pipeline delays the
         # output.)
         if res.data:
-            node_outputs = NodeOutputs.from_broker(res.data)
+            node_outputs = NodeOutputs.from_brokertype(res.data)
             json_data['results']['nodes'][res.node]['stdout'] = node_outputs.stdout
             json_data['results']['nodes'][res.node]['stderr'] = node_outputs.stderr
 
@@ -275,7 +284,7 @@ def cmd_get_config(args):
         LOG.error('no response received: %s', msg)
         return 1
 
-    res = Result.from_broker(resp.result)
+    res = Result.from_brokertype(resp.result)
 
     if not res.success:
         msg = res.error if res.error else 'no reason given'
@@ -286,7 +295,7 @@ def cmd_get_config(args):
         LOG.error('received result did not contain configuration data: %s', resp)
         return 1
 
-    config = Configuration.from_broker(res.data)
+    config = Configuration.from_brokertype(res.data)
 
     with open(args.filename, 'w') if args.filename and args.filename != '-'  else sys.stdout as hdl:
         if args.as_json:
@@ -321,7 +330,7 @@ def cmd_get_id_value(args):
     # task to Python, for our error reporting it's up to us, and we want be
     # reproducible.
 
-    results = [Result.from_broker(broker_data) for broker_data in resp.results]
+    results = [Result.from_brokertype(broker_data) for broker_data in resp.results]
 
     for res in sorted(results):
         if not res.success:
@@ -333,10 +342,18 @@ def cmd_get_id_value(args):
 
         # Upon success, we should always have res.node filled in. But guard anyway.
         if res.node:
-            # res.data is a string containing JSON rendered by Zeek's to_json()
-            # BiF. Parse it into a data structure to render seamlessly.
+            # res.data should be a string containing JSON rendered by Zeek's
+            # to_json() BiF. Parse it into a data structure to render
+            # seamlessly.
+            if not isinstance(res.data, bt.String):
+                json_data['errors'].append({
+                    'source': res.node,
+                    'error': 'invalid result data type {}'.format(repr(res.data))
+                })
+                continue
+
             try:
-                json_data['results'][res.node] = json.loads(res.data)
+                json_data['results'][res.node] = json.loads(res.data.to_py())
             except json.JSONDecodeError as err:
                 json_data['errors'].append({
                     'source': res.node,
@@ -363,7 +380,7 @@ def cmd_get_instances(_args):
         LOG.error('no response received: %s', msg)
         return 1
 
-    res = Result.from_broker(resp.result)
+    res = Result.from_brokertype(resp.result)
 
     if not res.success:
         msg = res.error if res.error else 'no reason given'
@@ -380,7 +397,7 @@ def cmd_get_instances(_args):
     # instances easier to comprehend than raw Broker data: turn it into Instance
     # objects, then render these JSON-friendly.
     try:
-        for inst in sorted([Instance.from_broker(inst) for inst in res.data]):
+        for inst in sorted([Instance.from_brokertype(inst) for inst in res.data]):
             json_data[inst.name] = inst.to_json_data()
             json_data[inst.name].pop('name')
     except TypeError as err:
@@ -406,7 +423,7 @@ def cmd_get_nodes(_args):
         'errors': [],
     }
 
-    results = [Result.from_broker(broker_data) for broker_data in resp.results]
+    results = [Result.from_brokertype(broker_data) for broker_data in resp.results]
 
     for res in sorted(results):
         if not res.success:
@@ -427,7 +444,7 @@ def cmd_get_nodes(_args):
 
         # res.data is a NodeStatusVec
         try:
-            nstats = [NodeStatus.from_broker(nstat_data) for nstat_data in res.data]
+            nstats = [NodeStatus.from_brokertype(nstat_data) for nstat_data in res.data]
             for nstat in sorted(nstats):
                 # If either of the two role enums are "NONE", we make them
                 # None. That way they stay in the reporting, but are more easily
@@ -491,7 +508,7 @@ def cmd_restart(args):
     # task to Python, for our error reporting it's up to us, and we want be
     # reproducible.
 
-    results = [Result.from_broker(broker_data) for broker_data in resp.results]
+    results = [Result.from_brokertype(broker_data) for broker_data in resp.results]
 
     for res in sorted(results):
         if not res.success and res.instance is None:
@@ -553,7 +570,7 @@ def cmd_stage_config_impl(args):
 
     resp, msg = controller.transact(StageConfigurationRequest,
                                     StageConfigurationResponse,
-                                    config.to_broker())
+                                    config.to_brokertype())
 
     if resp is None:
         LOG.error('no response received: %s', msg)
@@ -566,7 +583,7 @@ def cmd_stage_config_impl(args):
     }
 
     for broker_data in resp.results:
-        res = Result.from_broker(broker_data)
+        res = Result.from_brokertype(broker_data)
 
         if not res.success:
             retval = 1
@@ -620,6 +637,6 @@ def cmd_test_timeout(args):
         LOG.error('no response received: %s', msg)
         return 1
 
-    res = Result.from_broker(resp.result)
+    res = Result.from_brokertype(resp.result)
     print(json_dumps({'success': res.success, 'error': res.error}))
     return 0
