@@ -17,35 +17,16 @@ ROOT = os.path.normpath(os.path.join(TESTS, '..'))
 # Prepend this folder so we can load our mocks
 sys.path.insert(0, TESTS)
 
-# This is the Broker mock, not the real one
-import broker
-
 # Prepend the tree's root folder to the module searchpath so we find zeekclient
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
 
+# This is the mock, not the real one
+import websocket
+
 import zeekclient
 
-# Mock out some select/poll functionality in the Controller class
-class Poll:
-    def __init__(self, resps=None):
-        # Each resps member is a (fd, event) tuple, where event is a combo of
-        # select.POLLIN and related codes.
-        self.resps = resps or []
-
-    def register(self, fd):
-        pass
-
-    def poll(self, timeout):
-        return self.resps
-
-
-def mock_poll():
-    res = Poll([(0, select.POLLIN)])
-    return res
-
-
-class TestRendering(unittest.TestCase):
+class TestController(unittest.TestCase):
     def setUp(self):
         # A buffer receiving any created log messages, for validation. We could
         # also assertLogs(), but with the latter it's more work to get exactly
@@ -64,55 +45,82 @@ class TestRendering(unittest.TestCase):
             'info: connecting to controller 127.0.0.1:2150\n' +
             'info: peered with controller 127.0.0.1:2150')
 
-    def test_connect_fails(self):
+    def test_connect_fails_with_timeout(self):
         controller = zeekclient.controller.Controller('127.0.0.1', 2150)
-        # Ensure the connects keep failing:
-        controller.ssub.status = broker.Status(broker.SC.Unspecified)
-        # Dial down attempts to make this fast:
-        zeekclient.CONFIG.set('client', 'peering_status_attempts', '2')
+        controller.wsock.keep_timing_out = True
+        # Dial down attempts and waits to make this fast:
+        zeekclient.CONFIG.set('client', 'peering_attempts', '2')
+        zeekclient.CONFIG.set('client', 'peering_retry_delay_secs', '0.1')
         self.assertFalse(controller.connect())
         self.assertEqualStripped(
             self.logbuf.getvalue(),
             'info: connecting to controller 127.0.0.1:2150\n' +
-            'error: could not peer with controller 127.0.0.1:2150')
+            'error: websocket connection to 127.0.0.1:2150 timed out')
+
+    def test_connect_fails_with_websocket_error(self):
+        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        controller.wsock.websocket_exception = True
+        self.assertFalse(controller.connect())
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'info: connecting to controller 127.0.0.1:2150\n' +
+            'error: websocket error with controller 127.0.0.1:2150: uh-oh')
+
+    def test_connect_fails_with_unknown_error(self):
+        controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        controller.wsock.unknown_exception = True
+        self.assertFalse(controller.connect())
+        # logbuf's content contains a backtrace. We focus on first
+        # two lines for comparison and trim the rest..
+        buf = self.logbuf.getvalue().split('\n')
+        self.assertEqualStripped(
+            '\n'.join(buf[0:2]),
+            'info: connecting to controller 127.0.0.1:2150\n' +
+            'error: unexpected error with controller 127.0.0.1:2150: surprise')
 
     def test_publish(self):
         controller = zeekclient.controller.Controller('127.0.0.1', 2150)
-        event = zeekclient.Registry.make_event(
-            'Management::Controller::API::get_configuration_request',
-             (zeekclient.utils.make_uuid(), True))
+        self.assertTrue(controller.connect())
+
+        reqid = zeekclient.utils.make_uuid()
+        event = zeekclient.events.GetConfigurationRequest(reqid, True)
 
         controller.publish(event)
 
-        # The event should be propagated through to Broker's endpoint -- our
-        # mock in this case, which just collects topic and event:
-        self.assertEqual(controller.ept.events[0],
-                         (controller.controller_topic, event))
+        # The event gets transmitted via the controller object's websocket, so
+        # verify it's as expected: a DataMessage containing our event. This is
+        # the first message after the initial handshake, so the second in the
+        # queue.
+        message = zeekclient.brokertypes.DataMessage.unserialize(controller.wsock.send_queue[1])
+        self.assertEqual(event.to_brokertype().serialize(), message.data.serialize())
 
-    @patch('zeekclient.controller.select.poll', mock_poll)
     def test_receive(self):
         controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        self.assertTrue(controller.connect())
 
-        # Fill the subscriber with data:
-        controller.sub.mock_data.append(
-            ('dummy/topic',
-             ('Management::Controller::API::get_configuration_response',
-              zeekclient.utils.make_uuid(), ())))
+        event = zeekclient.events.GetConfigurationResponse(zeekclient.utils.make_uuid(), ())
+
+        # Mock an event in the receive queue, so we can receive something:
+        controller.wsock.recv_queue.append(
+            zeekclient.brokertypes.DataMessage(
+                'dummy/topic', event.to_brokertype()).serialize())
 
         event, error = controller.receive()
 
         self.assertIsInstance(event, zeekclient.events.GetConfigurationResponse)
         self.assertEqual(error, '')
 
-    @patch('zeekclient.controller.select.poll', mock_poll)
     def test_transact(self):
         controller = zeekclient.controller.Controller('127.0.0.1', 2150)
-        reqid = zeekclient.utils.make_uuid()
+        self.assertTrue(controller.connect())
 
-        # Fill the subscriber with data:
-        controller.sub.mock_data.append(
-            ('dummy/topic',
-             ('Management::Controller::API::deploy_response', reqid, ())))
+        reqid = zeekclient.utils.make_uuid()
+        event = zeekclient.events.DeployResponse(reqid, ())
+
+        # Mock an event in the receive queue, so we can receive something:
+        controller.wsock.recv_queue.append(
+            zeekclient.brokertypes.DataMessage(
+                'dummy/topic', event.to_brokertype()).serialize())
 
         event, error = controller.transact(zeekclient.events.DeployRequest,
                                            zeekclient.events.DeployResponse,
@@ -120,20 +128,27 @@ class TestRendering(unittest.TestCase):
 
         self.assertIsInstance(event, zeekclient.events.DeployResponse)
         self.assertEqual(error, '')
-        self.assertEqual(event.reqid, reqid)
+        self.assertEqual(event.reqid.to_py(), reqid)
 
-    @patch('zeekclient.controller.select.poll', mock_poll)
     def test_transact_data_mismatches(self):
         controller = zeekclient.controller.Controller('127.0.0.1', 2150)
+        self.assertTrue(controller.connect())
+
         reqid = zeekclient.utils.make_uuid()
 
-        # Fill the subscriber with data. The first response mismatches in its
-        # type, the second in its reqid, the third checks out.
-        controller.sub.mock_data.extend([
-            ('dummy/topic', ('Management::Controller::API::mismatched_response', reqid, ())),
-            ('dummy/topic', ('Management::Controller::API::deploy_response', 'xxxx', ())),
-            ('dummy/topic', ('Management::Controller::API::deploy_response', reqid, ())),
-        ])
+        # Fill the receive queue with events. The first response mismatches in
+        # its name, the second in its first argument (not reqid), the third
+        # passes.
+        events = [
+            zeekclient.events.GetConfigurationResponse(reqid, ()),
+            zeekclient.events.DeployResponse('xxxx', ()),
+            zeekclient.events.DeployResponse(reqid, ()),
+        ]
+
+        for evt in events:
+            controller.wsock.recv_queue.append(
+                zeekclient.brokertypes.DataMessage(
+                    'dummy/topic', evt.to_brokertype()).serialize())
 
         event, error = controller.transact(zeekclient.events.DeployRequest,
                                            zeekclient.events.DeployResponse,
@@ -141,7 +156,7 @@ class TestRendering(unittest.TestCase):
 
         self.assertIsInstance(event, zeekclient.events.DeployResponse)
         self.assertEqual(error, '')
-        self.assertEqual(event.reqid, reqid)
+        self.assertEqual(event.reqid.to_py(), reqid)
 
 
 def test():

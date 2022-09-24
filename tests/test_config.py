@@ -15,12 +15,6 @@ import unittest
 TESTS = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.normpath(os.path.join(TESTS, '..'))
 
-# Prepend this folder so we can load our mocks
-sys.path.insert(0, TESTS)
-
-# This is the Broker mock, not the real one
-import broker
-
 # Prepend the tree's root folder to the module searchpath so we find zeekclient
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
@@ -35,7 +29,7 @@ class TestConfig(unittest.TestCase):
     def test_basics(self):
         # One of each type:
         self.assertEqual(self.config.getint('client', 'request_timeout_secs'), 20)
-        self.assertEqual(self.config.getfloat('client', 'peering_status_retry_delay_secs'), 0.5)
+        self.assertEqual(self.config.getfloat('client', 'peering_retry_delay_secs'), 1.0)
         self.assertEqual(self.config.getboolean('client', 'rich_logging_format'), False)
 
     def test_update_from_file(self):
