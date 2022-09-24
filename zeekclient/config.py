@@ -25,6 +25,9 @@ class Config(configparser.ConfigParser):
     """
     def __init__(self):
         super().__init__()
+        self.reset()
+
+    def reset(self):
         self.read_dict({
             'client': {
                 # The default timeout for request state is 15 seconds on the
