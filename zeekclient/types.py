@@ -19,14 +19,14 @@ class ConfigParserMixin():
         Raises ValueError if the provided configuration is invalid for the class
         to instantiate.
         """
-        return None
+        return None  # pragma: no cover
 
     def to_config_parser(self, cfp=None): # pylint: disable=unused-argument,no-self-use
         """Returns this object in a ConfigParser instance. When the optional cfp
         argument is not None, the caller requests the implementation to add to
         the given parser, not create a new one.
         """
-        return None
+        return None  # pragma: no cover
 
     @staticmethod
     def _get(cfp, typ, section, *keys):
@@ -53,7 +53,7 @@ class SendableZeekType:
     # affecting e.g. Enums below.
     def to_brokertype(self):  # pylint: disable=no-self-use
         """Returns a brokertype instance representing this object."""
-        return None
+        return None  # pragma: no cover
 
 
 class ReceivableZeekType:
@@ -70,7 +70,7 @@ class ReceivableZeekType:
 
         Raises TypeError when the given data doesn't match the expected type.
         """
-        return None
+        return None  # pragma: no cover
 
 
 class JsonableZeekType:
@@ -82,8 +82,7 @@ class JsonableZeekType:
     """
     def to_json_data(self):
         """Returns JSON-suitable datastructure representing the object."""
-        # Not an abstract method since this can suffice:
-        return self.__dict__
+        return self.__dict__  # pragma: no cover
 
 
 class ZeekType(SendableZeekType, ReceivableZeekType, JsonableZeekType):
@@ -98,6 +97,18 @@ class Enum(ZeekType, enum.Enum):
     to present the full qualification when sending into Broker, derivations
     reimplement the module_scope() class method to prefix with a scope string.
     """
+    def __lt__(self, other):
+        if type(self) != type(other):
+            return NotImplemented
+        return self.qualified_name() < other.qualified_name()
+
+    def __eq__(self, other):
+        return (type(self) == type(other) and
+                self.qualified_name() == other.qualified_name())
+
+    def __hash__(self):
+        return hash((self.qualified_name(), self.value))
+
     def to_brokertype(self):
         scope = self.module_scope()
         scope = scope + '::' if scope else ''
@@ -128,18 +139,24 @@ class Enum(ZeekType, enum.Enum):
         return cls[name.upper()]
 
     @classmethod
-    def module_scope(cls):
+    def module_scope(cls):  # pragma: no cover
         # Reimplement this in derived classes to convey the Zeek-level enum
         # scope. For example, for a Foo.BAR (or Foo::BAR, in Zeek) enum value,
         # this should return the string "Foo".
+        assert False, 'reimplement module_scope() in your Enum derivative'
         return ''
 
     @classmethod
     def from_brokertype(cls, data):
-        # The argument is a brokertype.Enum a scoped value such as "Foo::VALUE".
+        # The argument should be a brokertype.Enum a scoped value such as
+        # "Foo::VALUE".
         try:
+            module, name = data.to_py().split('::', 1)
+            if module != cls.module_scope():
+                raise ValueError('module scope mismatch for {}: {} != {}.'
+                                 .format(cls.__name__, module, cls.module_scope()))
             return cls.lookup(data.to_py())
-        except KeyError as err:
+        except (ValueError, KeyError) as err:
             raise TypeError('unexpected enum value for {}: {}'.format(
                 cls.__name__, repr(data))) from err
 
@@ -189,6 +206,14 @@ class Option(ZeekType):
         self.name = name
         self.value = value
 
+    def __eq__(self, other):
+        return (type(self) == type(other) and
+                self.name == other.name and
+                self.value == other.value)
+
+    def __hash__(self):
+        return hash((self.name, self.value))
+
     def to_brokertype(self):
         return bt.Vector([
             bt.String(self.name),
@@ -213,6 +238,15 @@ class Instance(ZeekType):
     def __lt__(self, other):
         return self.name < other.name
 
+    def __eq__(self, other):
+        return (type(self) == type(other) and
+                self.name == other.name and
+                self.host == other.host and
+                self.port == other.port)
+
+    def __hash__(self):
+        return hash((self.name, self.host, self.port))
+
     def to_brokertype(self):
         return bt.Vector([
             bt.String(self.name),
@@ -236,8 +270,8 @@ class Instance(ZeekType):
             name, addr, port = data.to_py()
             return Instance(name, addr, None if port is None else port.number)
         except ValueError as err:
-            raise TypeError('unexpected Broker data for Instance object ({})'.format(
-                data)) from err
+            raise TypeError('unexpected Broker data for Instance object ({})'
+                            .format(data)) from err
 
 
 class Node(ZeekType, ConfigParserMixin):
@@ -251,7 +285,7 @@ class Node(ZeekType, ConfigParserMixin):
         self.state = state
         self.port = port
         self.scripts = scripts
-        self.options = options
+        self.options = options # We use a list, Zeek record uses set
         self.interface = interface
         self.cpu_affinity = cpu_affinity
         self.env = env or {}
@@ -259,17 +293,43 @@ class Node(ZeekType, ConfigParserMixin):
     def __lt__(self, other):
         return self.name < other.name
 
+    def __eq__(self, other):
+        return (type(self) == type(other) and
+                self.name == other.name and
+                self.instance == other.instance and
+                self.role == other.role and
+                self.state == other.state and
+                self.port == other.port and
+                self.scripts == other.scripts and
+                self.options == other.options and
+                self.interface == other.interface and
+                self.cpu_affinity == other.cpu_affinity and
+                self.env == other.env)
+
+    def __hash__(self):
+        scripts = tuple(self.scripts) if self.scripts else None
+        options = tuple(self.options) if self.options else None
+        env = None
+
+        if self.env:
+            env=((key, self.env[key]) for key in sorted(self.env))
+
+        return hash((self.name, self.instance, self.role, self.state, self.port,
+                     scripts, options, self.interface, self.cpu_affinity, env))
+
     def to_brokertype(self):
+        options = bt.NoneType()
+        if self.options:
+            options = bt.Set({opt.to_brokertype() for opt in self.options})
+
         return bt.Vector([
             bt.String(self.name),
             bt.String(self.instance),
             self.role.to_brokertype(),
             self.state.to_brokertype(),
-            # Use from_py() here for the optional fields, since it makes None
-            # transparent, and to provide type hinting:
             bt.from_py(self.port, typ=bt.Port),
             bt.from_py(self.scripts),
-            bt.from_py(self.options),
+            options,
             bt.from_py(self.interface),
             bt.from_py(self.cpu_affinity, typ=bt.Count),
             bt.from_py(self.env),
@@ -297,7 +357,7 @@ class Node(ZeekType, ConfigParserMixin):
     def from_brokertype(cls, data):
         try:
             options = None
-            if isinstance(data[6], bt.Vector):
+            if isinstance(data[6], bt.Set):
                 options = [Option.from_brokertype(opt_data) for opt_data in data[6]]
 
             port = None
@@ -316,7 +376,7 @@ class Node(ZeekType, ConfigParserMixin):
                 data[8].to_py(), # cpu_affinity
                 data[9].to_py(), # env
             )
-        except ValueError as err:
+        except (IndexError, TypeError, ValueError) as err:
             raise TypeError('unexpected Broker data for Node object ({})'.format(
                 data)) from err
 
@@ -467,8 +527,20 @@ class Configuration(ZeekType, ConfigParserMixin):
     """Equivalent of Management::Configuration."""
     def __init__(self):
         self.id = make_uuid()
-        self.instances = []  # XXX would be nicer if these were sets
+        # The following are sets in the Zeek record equivalents. We could
+        # reflect this, but handling lists is easier. They do get serialized
+        # to/from sets.
+        self.instances = []
         self.nodes = []
+
+    def __eq__(self, other):
+        return (type(self) == type(other) and
+                self.id == other.id and
+                self.instances == other.instances and
+                self.nodes == other.nodes)
+
+    def __hash__(self):
+        return hash((self.id, tuple(self.instances), tuple(self.nodes)))
 
     def to_brokertype(self):
         return bt.Vector([
@@ -606,6 +678,19 @@ class NodeStatus(ReceivableZeekType):
     def __lt__(self, other):
         return self.node < other.node
 
+    def __eq__(self, other):
+        return (type(self) == type(other) and
+                self.node == other.node and
+                self.state == other.state and
+                self.mgmt_role == other.mgmt_role and
+                self.cluster_role == other.cluster_role and
+                self.pid == other.pid and
+                self.port == other.port)
+
+    def __hash__(self):
+        return hash((self.node, self.state, self.mgmt_role, self.cluster_role,
+                     self.pid, self.port))
+
     @classmethod
     def from_brokertype(cls, data):
         port = data[5].to_py()
@@ -652,6 +737,19 @@ class Result(ReceivableZeekType):
 
         return False
 
+    def __eq__(self, other):
+        return (type(self) == type(other) and
+                self.reqid == other.reqid and
+                self.success == other.success and
+                self.instance == other.instance and
+                self.data == other.data and
+                self.error == other.error and
+                self.node == other.node)
+
+    def hash(self):
+        return hash((self.reqid, self.success, self.instance, self.data,
+                     self.error, self.node))
+
     @classmethod
     def from_brokertype(cls, data):
         # The data field gets special treatment since it can be of any
@@ -674,6 +772,14 @@ class NodeOutputs(ReceivableZeekType):
     def __init__(self, stdout, stderr):
         self.stdout = stdout
         self.stderr = stderr
+
+    def __eq__(self, other):
+        return (type(self) == type(other) and
+                self.stdout == other.stdout and
+                self.stderr == other.stderr)
+
+    def hash(self):
+        return hash((self.stdout, self.stderr))
 
     @classmethod
     def from_brokertype(cls, data):
