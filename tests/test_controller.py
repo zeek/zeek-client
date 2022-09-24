@@ -45,6 +45,49 @@ class TestController(unittest.TestCase):
             'info: connecting to controller 127.0.0.1:2149\n' +
             'info: peered with controller 127.0.0.1:2149')
 
+    def test_connect_successful_no_tls(self):
+        zeekclient.CONFIG.set('ssl', 'disable', 'true')
+        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+        self.assertTrue(controller.connect())
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'info: connecting to controller 127.0.0.1:2149\n' +
+            'info: peered with controller 127.0.0.1:2149')
+
+    def test_connect_successful_authenticated_tls(self):
+        zeekclient.CONFIG.set('ssl', 'certificate', os.path.join(TESTS, 'certs', 'cert.1.pem'))
+        zeekclient.CONFIG.set('ssl', 'keyfile', os.path.join(TESTS, 'certs', 'key.1.pem'))
+        zeekclient.CONFIG.set('ssl', 'cafile', os.path.join(TESTS, 'certs', 'ca.pem'))
+        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+        self.assertTrue(controller.connect())
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'info: connecting to controller 127.0.0.1:2149\n' +
+            'info: peered with controller 127.0.0.1:2149')
+
+    def test_connect_successful_authenticated_tls_pw(self):
+        zeekclient.CONFIG.set('ssl', 'certificate', os.path.join(TESTS, 'certs', 'cert.1.pem'))
+        zeekclient.CONFIG.set('ssl', 'keyfile', os.path.join(TESTS, 'certs', 'key.1.pem'))
+        zeekclient.CONFIG.set('ssl', 'cafile', os.path.join(TESTS, 'certs', 'ca.pem'))
+        zeekclient.CONFIG.set('ssl', 'passphrase', '12345')
+        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+        self.assertTrue(controller.connect())
+        self.assertEqualStripped(
+            self.logbuf.getvalue(),
+            'info: connecting to controller 127.0.0.1:2149\n' +
+            'info: peered with controller 127.0.0.1:2149')
+
+    def test_connect_successful_authenticated_tls_file_config_errors(self):
+        for error in ('certificate', 'keyfile', 'cafile'):
+            zeekclient.CONFIG.set('ssl', 'certificate', os.path.join(TESTS, 'certs', 'cert.1.pem'))
+            zeekclient.CONFIG.set('ssl', 'keyfile', os.path.join(TESTS, 'certs', 'key.1.pem'))
+            zeekclient.CONFIG.set('ssl', 'cafile', os.path.join(TESTS, 'certs', 'ca.pem'))
+            # Break the configuration:
+            zeekclient.CONFIG.set('ssl', error, 'not-a-file')
+
+            with self.assertRaises(zeekclient.controller.ConfigError):
+                controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+
     def test_connect_fails_with_timeout(self):
         controller = zeekclient.controller.Controller('127.0.0.1', 2149)
         controller.wsock.keep_timing_out = True
