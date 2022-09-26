@@ -5,6 +5,7 @@ import io
 import json
 import logging
 import os
+import re
 import select
 import sys
 import unittest
@@ -34,35 +35,52 @@ class TestController(unittest.TestCase):
         self.logbuf = io.StringIO()
         zeekclient.logs.configure(verbosity=2, stream=self.logbuf)
 
-    def assertEqualStripped(self, str1, str2):
-        self.assertEqual(str1.strip(), str2.strip())
+    def assertLogLines(self, *patterns):
+        buflines = self.logbuf.getvalue().split('\n')
+        todo = list(patterns)
+        for line in buflines:
+            if todo and re.search(todo[0], line) is not None:
+                todo.pop(0)
+        msg = None
+        if todo:
+            msg = "log pattern '{}' not found; have:\n{}".format(
+                todo[0], self.logbuf.getvalue().strip())
+        self.assertEqual(len(todo), 0, msg)
 
     def test_connect_successful(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+        controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
-        self.assertEqualStripped(
-            self.logbuf.getvalue(),
-            'info: connecting to controller 127.0.0.1:2149\n' +
+        self.assertEqual(controller.controller_broker_id,
+                         controller.wsock.mock_broker_id)
+        self.assertLogLines(
+            'info: connecting to controller 127.0.0.1:2149',
             'info: peered with controller 127.0.0.1:2149')
+
+    def test_connect_successful_custom_controller(self):
+        controller = zeekclient.controller.Controller('example.com', 1234)
+        self.assertTrue(controller.connect())
+        self.assertLogLines(
+            'info: connecting to controller example.com:1234',
+            'info: peered with controller example.com:1234')
 
     def test_connect_successful_no_tls(self):
         zeekclient.CONFIG.set('ssl', 'disable', 'true')
-        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+        controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
-        self.assertEqualStripped(
-            self.logbuf.getvalue(),
-            'info: connecting to controller 127.0.0.1:2149\n' +
+        self.assertTrue(controller.wsock.mock_url.startswith('ws://'))
+        self.assertLogLines(
+            'info: connecting to controller 127.0.0.1:2149',
             'info: peered with controller 127.0.0.1:2149')
 
     def test_connect_successful_authenticated_tls(self):
         zeekclient.CONFIG.set('ssl', 'certificate', os.path.join(TESTS, 'certs', 'cert.1.pem'))
         zeekclient.CONFIG.set('ssl', 'keyfile', os.path.join(TESTS, 'certs', 'key.1.pem'))
         zeekclient.CONFIG.set('ssl', 'cafile', os.path.join(TESTS, 'certs', 'ca.pem'))
-        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+        controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
-        self.assertEqualStripped(
-            self.logbuf.getvalue(),
-            'info: connecting to controller 127.0.0.1:2149\n' +
+        self.assertTrue(controller.wsock.mock_url.startswith('wss://'))
+        self.assertLogLines(
+            'info: connecting to controller 127.0.0.1:2149',
             'info: peered with controller 127.0.0.1:2149')
 
     def test_connect_successful_authenticated_tls_pw(self):
@@ -70,11 +88,10 @@ class TestController(unittest.TestCase):
         zeekclient.CONFIG.set('ssl', 'keyfile', os.path.join(TESTS, 'certs', 'key.1.pem'))
         zeekclient.CONFIG.set('ssl', 'cafile', os.path.join(TESTS, 'certs', 'ca.pem'))
         zeekclient.CONFIG.set('ssl', 'passphrase', '12345')
-        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+        controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
-        self.assertEqualStripped(
-            self.logbuf.getvalue(),
-            'info: connecting to controller 127.0.0.1:2149\n' +
+        self.assertLogLines(
+            'info: connecting to controller 127.0.0.1:2149',
             'info: peered with controller 127.0.0.1:2149')
 
     def test_connect_successful_authenticated_tls_file_config_errors(self):
@@ -86,43 +103,79 @@ class TestController(unittest.TestCase):
             zeekclient.CONFIG.set('ssl', error, 'not-a-file')
 
             with self.assertRaises(zeekclient.controller.ConfigError):
-                controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+                controller = zeekclient.controller.Controller()
 
     def test_connect_fails_with_timeout(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
-        controller.wsock.keep_timing_out = True
+        controller = zeekclient.controller.Controller()
+        controller.wsock.mock_connect_timeout = True
         # Dial down attempts and waits to make this fast:
         zeekclient.CONFIG.set('client', 'peering_attempts', '2')
         zeekclient.CONFIG.set('client', 'peering_retry_delay_secs', '0.1')
         self.assertFalse(controller.connect())
-        self.assertEqualStripped(
-            self.logbuf.getvalue(),
-            'info: connecting to controller 127.0.0.1:2149\n' +
-            'error: websocket connection to 127.0.0.1:2149 timed out')
+        self.assertLogLines(
+            'info: connecting to controller 127.0.0.1:2149',
+            'error: websocket connection to 127.0.0.1:2149 timed out in connect\(\)')
 
     def test_connect_fails_with_websocket_error(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
-        controller.wsock.websocket_exception = True
+        controller = zeekclient.controller.Controller()
+        controller.wsock.mock_connect_websocket_exception = True
         self.assertFalse(controller.connect())
-        self.assertEqualStripped(
-            self.logbuf.getvalue(),
-            'info: connecting to controller 127.0.0.1:2149\n' +
-            'error: websocket error with controller 127.0.0.1:2149: uh-oh')
+        self.assertLogLines(
+            'info: connecting to controller 127.0.0.1:2149',
+            'error: websocket error in connect\(\) with controller 127.0.0.1:2149: uh-oh')
+
+    def test_connect_fails_with_sslerror(self):
+        controller = zeekclient.controller.Controller()
+        controller.wsock.mock_connect_sslerror = True
+        self.assertFalse(controller.connect())
+        self.assertLogLines(
+            'info: connecting to controller 127.0.0.1:2149',
+            'error: socket TLS error in connect\(\) with controller 127.0.0.1:2149: uh-oh')
+
+    def test_connect_fails_with_oserror(self):
+        controller = zeekclient.controller.Controller()
+        controller.wsock.mock_connect_oserror = True
+        self.assertFalse(controller.connect())
+        self.assertLogLines(
+            'info: connecting to controller 127.0.0.1:2149',
+            'error: socket error in connect\(\) with controller 127.0.0.1:2149: uh-oh')
 
     def test_connect_fails_with_unknown_error(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
-        controller.wsock.unknown_exception = True
+        controller = zeekclient.controller.Controller()
+        controller.wsock.mock_connect_unknown_exception = True
         self.assertFalse(controller.connect())
-        # logbuf's content contains a backtrace. We focus on first
-        # two lines for comparison and trim the rest..
-        buf = self.logbuf.getvalue().split('\n')
-        self.assertEqualStripped(
-            '\n'.join(buf[0:2]),
-            'info: connecting to controller 127.0.0.1:2149\n' +
-            'error: unexpected error with controller 127.0.0.1:2149: surprise')
+        self.assertLogLines(
+            'info: connecting to controller 127.0.0.1:2149',
+            'error: unexpected error in connect\(\) with controller 127.0.0.1:2149: surprise')
+
+    def test_handshake_fails_with_timeout(self):
+        controller = zeekclient.controller.Controller()
+        controller.wsock.mock_recv_timeout = True
+        self.assertFalse(controller.connect())
+        self.assertLogLines('error: websocket connection to .+ timed out in handshake')
+
+    def test_handshake_fails_with_oserror(self):
+        controller = zeekclient.controller.Controller()
+        controller.wsock.mock_recv_oserror = True
+        self.assertFalse(controller.connect())
+        self.assertLogLines('error: socket error in handshake with controller .+: uh-oh')
+
+    def test_handshake_fails_with_unknown_error(self):
+        controller = zeekclient.controller.Controller()
+        controller.wsock.mock_recv_unknown_exception = True
+        self.assertFalse(controller.connect())
+        self.assertLogLines(
+            'error: unexpected error in handshake with controller .+: surprise')
+
+    def test_handshake_fails_with_protocol_data_error(self):
+        controller = zeekclient.controller.Controller()
+        # Not a Handshake ACK message:
+        controller.wsock.mock_recv_queue = [zeekclient.brokertypes.Count(1).serialize()]
+        self.assertFalse(controller.connect())
+        self.assertLogLines('error: protocol data error')
 
     def test_publish(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+        controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
 
         reqid = zeekclient.utils.make_uuid()
@@ -134,17 +187,17 @@ class TestController(unittest.TestCase):
         # verify it's as expected: a DataMessage containing our event. This is
         # the first message after the initial handshake, so the second in the
         # queue.
-        message = zeekclient.brokertypes.DataMessage.unserialize(controller.wsock.send_queue[1])
+        message = zeekclient.brokertypes.DataMessage.unserialize(controller.wsock.mock_send_queue[1])
         self.assertEqual(event.to_brokertype().serialize(), message.data.serialize())
 
     def test_receive(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+        controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
 
         event = zeekclient.events.GetConfigurationResponse(zeekclient.utils.make_uuid(), ())
 
         # Mock an event in the receive queue, so we can receive something:
-        controller.wsock.recv_queue.append(
+        controller.wsock.mock_recv_queue.append(
             zeekclient.brokertypes.DataMessage(
                 'dummy/topic', event.to_brokertype()).serialize())
 
@@ -153,15 +206,50 @@ class TestController(unittest.TestCase):
         self.assertIsInstance(event, zeekclient.events.GetConfigurationResponse)
         self.assertEqual(error, '')
 
+    def test_receive_fails_with_protocol_data_error(self):
+        controller = zeekclient.controller.Controller()
+        self.assertTrue(controller.connect())
+        # Not a DataMessage:
+        controller.wsock.mock_recv_queue.append(zeekclient.brokertypes.Count(1).serialize())
+        res, msg = controller.receive()
+        self.assertIsNone(res)
+        self.assertRegex(msg, 'protocol data error .+: invalid data layout for Broker MessageType')
+
+    def test_receive_fails_with_timeout(self):
+        controller = zeekclient.controller.Controller()
+        self.assertTrue(controller.connect())
+        controller.wsock.mock_recv_timeout = True
+        res, msg = controller.receive()
+        self.assertIsNone(res)
+        self.assertRegex(msg, 'websocket connection .+ timed out')
+
+    def test_receive_fails_with_unknown_error(self):
+        controller = zeekclient.controller.Controller()
+        self.assertTrue(controller.connect())
+        controller.wsock.mock_recv_unknown_exception = True
+        res, msg = controller.receive()
+        self.assertIsNone(res)
+        self.assertRegex(msg, 'unexpected error .+: surprise')
+
+    def test_receive_fails_with_event_error(self):
+        controller = zeekclient.controller.Controller()
+        self.assertTrue(controller.connect())
+        # A DataMessage, but not with an event:
+        controller.wsock.mock_recv_queue.append(zeekclient.brokertypes.DataMessage(
+            'dummy/topic', zeekclient.brokertypes.Vector()).serialize())
+        res, msg = controller.receive()
+        self.assertIsNone(res)
+        self.assertRegex(msg, 'protocol data error .+: invalid event data')
+
     def test_transact(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+        controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
 
         reqid = zeekclient.utils.make_uuid()
         event = zeekclient.events.DeployResponse(reqid, ())
 
         # Mock an event in the receive queue, so we can receive something:
-        controller.wsock.recv_queue.append(
+        controller.wsock.mock_recv_queue.append(
             zeekclient.brokertypes.DataMessage(
                 'dummy/topic', event.to_brokertype()).serialize())
 
@@ -174,7 +262,7 @@ class TestController(unittest.TestCase):
         self.assertEqual(event.reqid.to_py(), reqid)
 
     def test_transact_data_mismatches(self):
-        controller = zeekclient.controller.Controller('127.0.0.1', 2149)
+        controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
 
         reqid = zeekclient.utils.make_uuid()
@@ -189,7 +277,7 @@ class TestController(unittest.TestCase):
         ]
 
         for evt in events:
-            controller.wsock.recv_queue.append(
+            controller.wsock.mock_recv_queue.append(
                 zeekclient.brokertypes.DataMessage(
                     'dummy/topic', evt.to_brokertype()).serialize())
 
