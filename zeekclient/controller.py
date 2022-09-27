@@ -1,9 +1,22 @@
 """This module provides Broker-based communication with a Zeek cluster controller."""
 import ssl
+import sys
 import time
 
-# https://websocket-client.readthedocs.io
-import websocket
+# This requires the websockets-client package, confusingly imported under the
+# name "websocket", and called "python3-websocket" in the Debian/Ubuntu
+# world. Not to be confused with "websockets", the alternative, async-oriented
+# Python package! Please see: https://websocket-client.readthedocs.io
+try:
+    import websocket
+except ImportError:
+    print("The zeek-client package requires websocket-client.\n"
+          "If you use 'pip', you can install it as follows:\n"
+          "\n"
+          "    pip3 install websocket-client\n"
+          "\n",
+          file=sys.stderr)
+    sys.exit(1)
 
 from .brokertypes import (
     ZeekEvent,
