@@ -25,7 +25,7 @@ import zeekclient
 
 class TestConfig(unittest.TestCase):
     def setUp(self):
-        self.config = zeekclient.Config()
+        self.config = zeekclient.config.Config()
 
     def test_basics(self):
         # One of each type:
