@@ -190,8 +190,11 @@ def create_parser():
     return parser
 
 
-def cmd_deploy(args):
-    controller = create_controller()
+def cmd_deploy(args, controller=None):
+    # The deploy-config command first stages a configuration and then calls this
+    # function to deploy. We re-use its controller, passed to us.
+    if controller is None:
+        controller = create_controller()
     if controller is None:
         return 1
 
@@ -515,11 +518,12 @@ def cmd_restart(args):
 def cmd_stage_config_impl(args):
     """Internals of cmd_stage_config() to enable chaining with other commands.
 
-    Returns a tuple of exit code and any JSON data to show to the user/caller.
+    Returns a tuple of exit code, any JSON data to show to the user/caller, and
+    the created controller object, if any.
     """
     if not args.config or (args.config != '-' and not os.path.isfile(args.config)):
         LOG.error('please provide a cluster configuration file.')
-        return 1, None
+        return 1, None, None
 
     # We use a config parser to parse the cluster configuration. For instances,
     # we allow names without value to designate agents that connect to the
@@ -541,11 +545,11 @@ def cmd_stage_config_impl(args):
 
     if config is None:
         LOG.error('configuration has errors, not sending')
-        return 1, None
+        return 1, None, None
 
     controller = create_controller()
     if controller is None:
-        return 1, None
+        return 1, None, None
 
     resp, msg = controller.transact(StageConfigurationRequest,
                                     StageConfigurationResponse,
@@ -553,7 +557,7 @@ def cmd_stage_config_impl(args):
 
     if resp is None:
         LOG.error('no response received: %s', msg)
-        return 1, None
+        return 1, None, controller
 
     retval = 0
     json_data = {
@@ -576,11 +580,11 @@ def cmd_stage_config_impl(args):
         if res.data:
             json_data['results']['id'] = res.data
 
-    return retval, json_data
+    return retval, json_data, controller
 
 
 def cmd_stage_config(args):
-    ret, json_data = cmd_stage_config_impl(args)
+    ret, json_data, _ = cmd_stage_config_impl(args)
 
     if json_data:
         print(json_dumps(json_data))
@@ -589,14 +593,14 @@ def cmd_stage_config(args):
 
 
 def cmd_deploy_config(args):
-    ret, json_data = cmd_stage_config_impl(args)
+    ret, json_data, controller = cmd_stage_config_impl(args)
 
     if ret != 0:
         if json_data:
             print(json_dumps(json_data))
         return ret
 
-    return cmd_deploy(args)
+    return cmd_deploy(args, controller=controller)
 
 
 def cmd_show_settings(_args):
