@@ -42,11 +42,12 @@ class ConfigParserMixin():
         return None
 
 
-class SendableZeekType:
-    """An interface that supports serializing to Broker's data model.
+class SerializableZeekType:
+    """An interface that supports serializing to and from Broker's data model.
 
     Objects of any class implementing this interface can be rendered to the
-    Python-level Broker data model in the brokertypes module.
+    Python-level Broker data model in the brokertypes module, and instantiated
+    from it.
     """
     # We are not using abc.abstractmethod and friends here because the metaclass
     # magic they introduces clashes with multiple inheritance from other types,
@@ -55,13 +56,6 @@ class SendableZeekType:
         """Returns a brokertype instance representing this object."""
         return None  # pragma: no cover
 
-
-class ReceivableZeekType:
-    """An interface that supports deserializing from Broker's data model.
-
-    Any class implementing this interface can be instantiated from
-    Python-level Broker data provided by the brokertypes module.
-    """
     @classmethod
     def from_brokertype(cls, data): # pylint: disable=unused-argument
         """Returns an instance of this class for the given brokertype data.
@@ -85,7 +79,7 @@ class JsonableZeekType:
         return self.__dict__  # pragma: no cover
 
 
-class ZeekType(SendableZeekType, ReceivableZeekType, JsonableZeekType):
+class ZeekType(SerializableZeekType, JsonableZeekType):
     """A does-it-all Zeek type."""
 
 
@@ -665,7 +659,7 @@ class Configuration(ZeekType, ConfigParserMixin):
         return cfp
 
 
-class NodeStatus(ReceivableZeekType):
+class NodeStatus(SerializableZeekType):
     """Equivalent of Management::NodeState."""
     def __init__(self, node, state, mgmt_role, cluster_role, pid=None, port=None):
         self.node = node # A string containing the name of the node
@@ -691,6 +685,21 @@ class NodeStatus(ReceivableZeekType):
         return hash((self.node, self.state, self.mgmt_role, self.cluster_role,
                      self.pid, self.port))
 
+    def to_brokertype(self):
+        # In normal operation we only ever receive NodeStates, but for testing
+        # it helps to be able to serialize.
+        pid = bt.NoneType() if self.pid is None else bt.Integer(self.pid)
+        port = bt.NoneType() if self.port is None else bt.Port(self.port)
+
+        return bt.Vector([
+            bt.String(self.node),
+            self.state.to_brokertype(),
+            self.mgmt_role.to_brokertype(),
+            self.cluster_role.to_brokertype(),
+            pid,
+            port,
+        ])
+
     @classmethod
     def from_brokertype(cls, data):
         port = data[5].to_py()
@@ -706,7 +715,7 @@ class NodeStatus(ReceivableZeekType):
             port)
 
 
-class Result(ReceivableZeekType):
+class Result(SerializableZeekType):
     """Equivalent of Management::Result."""
     def __init__(self, reqid, success=True, instance=None, data=None, error=None, node=None):
         self.reqid = reqid
@@ -750,6 +759,30 @@ class Result(ReceivableZeekType):
         return hash((self.reqid, self.success, self.instance, self.data,
                      self.error, self.node))
 
+    def to_brokertype(self):
+        # In normal operation we only ever receive Results, but for testing it
+        # helps to be able to serialize.
+        instance = bt.NoneType() if self.instance is None else bt.String(self.instance)
+
+        data = bt.NoneType()
+        if self.data is not None:
+            # This is any-typed in Zeek and so a bit special: it is up to the
+            # caller what exactly this is, an it is assumed to already be in
+            # Brokertype format. We just pass it through.
+            data = self.data
+
+        error = bt.NoneType() if self.error is None else bt.String(self.error)
+        node = bt.NoneType() if self.node is None else bt.String(self.node)
+
+        return bt.Vector([
+            bt.String(self.reqid),
+            bt.Boolean(self.success),
+            instance,
+            data,
+            error,
+            node,
+        ])
+
     @classmethod
     def from_brokertype(cls, data):
         # The data field gets special treatment since it can be of any
@@ -767,7 +800,7 @@ class Result(ReceivableZeekType):
                       error=data[4].to_py(), node=data[5].to_py())
 
 
-class NodeOutputs(ReceivableZeekType):
+class NodeOutputs(SerializableZeekType):
     """Equivalent of Management::NodeOutputs."""
     def __init__(self, stdout, stderr):
         self.stdout = stdout
@@ -780,6 +813,14 @@ class NodeOutputs(ReceivableZeekType):
 
     def hash(self):
         return hash((self.stdout, self.stderr))
+
+    def to_brokertype(self):
+        # In normal operation we only ever receive NodeOutputs, but for testing
+        # it helps to be able to serialize.
+        return bt.Vector([
+            bt.String(self.stdout),
+            bt.String(self.stderr),
+        ])
 
     @classmethod
     def from_brokertype(cls, data):

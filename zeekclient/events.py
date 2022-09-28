@@ -12,11 +12,10 @@ from .brokertypes import (
 )
 
 from .types import (
-    ReceivableZeekType,
-    SendableZeekType,
+    SerializableZeekType,
 )
 
-class Event(SendableZeekType, ReceivableZeekType):
+class Event(SerializableZeekType):
     NAME = None # Name of the event, e.g. "Management::Controller::API::deploy_request"
     ARG_NAMES = [] # Names of the arguments, e.g. "reqid"
     ARG_TYPES = [] # Types in Python, e.g. str
