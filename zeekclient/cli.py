@@ -47,6 +47,11 @@ from .types import (
     Result
 )
 
+# For unit-testing, a central place to adjust where reads from stdin come from
+# and writes to stdout go to. Fiddling with sys.stdin/sys.stdout directly in the
+# tests can be tricky.
+STDIN = sys.stdin
+STDOUT = sys.stdout
 
 # Broker's basic types aren't JSON-serializable, so patch that up
 # in this json.dumps() wrapper for JSON serialization of any object.
@@ -267,7 +272,7 @@ def cmd_deploy(args, controller=None):
             json_data['results']['nodes'][res.node]['stdout'] = node_outputs.stdout
             json_data['results']['nodes'][res.node]['stderr'] = node_outputs.stderr
 
-    print(json_dumps(json_data))
+    print(json_dumps(json_data), file=STDOUT)
     return retval
 
 
@@ -297,7 +302,7 @@ def cmd_get_config(args):
 
     config = Configuration.from_brokertype(res.data)
 
-    with open(args.filename, 'w') if args.filename and args.filename != '-'  else sys.stdout as hdl:
+    with open(args.filename, 'w') if args.filename and args.filename != '-' else STDOUT as hdl:
         if args.as_json:
             hdl.write(json_dumps(config.to_json_data()) + '\n')
         else:
@@ -365,7 +370,7 @@ def cmd_get_id_value(args):
             'error': 'result lacking node: {}'.format(res.data),
         })
 
-    print(json_dumps(json_data))
+    print(json_dumps(json_data), file=STDOUT)
     return 0 if len(json_data['errors']) == 0 else 1
 
 
@@ -403,7 +408,7 @@ def cmd_get_instances(_args):
     except TypeError as err:
         LOG.error('instance data invalid: %s', err)
 
-    print(json_dumps(json_data))
+    print(json_dumps(json_data), file=STDOUT)
     return 0
 
 
@@ -466,7 +471,7 @@ def cmd_get_nodes(_args):
             LOG.error('NodeStatus data invalid: %s', err)
             LOG.debug(traceback.format_exc())
 
-    print(json_dumps(json_data))
+    print(json_dumps(json_data), file=STDOUT)
     return 0 if len(json_data['errors']) == 0 else 1
 
 
@@ -528,7 +533,7 @@ def cmd_restart(args):
             'error': 'result lacking node: {}'.format(res),
         })
 
-    print(json_dumps(json_data))
+    print(json_dumps(json_data), file=STDOUT)
     return 0 if len(json_data['errors']) == 0 else 1
 
 
@@ -554,7 +559,7 @@ def cmd_stage_config_impl(args):
     cfp = configparser.ConfigParser(allow_no_value=True)
 
     if args.config == '-':
-        cfp.read_file(sys.stdin)
+        cfp.read_file(STDIN)
     else:
         cfp.read(args.config)
 
@@ -604,7 +609,7 @@ def cmd_stage_config(args):
     ret, json_data, _ = cmd_stage_config_impl(args)
 
     if json_data:
-        print(json_dumps(json_data))
+        print(json_dumps(json_data), file=STDOUT)
 
     return ret
 
@@ -614,14 +619,14 @@ def cmd_deploy_config(args):
 
     if ret != 0:
         if json_data:
-            print(json_dumps(json_data))
+            print(json_dumps(json_data), file=STDOUT)
         return ret
 
     return cmd_deploy(args, controller=controller)
 
 
 def cmd_show_settings(_args):
-    CONFIG.write(sys.stdout)
+    CONFIG.write(STDOUT)
     return 0
 
 
@@ -638,5 +643,6 @@ def cmd_test_timeout(args):
         return 1
 
     res = Result.from_brokertype(resp.result)
-    print(json_dumps({'success': res.success, 'error': res.error}))
+    print(json_dumps({'success': res.success, 'error': res.error}),
+          file=STDOUT)
     return 0
