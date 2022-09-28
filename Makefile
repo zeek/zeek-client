@@ -8,6 +8,7 @@ test-coverage:
 	cd tests \
 	    && coverage run --source=../zeekclient -m unittest \
 	       test_brokertypes.py \
+	       test_cli.py \
 	       test_config_io.py \
 	       test_config_overrides.py \
 	       test_controller.py \
