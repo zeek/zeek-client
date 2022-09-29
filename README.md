@@ -2,9 +2,9 @@
 
 [![Unit tests](https://github.com/zeek/zeek-client/actions/workflows/test.yml/badge.svg)](https://github.com/zeek/zeek-client/actions/workflows/test.yml)
 
-This is an experimental command-line client for interacting with Zeek's
+This is the recommended command-line client for interacting with Zeek's
 [Management framework](https://docs.zeek.org/en/master/frameworks/management.html).
-Built in Python and using Broker's [Python bindings](https://docs.zeek.org/projects/broker/en/current/python.html), it
+Built in Python and using Broker's [WebSocket pub/sub interface](https://docs.zeek.org/projects/broker/en/v2.3.0/web-socket.html), it
 connects to a cluster controller to execute management tasks. Here's what it looks like:
 
 ```console
@@ -53,14 +53,14 @@ environment variables:
 
 ## Installation
 
-Due to the dependency on Broker we don't currently offer a standalone package to
-install via `pip`. Instead, the recommended way to run the client is to install
-Zeek, since the client ships with it, or run it directly from the official Zeek
-[docker image](https://hub.docker.com/r/zeekurity/zeek).
+The recommended way to run the client is to install it with Zeek, since the
+client is part of the distribution. You may also run it directly from the
+official Zeek [Docker image](https://hub.docker.com/r/zeekurity/zeek).
 
-With Broker's new support for [WebSocket data
-transport](https://docs.zeek.org/projects/broker/en/current/web-socket.html)
-we'll be able to simplify stand-alone client installation.
+The WebSocket-powered `zeek-client` currently requires Zeek built from
+the master branch, or via our [development Docker image](https://hub.docker.com/r/zeekurity/zeek-dev).
+`zeek-client` will officially become available as a standalone package,
+installable via `pip`, with Zeek 5.2.
 
 ## Quickstart
 
