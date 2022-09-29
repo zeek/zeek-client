@@ -8,10 +8,9 @@ import sys
 import traceback
 
 from . import brokertypes as bt
+from . import controller
 
 from .config import CONFIG
-
-from .controller import Controller
 
 from .consts import CONFIG_FILE
 
@@ -86,12 +85,16 @@ def json_dumps(obj):
 
 
 def create_controller():
-    controller = Controller()
-
-    if not controller.connect():
+    try:
+        ctl = controller.Controller()
+    except controller.Error as err:
+        LOG.error(str(err))
         return None
 
-    return controller
+    if not ctl.connect():
+        return None
+
+    return ctl
 
 
 def create_parser():
