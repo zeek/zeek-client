@@ -1,0 +1,6 @@
+[report]
+; Don't include abc's abstract methods in code coverage.
+; Ours don't include default implementations.
+exclude_lines =
+    pragma: no cover
+    @abc.abstractmethod

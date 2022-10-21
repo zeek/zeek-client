@@ -1,6 +1,7 @@
 #! /usr/bin/env python
-"""This verifies zeekclient's ability to ingest configurations and their related
-data structures from INI, and render them back to INI/JSON as expected.
+"""This verifies zeekclient's ability to ingest cluster configurations, validate
+their content (excluding deeper validations happening in the cluster
+controller), and serialize them correctly to INI/JSON.
 """
 import configparser
 import io
@@ -14,12 +15,6 @@ from unittest.mock import patch, MagicMock
 
 TESTS = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.normpath(os.path.join(TESTS, '..'))
-
-# Prepend this folder so we can load our mocks
-sys.path.insert(0, TESTS)
-
-# This is the Broker mock, not the real one
-import broker
 
 # Prepend the tree's root folder to the module searchpath so we find zeekclient
 # via it. This allows tests to run without package installation.
@@ -166,7 +161,7 @@ cpu_affinity = 8
         # Parse the input into a config parser, and create a Configuration
         # object from it.
         cfp = self.parserFromString(self.INI_INPUT)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertTrue(config is not None)
 
         # Turning that back into a config parser should have expected content:
@@ -176,7 +171,7 @@ cpu_affinity = 8
             self.assertEqualStripped(buf.getvalue(), self.INI_EXPECTED)
 
         # Another roundtrip: the content should not change.
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertTrue(config is not None)
 
         cfp = config.to_config_parser()
@@ -191,7 +186,7 @@ cpu_affinity = 8
         # Parse the input into a config parser, and create a Configuration
         # object from it.
         cfp = self.parserFromString(self.INI_INPUT)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertTrue(config is not None)
 
         jdata = config.to_json_data()
@@ -228,7 +223,7 @@ role = MANAGER
 port = 5000
 """
         cfp = self.parserFromString(ini_input)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertTrue(config is not None)
 
         cfp = config.to_config_parser()
@@ -251,7 +246,7 @@ port = 80
 role = manager
 """
         cfp = self.parserFromString(ini_input)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertFalse(config)
 
         self.assertEqualStripped(
@@ -267,7 +262,7 @@ agent
 role = manager
 """
         cfp = self.parserFromString(ini_input)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertFalse(config)
 
         self.assertEqualStripped(
@@ -284,7 +279,7 @@ role = worker
 instance = agent1
 """
         cfp = self.parserFromString(ini_input)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertFalse(config)
 
         self.assertEqualStripped(
@@ -301,7 +296,7 @@ instance = agent
 port = 80
 """
         cfp = self.parserFromString(ini_input)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertFalse(config)
 
         self.assertEqualStripped(
@@ -319,7 +314,7 @@ port = 80
 role = superintendent
 """
         cfp = self.parserFromString(ini_input)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertFalse(config)
 
         self.assertEqualStripped(
@@ -337,7 +332,7 @@ port = eighty
 role = manager
 """
         cfp = self.parserFromString(ini_input)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertFalse(config)
 
         self.assertEqualStripped(
@@ -355,7 +350,7 @@ port = 70000
 role = manager
 """
         cfp = self.parserFromString(ini_input)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertFalse(config)
 
         self.assertEqualStripped(
@@ -377,7 +372,7 @@ instance = agent-testbox
 role = MANAGER
 """
         cfp = self.parserFromString(ini_input)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertTrue(config is not None)
 
         cfp = config.to_config_parser()
@@ -417,7 +412,7 @@ instance = agent
 role = WORKER
 """
         cfp = self.parserFromString(ini_input)
-        config = zeekclient.Configuration.from_config_parser(cfp)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
         self.assertTrue(config is not None)
 
         cfp = config.to_config_parser()

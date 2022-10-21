@@ -1,3 +1,38 @@
+1.1.0-36 | 2022-10-20 17:01:16 -0700
+
+  * Migrate the client to Broker's WebSocket transport (Christian Kreibich, Corelight)
+
+    - Update README.md to explain WebSocket use and compatibility
+    - Handle Controller exceptions during construction in cli.create_controller
+    - Add unit tests for the zeekclient.cli module
+    - Simplify unit-testing stdin/stdout in zeekclient.cli
+    - Make all types in zeekclient.types receivable and sendable
+    - Add help message for failing websocket package import
+    - Restructure imports layout to require submodules for nearly everything
+    - Edit pass over Controller class and its unit tests
+    - Expand unit tests to cover TLS modes
+    - Make zeekclient.config.Configuration resettable to initial defaults
+    - Add __eq__ and __hash__ for most Management framework types
+    - Add unit tests for the types module
+    - Rename poorly named unit test modules.
+    - Clarify the purpose of two sets of unit tests.
+    - Support TLS configurability in the controller object
+    - Add SSL helper module
+    - Switch default controller port to 2149, its websocket service
+    - Migrate tests to brokertypes
+    - Remove Broker from the package's __init__.py and restructure imports
+    - Remove Broker parts from zeek-client
+    - Migrate the controller module to websockets and brokertypes
+    - Migrate the cli, event, and type modules to brokertypes
+    - Add unit tests for brokertypes module
+    - Introduce brokertypes module
+    - Re-use the controller object in the deploy-config command
+    - Fix typos in docstrings
+    - Align event types with regular Broker types
+    - Make test-coverage makefile target show coverage details
+    - Add coveragerc file
+    - Ignore coverage data files in git
+
 1.1.0-5 | 2022-08-22 16:17:43 -0700
 
   * Add unit tests for Controller.transact() (Christian Kreibich, Corelight)

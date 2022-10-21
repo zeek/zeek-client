@@ -1,6 +1,7 @@
 #! /usr/bin/env python
-"""This verifies zeekclient's ability to ingest configurations and their related
-data structures from INI, and render them back to INI/JSON as expected.
+"""This verifies zeekclient's ability to load configurations and update
+individual settings via command-line arguments, environment variables, and
+files.
 """
 import configparser
 import io
@@ -15,12 +16,6 @@ import unittest
 TESTS = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.normpath(os.path.join(TESTS, '..'))
 
-# Prepend this folder so we can load our mocks
-sys.path.insert(0, TESTS)
-
-# This is the Broker mock, not the real one
-import broker
-
 # Prepend the tree's root folder to the module searchpath so we find zeekclient
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
@@ -30,12 +25,12 @@ import zeekclient
 
 class TestConfig(unittest.TestCase):
     def setUp(self):
-        self.config = zeekclient.Config()
+        self.config = zeekclient.config.Config()
 
     def test_basics(self):
         # One of each type:
         self.assertEqual(self.config.getint('client', 'request_timeout_secs'), 20)
-        self.assertEqual(self.config.getfloat('client', 'peering_status_retry_delay_secs'), 0.5)
+        self.assertEqual(self.config.getfloat('client', 'peering_retry_delay_secs'), 1.0)
         self.assertEqual(self.config.getboolean('client', 'rich_logging_format'), False)
 
     def test_update_from_file(self):
@@ -66,13 +61,13 @@ class TestConfig(unittest.TestCase):
         args = parser.parse_args(['--controller', 'foo'])
         self.config.update_from_args(args)
         self.assertEqual(self.config.get('controller', 'host'), 'foo')
-        self.assertEqual(self.config.getint('controller', 'port'), 2150)
+        self.assertEqual(self.config.getint('controller', 'port'), 2149)
 
         parser = zeekclient.cli.create_parser()
         args = parser.parse_args(['--controller', 'foo:'])
         self.config.update_from_args(args)
         self.assertEqual(self.config.get('controller', 'host'), 'foo')
-        self.assertEqual(self.config.getint('controller', 'port'), 2150)
+        self.assertEqual(self.config.getint('controller', 'port'), 2149)
 
     def test_update_from_args_controller_port(self):
         parser = zeekclient.cli.create_parser()
