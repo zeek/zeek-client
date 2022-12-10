@@ -108,10 +108,10 @@ class Controller:
 
             while attempts > 0:
                 try:
+                    attempts -= 1
                     return op()
                 except websocket.WebSocketTimeoutException:
                     time.sleep(retry_delay)
-                    attempts -= 1
                     continue
                 except websocket.WebSocketException as err:
                     LOG.error('websocket error in %s with controller %s:%s: %s',
