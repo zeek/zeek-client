@@ -105,6 +105,17 @@ class TestController(unittest.TestCase):
             with self.assertRaises(zeekclient.controller.ConfigError):
                 controller = zeekclient.controller.Controller()
 
+    def test_connect_fails_with_refused(self):
+        controller = zeekclient.controller.Controller()
+        controller.wsock.mock_connect_refused = True
+        # Dial down attempts and waits to make this fast:
+        zeekclient.CONFIG.set('client', 'peering_attempts', '2')
+        zeekclient.CONFIG.set('client', 'peering_retry_delay_secs', '0.1')
+        self.assertFalse(controller.connect())
+        self.assertLogLines(
+            'info: connecting to controller 127.0.0.1:2149',
+            'error: websocket connection to 127.0.0.1:2149 timed out in connect\(\)')
+
     def test_connect_fails_with_timeout(self):
         controller = zeekclient.controller.Controller()
         controller.wsock.mock_connect_timeout = True

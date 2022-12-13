@@ -24,6 +24,7 @@ class WebSocket():
         # to retrieve that from real instances.
         self.mock_url = None
 
+        self.mock_connect_refused = False
         self.mock_connect_timeout = False
         self.mock_connect_websocket_exception = False
         self.mock_connect_sslerror = False
@@ -46,6 +47,8 @@ class WebSocket():
         self.mock_send_queue = []
 
     def connect(self, url, **options):
+        if self.mock_connect_refused:
+            raise ConnectionRefusedError()
         if self.mock_connect_timeout:
             raise WebSocketTimeoutException('connection timed out')
         if self.mock_connect_websocket_exception:
