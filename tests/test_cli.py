@@ -111,7 +111,7 @@ class TestCli(unittest.TestCase):
         args = parser.parse_args(inargs)
 
         def mock_create_controller():
-            self.controller.wsock.mock_connect_oserror = True
+            self.controller.wsock.mock_connect_exc = OSError()
             self.controller.connect()
             return None
         zc.cli.create_controller = mock_create_controller
@@ -127,7 +127,7 @@ class TestCli(unittest.TestCase):
 
         def mock_create_controller():
             self.controller.connect()
-            self.controller.wsock.mock_recv_oserror = True
+            self.controller.wsock.mock_recv_exc = OSError()
             return self.controller
         zc.cli.create_controller = mock_create_controller
 

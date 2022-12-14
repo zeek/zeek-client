@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import select
+import ssl
 import sys
 import unittest
 
@@ -107,7 +108,7 @@ class TestController(unittest.TestCase):
 
     def test_connect_fails_with_refused(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_connect_refused = True
+        controller.wsock.mock_connect_exc = ConnectionRefusedError()
         # Dial down attempts and waits to make this fast:
         zeekclient.CONFIG.set('client', 'peering_attempts', '2')
         zeekclient.CONFIG.set('client', 'peering_retry_delay_secs', '0.1')
@@ -118,7 +119,7 @@ class TestController(unittest.TestCase):
 
     def test_connect_fails_with_timeout(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_connect_timeout = True
+        controller.wsock.mock_connect_exc = websocket.WebSocketTimeoutException('connection timed out')
         # Dial down attempts and waits to make this fast:
         zeekclient.CONFIG.set('client', 'peering_attempts', '2')
         zeekclient.CONFIG.set('client', 'peering_retry_delay_secs', '0.1')
@@ -129,7 +130,7 @@ class TestController(unittest.TestCase):
 
     def test_connect_fails_with_websocket_error(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_connect_websocket_exception = True
+        controller.wsock.mock_connect_exc = websocket.WebSocketException('uh-oh')
         self.assertFalse(controller.connect())
         self.assertLogLines(
             'info: connecting to controller 127.0.0.1:2149',
@@ -137,7 +138,7 @@ class TestController(unittest.TestCase):
 
     def test_connect_fails_with_sslerror(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_connect_sslerror = True
+        controller.wsock.mock_connect_exc = ssl.SSLError('dummy library version', 'uh-oh')
         self.assertFalse(controller.connect())
         self.assertLogLines(
             'info: connecting to controller 127.0.0.1:2149',
@@ -145,7 +146,7 @@ class TestController(unittest.TestCase):
 
     def test_connect_fails_with_oserror(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_connect_oserror = True
+        controller.wsock.mock_connect_exc = OSError('uh-oh')
         self.assertFalse(controller.connect())
         self.assertLogLines(
             'info: connecting to controller 127.0.0.1:2149',
@@ -153,7 +154,7 @@ class TestController(unittest.TestCase):
 
     def test_connect_fails_with_unknown_error(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_connect_unknown_exception = True
+        controller.wsock.mock_connect_exc = websocket.UnknownException('surprise')
         self.assertFalse(controller.connect())
         self.assertLogLines(
             'info: connecting to controller 127.0.0.1:2149',
@@ -161,19 +162,19 @@ class TestController(unittest.TestCase):
 
     def test_handshake_fails_with_timeout(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_recv_timeout = True
+        controller.wsock.mock_recv_exc = websocket.WebSocketTimeoutException('connection timed out')
         self.assertFalse(controller.connect())
         self.assertLogLines('error: websocket connection to .+ timed out in handshake')
 
     def test_handshake_fails_with_oserror(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_recv_oserror = True
+        controller.wsock.mock_recv_exc = OSError('uh-oh')
         self.assertFalse(controller.connect())
         self.assertLogLines('error: socket error in handshake with controller .+: uh-oh')
 
     def test_handshake_fails_with_unknown_error(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_recv_unknown_exception = True
+        controller.wsock.mock_recv_exc = websocket.UnknownException('surprise')
         self.assertFalse(controller.connect())
         self.assertLogLines(
             'error: unexpected error in handshake with controller .+: surprise')
@@ -229,7 +230,7 @@ class TestController(unittest.TestCase):
     def test_receive_fails_with_timeout(self):
         controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
-        controller.wsock.mock_recv_timeout = True
+        controller.wsock.mock_recv_exc = websocket.WebSocketTimeoutException('connection timed out')
         res, msg = controller.receive()
         self.assertIsNone(res)
         self.assertRegex(msg, 'websocket connection .+ timed out')
@@ -237,7 +238,7 @@ class TestController(unittest.TestCase):
     def test_receive_fails_with_unknown_error(self):
         controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
-        controller.wsock.mock_recv_unknown_exception = True
+        controller.wsock.mock_recv_exc = websocket.UnknownException('surprise')
         res, msg = controller.receive()
         self.assertIsNone(res)
         self.assertRegex(msg, 'unexpected error .+: surprise')
