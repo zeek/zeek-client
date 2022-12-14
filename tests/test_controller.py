@@ -1,12 +1,8 @@
 #! /usr/bin/env python
 """This verifies zeekclient.controller.Controller's behavior."""
-import configparser
 import io
-import json
-import logging
 import os
 import re
-import select
 import ssl
 import sys
 import unittest

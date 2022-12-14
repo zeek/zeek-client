@@ -17,9 +17,6 @@ sys.path.insert(0, TESTS)
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
 
-# This is the mock, not the real one
-import websocket
-
 import zeekclient as zc
 
 class TestCliInvocation(unittest.TestCase):
@@ -31,14 +28,14 @@ class TestCliInvocation(unittest.TestCase):
 
     def test_help(self):
         cproc = subprocess.run([os.path.join(ROOT, 'zeek-client'), '--help'],
-                               env=self.env, capture_output=True)
+                               check=True, env=self.env, capture_output=True)
         self.assertEqual(cproc.returncode, 0)
 
     def test_show_settings(self):
         env = os.environ.copy()
         env['PYTHONPATH'] = os.pathsep.join(sys.path)
         cproc = subprocess.run([os.path.join(ROOT, 'zeek-client'), 'show-settings'],
-                               env=self.env, capture_output=True)
+                               check=True, env=self.env, capture_output=True)
         self.assertEqual(cproc.returncode, 0)
 
 

@@ -3,12 +3,7 @@
 individual settings via command-line arguments, environment variables, and
 files.
 """
-import configparser
-import io
-import json
-import logging
 import os
-import shutil
 import sys
 import tempfile
 import unittest
@@ -40,9 +35,10 @@ class TestConfig(unittest.TestCase):
             self.config.update_from_file(hdl.name)
             self.assertEqual(self.config.getint('client', 'request_timeout_secs'), 10)
 
+    @unittest.mock.patch.dict(
+        os.environ, {'ZEEK_CLIENT_CONFIG_SETTINGS':
+                     'client.request_timeout_secs=23 server.FOO="1 2 3"'})
     def test_update_from_env(self):
-        old = os.getenv('ZEEK_CLIENT_CONFIG_SETTINGS')
-        os.environ['ZEEK_CLIENT_CONFIG_SETTINGS'] = 'client.request_timeout_secs=23 server.FOO="1 2 3"'
         self.config.update_from_env()
         self.assertEqual(self.config.getint('client', 'request_timeout_secs'), 23)
         self.assertEqual(self.config.get('server', 'FOO'), '1 2 3')
