@@ -3,7 +3,6 @@
 For details, see https://github.com/websocket-client/websocket-client.
 """
 
-import ssl
 import zeekclient
 
 class WebSocketException(Exception):
@@ -24,16 +23,11 @@ class WebSocket():
         # to retrieve that from real instances.
         self.mock_url = None
 
-        self.mock_connect_timeout = False
-        self.mock_connect_websocket_exception = False
-        self.mock_connect_sslerror = False
-        self.mock_connect_oserror = False
-        self.mock_connect_unknown_exception = False
-
-        self.mock_recv_timeout = False
-        self.mock_recv_websocket_exception = False
-        self.mock_recv_oserror = False
-        self.mock_recv_unknown_exception = False
+        # Exception instances in case we want to trigger problems during I/O.
+        # These correspond to the exceptions handled in Controller.connect()'s
+        # wsock_operation() inner function.
+        self.mock_connect_exc = None
+        self.mock_recv_exc = None
 
         self.mock_broker_id = 'broker-id-aaa'
 
@@ -46,16 +40,8 @@ class WebSocket():
         self.mock_send_queue = []
 
     def connect(self, url, **options):
-        if self.mock_connect_timeout:
-            raise WebSocketTimeoutException('connection timed out')
-        if self.mock_connect_websocket_exception:
-            raise WebSocketException('uh-oh')
-        if self.mock_connect_sslerror:
-            raise ssl.SSLError('dummy library version', 'uh-oh')
-        if self.mock_connect_oserror:
-            raise OSError('uh-oh')
-        if self.mock_connect_unknown_exception:
-            raise UnknownException('surprise')
+        if self.mock_connect_exc is not None:
+            raise self.mock_connect_exc
 
         self.mock_url = url
 
@@ -63,14 +49,8 @@ class WebSocket():
         self.mock_send_queue.append(payload)
 
     def recv(self):
-        if self.mock_recv_timeout:
-            raise WebSocketTimeoutException('connection timed out')
-        if self.mock_recv_websocket_exception:
-            raise WebSocketException('uh-oh')
-        if self.mock_recv_oserror:
-            raise OSError('uh-oh')
-        if self.mock_recv_unknown_exception:
-            raise UnknownException('surprise')
+        if self.mock_recv_exc is not None:
+            raise self.mock_recv_exc
 
         assert self.mock_recv_queue, 'socket mock ran out of data'
         return self.mock_recv_queue.pop(0)

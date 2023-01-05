@@ -6,7 +6,6 @@ controller), and serialize them correctly to INI/JSON.
 import configparser
 import io
 import json
-import logging
 import os
 import sys
 import unittest

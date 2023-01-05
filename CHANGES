@@ -1,3 +1,15 @@
+1.1.0-42 | 2023-01-04 17:15:26 -0800
+
+  * Add Python 3.11 to CI (Christian Kreibich, Corelight)
+
+  * Minor pylint-suggested cleanups (Christian Kreibich, Corelight)
+
+  * Refactor exception mocking in unit tests (Christian Kreibich, Corelight)
+
+  * Fix logic bug in counting connection attempts to the controller (Christian Kreibich, Corelight)
+
+  * Add unit test for refused connections when connecting to controller (Christian Kreibich, Corelight)
+
 1.1.0-36 | 2022-10-20 17:01:16 -0700
 
   * Migrate the client to Broker's WebSocket transport (Christian Kreibich, Corelight)
