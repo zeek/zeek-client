@@ -1,3 +1,5 @@
 __pycache__
 .coverage
 *,cover
+dist
+zeek_client.egg-info

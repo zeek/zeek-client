@@ -1,3 +1,6 @@
+.PHONY: all
+all:
+
 .PHONY: test
 test:
 	cd tests && python -m unittest
@@ -14,3 +17,9 @@ test-coverage:
 	       test_controller.py \
 	       test_types.py \
 	    && coverage report -m
+
+.PHONY: dist
+dist:
+	rm -rf dist/*.tar.gz
+	python3 setup.py sdist
+	@printf "Package: "; echo dist/*.tar.gz

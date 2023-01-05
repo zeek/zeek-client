@@ -1,3 +1,9 @@
+1.1.0-45 | 2023-01-04 17:15:51 -0800
+
+  * Expand workflow to also cover dist-building and PyPI upload (Christian Kreibich, Corelight)
+
+  * Add packaging setup (Christian Kreibich, Corelight)
+
 1.1.0-42 | 2023-01-04 17:15:26 -0800
 
   * Add Python 3.11 to CI (Christian Kreibich, Corelight)
