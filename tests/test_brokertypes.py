@@ -387,6 +387,28 @@ class TestBrokertypes(unittest.TestCase):
         with self.assertRaises(TypeError):
             ZeekEvent('foo', 1)
 
+    def test_zeek_event_from_vector_metadata(self):
+        md_vec = Vector([Vector([from_py(12344242), from_py('truth')])])
+        args_vec = Vector()
+        ev_vec = Vector([from_py('Test::event'), args_vec, md_vec])
+        vec = Vector([from_py(1), from_py(1), ev_vec])
+
+        ev = ZeekEvent.from_vector(vec)
+        self.assertEqual(ev.name, "Test::event")
+        self.assertEqual(ev.args, [])
+
+    def test_zeek_event_from_vector_invalid(self):
+        test_cases = [
+            ("missing args", Vector([from_py('Test::event')])),
+            ("wrong name type", Vector([from_py(1), Vector()])),
+            ("wrong args type", Vector([from_py('Test::event'), from_py('string')])),
+        ]
+
+        for (name, vec) in test_cases:
+            with self.subTest(msg=name):
+                with self.assertRaises(TypeError):
+                    ZeekEvent.from_vector(vec)
+
     def test_handshake_message(self):
         self.assertEqual(HandshakeMessage(['foo', 'bar']),
                          HandshakeMessage(['foo', String('bar')]))

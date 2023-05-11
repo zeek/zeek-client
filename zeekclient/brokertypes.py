@@ -817,15 +817,18 @@ class ZeekEvent(Vector):
         if not isinstance(vec, Vector):
             raise TypeError('cannot convert non-vector to Zeek event')
 
-        if (not len(vec) == 3 or
+        if (len(vec) < 3 or
             not isinstance(vec[2], Vector) or
-            not len(vec[2]) == 2 or
+            len(vec[2]) < 2 or
             not isinstance(vec[2][0], String) or
             not isinstance(vec[2][1], Vector)):
             raise TypeError('invalid vector layout for Zeek event')
 
         name = vec[2][0].to_py()
         args = vec[2][1]
+
+        # TODO: Extend to handle metadata
+
         return ZeekEvent(name, *args._elements)
 
     @classmethod
