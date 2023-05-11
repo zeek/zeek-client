@@ -404,8 +404,9 @@ class TestBrokertypes(unittest.TestCase):
             ("wrong args type", Vector([from_py('Test::event'), from_py('string')])),
         ]
 
-        for (name, vec) in test_cases:
+        for (name, ev_vec) in test_cases:
             with self.subTest(msg=name):
+                vec = Vector([from_py(1), from_py(1), ev_vec])
                 with self.assertRaises(TypeError):
                     ZeekEvent.from_vector(vec)
 
