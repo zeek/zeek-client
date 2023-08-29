@@ -22,7 +22,7 @@ import zeekclient as zc
 class TestCliInvocation(unittest.TestCase):
     # This invokes the zeek-client toplevel script.
     def setUp(self):
-        # Set up an environment in which subprocesses pick up our stub Broker fist:
+        # Set up an environment in which subprocesses pick up our package first:
         self.env = os.environ.copy()
         self.env['PYTHONPATH'] = os.pathsep.join(sys.path)
 
@@ -32,8 +32,6 @@ class TestCliInvocation(unittest.TestCase):
         self.assertEqual(cproc.returncode, 0)
 
     def test_show_settings(self):
-        env = os.environ.copy()
-        env['PYTHONPATH'] = os.pathsep.join(sys.path)
         cproc = subprocess.run([os.path.join(ROOT, 'zeek-client'), 'show-settings'],
                                check=True, env=self.env, capture_output=True)
         self.assertEqual(cproc.returncode, 0)
