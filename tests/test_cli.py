@@ -7,6 +7,8 @@ import subprocess
 import sys
 import unittest
 
+from contextlib import contextmanager
+
 TESTS = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.normpath(os.path.join(TESTS, '..'))
 
@@ -18,6 +20,18 @@ sys.path.insert(0, TESTS)
 sys.path.insert(0, ROOT)
 
 import zeekclient as zc
+
+# A context guard to switch the current working directory.
+# With 3.11 this can go and become contextlib.chdir():
+@contextmanager
+def setdir(path):
+    origin = os.getcwd()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(origin)
+
 
 class TestCliInvocation(unittest.TestCase):
     # This invokes the zeek-client toplevel script.
