@@ -1,3 +1,17 @@
+1.3.0-7 | 2023-08-30 13:23:27 -0700
+
+  * For Zeek-bundled installs, add Zeek's package tree to the search path (Christian Kreibich, Corelight)
+
+  * Add test to verify Zeek-bundled install's Python package locator. (Christian Kreibich, Corelight)
+
+  * Add a current working directory context guard to CLI tests (Christian Kreibich, Corelight)
+
+  * CI: Remove Python 3.7 from workflow (EOL); don't fail matrix quickly. (Christian Kreibich, Corelight)
+
+  * CI: Install websocket-client in Github test workflow (Christian Kreibich, Corelight)
+
+  * Test fixes: correct outdated comment and redundant environment tweak (Christian Kreibich, Corelight)
+
 1.3.0 | 2023-05-11 13:24:14 -0700
 
   * Release 1.3.0.

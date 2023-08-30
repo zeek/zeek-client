@@ -3,9 +3,13 @@
 import io
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
+
+from contextlib import contextmanager
 
 TESTS = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.normpath(os.path.join(TESTS, '..'))
@@ -19,10 +23,22 @@ sys.path.insert(0, ROOT)
 
 import zeekclient as zc
 
+# A context guard to switch the current working directory.
+# With 3.11 this can go and become contextlib.chdir():
+@contextmanager
+def setdir(path):
+    origin = os.getcwd()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(origin)
+
+
 class TestCliInvocation(unittest.TestCase):
     # This invokes the zeek-client toplevel script.
     def setUp(self):
-        # Set up an environment in which subprocesses pick up our stub Broker fist:
+        # Set up an environment in which subprocesses pick up our package first:
         self.env = os.environ.copy()
         self.env['PYTHONPATH'] = os.pathsep.join(sys.path)
 
@@ -32,11 +48,44 @@ class TestCliInvocation(unittest.TestCase):
         self.assertEqual(cproc.returncode, 0)
 
     def test_show_settings(self):
-        env = os.environ.copy()
-        env['PYTHONPATH'] = os.pathsep.join(sys.path)
         cproc = subprocess.run([os.path.join(ROOT, 'zeek-client'), 'show-settings'],
                                check=True, env=self.env, capture_output=True)
         self.assertEqual(cproc.returncode, 0)
+
+
+class TestBundledCliInvocation(unittest.TestCase):
+
+    # Verify that zeek-client finds its package in Zeek-bundled install, where
+    # the package will not be in the usual Python search path. As we add more
+    # system-level testing, this may become a btest too, but for we stick to
+    # Python. Most system-level testing happens in the zeek-testing-cluster
+    # external testsuite.
+    @unittest.skipUnless(shutil.which('cmake') and shutil.which('make'),
+                         'needs both cmake and make in the system path')
+    def test_bundled_install(self):
+        with tempfile.TemporaryDirectory() as tmpdir, setdir(tmpdir):
+            # Configure the package via cmake with a Python module directory, as
+            # Zeek would do. Do this from the temp directory we're now in ...
+            cproc = subprocess.run(
+                ['cmake',
+                 '-D', f'PY_MOD_INSTALL_DIR={os.path.join(tmpdir, "python")}',
+                 f'--install-prefix={tmpdir}',
+                 ROOT],
+                check=True, capture_output=True)
+
+            # ... and install there too, into local bin/ and python/ dirs.
+            cproc = subprocess.run(['make', 'install'],
+                                   check=True, capture_output=True)
+
+            # We should now be able to run "./bin/zeek-client --help".
+            cproc = subprocess.run([os.path.join(tmpdir, 'bin', 'zeek-client'), '--help'],
+                                   capture_output=True)
+            if cproc.returncode != 0:
+                print('==== STDOUT ====')
+                print(cproc.stdout.decode('utf-8'))
+                print('==== STDERR ====')
+                print(cproc.stderr.decode('utf-8'))
+                self.fail('zeek-client invocation failed')
 
 
 class TestCliBasics(unittest.TestCase):
