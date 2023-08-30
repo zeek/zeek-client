@@ -7,5 +7,3 @@ repos:
   rev: v3.0.0a7
   hooks:
   - id: pylint
-    args:
-      - "-E"
