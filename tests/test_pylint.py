@@ -34,16 +34,3 @@ class TestPylint(unittest.TestCase):
     @unittest.skipIf('pylint.lint' not in sys.modules, 'Pylint not available')
     def test_zeek_client(self):
         self.assertTrue(self._run(['--rcfile=' + RCFILE, '-E', os.path.join(ROOT, 'zeek-client')]))
-
-
-def test():
-    """Entry point for testing this module.
-
-    Returns True if successful, False otherwise.
-    """
-    res = unittest.main(sys.modules[__name__], verbosity=0, exit=False)
-    # This is how unittest.main() implements the exit code itself:
-    return res.result.wasSuccessful()
-
-if __name__ == '__main__':
-    sys.exit(not test())

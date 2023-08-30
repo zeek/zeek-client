@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 """This verifies zeekclient's ability to load configurations and update
 individual settings via command-line arguments, environment variables, and
 files.
@@ -78,16 +77,3 @@ class TestConfig(unittest.TestCase):
         self.config.update_from_args(args)
         self.assertEqual(self.config.get('controller', 'host'), 'foo')
         self.assertEqual(self.config.getint('controller', 'port'), 2222)
-
-
-def test():
-    """Entry point for testing this module.
-
-    Returns True if successful, False otherwise.
-    """
-    res = unittest.main(sys.modules[__name__], verbosity=0, exit=False)
-    # This is how unittest.main() implements the exit code itself:
-    return res.result.wasSuccessful()
-
-if __name__ == '__main__':
-    sys.exit(not test())

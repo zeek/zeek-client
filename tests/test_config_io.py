@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 """This verifies zeekclient's ability to ingest cluster configurations, validate
 their content (excluding deeper validations happening in the cluster
 controller), and serialize them correctly to INI/JSON.
@@ -418,16 +417,3 @@ role = WORKER
         with io.StringIO() as buf:
             cfp.write(buf)
             self.assertEqualStripped(buf.getvalue(), ini_expected)
-
-
-def test():
-    """Entry point for testing this module.
-
-    Returns True if successful, False otherwise.
-    """
-    res = unittest.main(sys.modules[__name__], verbosity=0, exit=False)
-    # This is how unittest.main() implements the exit code itself:
-    return res.result.wasSuccessful()
-
-if __name__ == '__main__':
-    sys.exit(not test())

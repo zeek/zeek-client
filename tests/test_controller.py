@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 """This verifies zeekclient.controller.Controller's behavior."""
 import io
 import os
@@ -296,16 +295,3 @@ class TestController(unittest.TestCase):
         self.assertIsInstance(event, zeekclient.events.DeployResponse)
         self.assertEqual(error, '')
         self.assertEqual(event.reqid.to_py(), reqid)
-
-
-def test():
-    """Entry point for testing this module.
-
-    Returns True if successful, False otherwise.
-    """
-    res = unittest.main(sys.modules[__name__], verbosity=0, exit=False)
-    # This is how unittest.main() implements the exit code itself:
-    return res.result.wasSuccessful()
-
-if __name__ == '__main__':
-    sys.exit(not test())

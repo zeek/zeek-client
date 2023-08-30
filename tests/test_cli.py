@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 """This verifies zeek-client invocations."""
 import io
 import os
@@ -642,16 +641,3 @@ role = WORKER
         # The output should be an ini file that we can load back into our
         # configuration:
         zc.CONFIG.read_string(zc.cli.STDOUT.getvalue())
-
-
-def test():
-    """Entry point for testing this module.
-
-    Returns True if successful, False otherwise.
-    """
-    res = unittest.main(sys.modules[__name__], verbosity=0, exit=False)
-    # This is how unittest.main() implements the exit code itself:
-    return res.result.wasSuccessful()
-
-if __name__ == '__main__':
-    sys.exit(not test())

@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 """This verifies the behavior of the types provied by the brokertypes module."""
 import datetime
 import os.path
@@ -482,15 +481,3 @@ class TestBrokertypes(unittest.TestCase):
         data = b'{ "data": "foobar", "@data-type": "count" }'
         with self.assertRaisesRegex(TypeError, 'invalid data for Count'):
             obj = Count.unserialize(data)
-
-def test():
-    """Entry point for testing this module.
-
-    Returns True if successful, False otherwise.
-    """
-    res = unittest.main(sys.modules[__name__], verbosity=0, exit=False)
-    # This is how unittest.main() implements the exit code itself:
-    return res.result.wasSuccessful()
-
-if __name__ == '__main__':
-    sys.exit(not test())
