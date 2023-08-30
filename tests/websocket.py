@@ -5,17 +5,20 @@ For details, see https://github.com/websocket-client/websocket-client.
 
 import zeekclient
 
+
 class WebSocketException(Exception):
     pass
 
+
 class WebSocketTimeoutException(WebSocketException):
     pass
+
 
 class UnknownException(Exception):
     pass
 
 
-class WebSocket():
+class WebSocket:
     def __init__(self, *args, **kwargs):
         self.timeout = None
 
@@ -29,12 +32,15 @@ class WebSocket():
         self.mock_connect_exc = None
         self.mock_recv_exc = None
 
-        self.mock_broker_id = 'broker-id-aaa'
+        self.mock_broker_id = "broker-id-aaa"
 
         # During normal operation the server responds with a
         # HandshakeAckMessage, so put that in the queue:
-        self.mock_recv_queue = [zeekclient.brokertypes.HandshakeAckMessage(
-            self.mock_broker_id, 1.0).serialize()]
+        self.mock_recv_queue = [
+            zeekclient.brokertypes.HandshakeAckMessage(
+                self.mock_broker_id, 1.0
+            ).serialize()
+        ]
 
         # Messages sent via the socket
         self.mock_send_queue = []
@@ -52,7 +58,7 @@ class WebSocket():
         if self.mock_recv_exc is not None:
             raise self.mock_recv_exc
 
-        assert self.mock_recv_queue, 'socket mock ran out of data'
+        assert self.mock_recv_queue, "socket mock ran out of data"
         return self.mock_recv_queue.pop(0)
 
     def gettimeout(self):

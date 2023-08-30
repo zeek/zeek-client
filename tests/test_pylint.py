@@ -14,11 +14,11 @@ except ImportError:
     pass
 
 TESTS = os.path.dirname(os.path.realpath(__file__))
-ROOT = os.path.normpath(os.path.join(TESTS, '..'))
-RCFILE = os.path.join(ROOT, '.pylintrc')
+ROOT = os.path.normpath(os.path.join(TESTS, ".."))
+RCFILE = os.path.join(ROOT, ".pylintrc")
+
 
 class TestPylint(unittest.TestCase):
-
     def _run(self, args):
         try:
             # The easiest way to get the return code out of a pylint run
@@ -27,10 +27,14 @@ class TestPylint(unittest.TestCase):
         except SystemExit as err:
             return err.code == 0
 
-    @unittest.skipIf('pylint.lint' not in sys.modules, 'Pylint not available')
+    @unittest.skipIf("pylint.lint" not in sys.modules, "Pylint not available")
     def test_zeekclient(self):
-        self.assertTrue(self._run(['--rcfile=' + RCFILE, '-E', os.path.join(ROOT, 'zeekclient')]))
+        self.assertTrue(
+            self._run(["--rcfile=" + RCFILE, "-E", os.path.join(ROOT, "zeekclient")])
+        )
 
-    @unittest.skipIf('pylint.lint' not in sys.modules, 'Pylint not available')
+    @unittest.skipIf("pylint.lint" not in sys.modules, "Pylint not available")
     def test_zeek_client(self):
-        self.assertTrue(self._run(['--rcfile=' + RCFILE, '-E', os.path.join(ROOT, 'zeek-client')]))
+        self.assertTrue(
+            self._run(["--rcfile=" + RCFILE, "-E", os.path.join(ROOT, "zeek-client")])
+        )
