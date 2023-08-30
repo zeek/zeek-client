@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pylint
+          pip install pylint websocket-client
       - name: Run unit tests
         run: cd tests && python -m unittest -v
 
