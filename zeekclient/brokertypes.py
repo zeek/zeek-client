@@ -512,7 +512,14 @@ class Address(DataType):
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
-        return self._addr < other._addr
+        if (type(self._addr) == type(other._addr)):
+            return self._addr < other._addr
+        else:
+            # Make a blanket assumption that an IPv4 address is "less than" an IPv6 address
+            if type(self._addr) == ipaddress.IPv4Address:
+                return True
+            else:
+                return False
 
     def __hash__(self):
         return hash(self._value)

@@ -582,11 +582,14 @@ class Configuration(ZeekType, ConfigParserMixin):
                         config.instances.append(Instance(key))
                     else:
                         hostport = val
-                        parts = hostport.split(':', 1)
-                        if len(parts) != 2 or not parts[0] or not parts[1]:
+                        parts = hostport.rpartition(':')
+                        if(parts[0] == '' or parts[1] == ''):
                             LOG.error('invalid spec for instance "%s": "%s" should be <host>:<port>', key, val)
                             return None
-                        config.instances.append(Instance(key, parts[0].strip(), parts[1].strip()))
+                        # remove brackets to support [ipv6]:port formats
+                        host = parts[0].strip("[]")
+                        port = parts[2].strip()
+                        config.instances.append(Instance(key, host, port))
                 continue
 
             # All keys for sections other than "instances" need to have a value.
