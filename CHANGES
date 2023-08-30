@@ -94,13 +94,13 @@
 1.0.0-8 | 2022-07-01 11:07:04 -0700
 
   * When a cluster node definition omits its instance, default to the local agent (Christian Kreibich, Corelight)
-  
+
   * When nodes omit instances in the config, ensure instances are absent entirely (Christian Kreibich, Corelight)
-  
+
   * Expand tests to cover new instance-free config support (Christian Kreibich, Corelight)
-  
+
   * Add test to cover new minimal, instance-free config behavior (Christian Kreibich, Corelight)
-  
+
   * Flesh out the README and add LICENSE (Christian Kreibich, Corelight)
 
   * Remove duplicate test definition (Christian Kreibich, Corelight)
