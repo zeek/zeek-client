@@ -582,13 +582,13 @@ class Configuration(ZeekType, ConfigParserMixin):
                         config.instances.append(Instance(key))
                     else:
                         hostport = val
-                        parts = hostport.rpartition(':')
-                        if(parts[0] == '' or parts[1] == ''):
-                            LOG.error('invalid spec for instance "%s": "%s" should be <host>:<port>', key, val)
+                        host, _, port = hostport.rpartition(':')
+                        if(host == '' or port == ''):
+                            LOG.error('invalid spec for instance "%s": "%s" should be <host>:<port>', host, port)
                             return None
                         # remove brackets to support [ipv6]:port formats
-                        host = parts[0].strip("[]")
-                        port = parts[2].strip()
+                        host = host.strip("[]")
+                        port = port.strip()
                         config.instances.append(Instance(key, host, port))
                 continue
 
