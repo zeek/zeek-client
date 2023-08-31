@@ -29,7 +29,6 @@ disable=
   too-many-return-statements,
   unidiomatic-typecheck,
   unnecessary-lambda-assignment,
-  unspecified-encoding,
   unused-argument,
   unused-import,
   unused-variable,

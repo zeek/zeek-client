@@ -377,7 +377,9 @@ def cmd_get_config(args):
     config = Configuration.from_brokertype(res.data)
 
     with open(
-        args.filename, "w"
+        args.filename,
+        "w",
+        encoding="utf-8",
     ) if args.filename and args.filename != "-" else STDOUT as hdl:
         if args.as_json:
             hdl.write(json_dumps(config.to_json_data()) + "\n")

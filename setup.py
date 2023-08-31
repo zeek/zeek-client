@@ -2,12 +2,12 @@ from setuptools import setup
 
 
 def get_readme():
-    with open("README.md") as readme:
+    with open("README.md", encoding="utf-8") as readme:
         return readme.read()
 
 
 def get_version():
-    with open("VERSION") as version:
+    with open("VERSION", encoding="utf-8") as version:
         return version.read().replace("-", ".dev", 1).strip()
 
 
