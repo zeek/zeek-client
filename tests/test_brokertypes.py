@@ -15,11 +15,11 @@ from zeekclient.brokertypes import *
 
 
 class TestBrokertypes(unittest.TestCase):
-    def assertEqualRoundtrip(self, input):
+    def assertEqualRoundtrip(self, data):
         # This verifies for the given Brokertype object that it can serialize
         # into Broker's wire format, unserialize, and yield an identical object.
-        output = type(input).unserialize(input.serialize())
-        self.assertEqual(input, output)
+        output = type(data).unserialize(data.serialize())
+        self.assertEqual(data, output)
 
     def assertHash(self, val):
         d = {val: 1}

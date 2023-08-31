@@ -391,14 +391,14 @@ class Timespan(DataType):
         # only three relevant members: .microseconds, .seconds, and .days)
         # and map it to the closest Broker unit.
 
-        def format(val, unit):
+        def fmt(val, unit):
             # Don't say 10.0, say 10:
             val = int(val) if float(val).is_integer() else val
             return "{}{}".format(val, unit)
 
         if tdelta.microseconds != 0:
             if tdelta.microseconds % 1000 == 0:
-                return format(
+                return fmt(
                     tdelta.microseconds / 1e3
                     + tdelta.seconds * 1e3
                     + tdelta.days * 86400 * 1e3,
@@ -406,7 +406,7 @@ class Timespan(DataType):
                 )
             # There are no microseconds in the Broker data model,
             # so go full plaid to nanoseconds.
-            return format(
+            return fmt(
                 tdelta.microseconds * 1e3
                 + tdelta.seconds * 1e9
                 + tdelta.days * 86400 * 1e9,
@@ -414,12 +414,12 @@ class Timespan(DataType):
             )
         if tdelta.seconds != 0:
             if tdelta.seconds % 3600 == 0:
-                return format(tdelta.seconds / 3600 + tdelta.days * 24, "h")
+                return fmt(tdelta.seconds / 3600 + tdelta.days * 24, "h")
             if tdelta.seconds % 60 == 0:
-                return format(tdelta.seconds / 60 + tdelta.days * 1440, "min")
-            return format(tdelta.seconds + tdelta.days * 86400, "s")
+                return fmt(tdelta.seconds / 60 + tdelta.days * 1440, "min")
+            return fmt(tdelta.seconds + tdelta.days * 86400, "s")
 
-        return format(tdelta.days, "d")
+        return fmt(tdelta.days, "d")
 
 
 class Timestamp(DataType):

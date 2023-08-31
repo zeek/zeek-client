@@ -19,8 +19,8 @@ class TestTypes(unittest.TestCase):
         d = {val: 1}
         self.assertEqual(d[val], 1)
 
-    def brokertype_roundtrip(self, input):
-        return type(input).from_brokertype(input.to_brokertype())
+    def brokertype_roundtrip(self, data):
+        return type(data).from_brokertype(data.to_brokertype())
 
     def test_cluster_role(self):
         val0 = ClusterRole.LOGGER
