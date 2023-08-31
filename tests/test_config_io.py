@@ -190,8 +190,10 @@ cpu_affinity = 8
 
         jdata = config.to_json_data()
 
-        # Canonicalize the ID:
-        canon = lambda c: "-" if c == "-" else "x"
+        def canon(c):
+            """Canonicalize the ID"""
+            return "-" if c == "-" else "x"
+
         jdata["id"] = "".join([canon(c) for c in jdata["id"]])
 
         self.assertEqual(

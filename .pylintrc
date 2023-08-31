@@ -27,7 +27,6 @@ disable=
   too-many-public-methods,
   too-many-return-statements,
   unidiomatic-typecheck,
-  unnecessary-lambda-assignment,
   unused-argument,
   unused-wildcard-import,
   wildcard-import,
