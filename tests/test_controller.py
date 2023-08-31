@@ -132,7 +132,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: websocket connection to 127.0.0.1:2149 timed out in connect\(\)",
+            r"error: websocket connection to 127.0.0.1:2149 timed out in connect\(\)",
         )
 
     def test_connect_fails_with_timeout(self):
@@ -146,7 +146,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: websocket connection to 127.0.0.1:2149 timed out in connect\(\)",
+            r"error: websocket connection to 127.0.0.1:2149 timed out in connect\(\)",
         )
 
     def test_connect_fails_with_websocket_error(self):
@@ -155,7 +155,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: websocket error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
+            r"error: websocket error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
         )
 
     def test_connect_fails_with_sslerror(self):
@@ -166,7 +166,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: socket TLS error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
+            r"error: socket TLS error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
         )
 
     def test_connect_fails_with_oserror(self):
@@ -175,7 +175,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: socket error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
+            r"error: socket error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
         )
 
     def test_connect_fails_with_unknown_error(self):
@@ -184,7 +184,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: unexpected error in connect\(\) with controller 127.0.0.1:2149: surprise",
+            r"error: unexpected error in connect\(\) with controller 127.0.0.1:2149: surprise",
         )
 
     def test_handshake_fails_with_timeout(self):

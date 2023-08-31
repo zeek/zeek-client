@@ -12,7 +12,6 @@ disable=
   # We previously ignored all these non-error lints.
   #
   # TODO(bbannier): audit this list and fix lints where possible.
-  anomalous-backslash-in-string,
   broad-exception-caught,
   consider-using-dict-items,
   consider-using-with,
