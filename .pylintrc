@@ -19,7 +19,6 @@ disable=
   fixme,
   missing-module-docstring,
   protected-access,
-  redefined-outer-name,
   too-few-public-methods,
   too-many-locals,
   too-many-public-methods,

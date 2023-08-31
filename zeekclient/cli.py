@@ -8,7 +8,7 @@ import sys
 import traceback
 
 from . import brokertypes as bt
-from . import controller
+from .controller import Controller, Error as ControllerError
 
 from .config import CONFIG
 
@@ -87,8 +87,8 @@ def json_dumps(obj):
 
 def create_controller():
     try:
-        ctl = controller.Controller()
-    except controller.Error as err:
+        ctl = Controller()
+    except ControllerError as err:
         LOG.error(str(err))
         return None
 

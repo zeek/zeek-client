@@ -96,7 +96,7 @@ class TestBundledCliInvocation(unittest.TestCase):
             cproc = subprocess.run(
                 [os.path.join(tmpdir, "bin", "zeek-client"), "--help"],
                 capture_output=True,
-                check=True,
+                check=False,
             )
             if cproc.returncode != 0:
                 print("==== STDOUT ====")
