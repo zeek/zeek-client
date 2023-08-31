@@ -22,7 +22,7 @@ class ConfigParserMixin:
         """
         return None  # pragma: no cover
 
-    def to_config_parser(self, cfp=None):  # pylint: disable=unused-argument,no-self-use
+    def to_config_parser(self, cfp=None):  # pylint: disable=unused-argument
         """Returns this object in a ConfigParser instance. When the optional cfp
         argument is not None, the caller requests the implementation to add to
         the given parser, not create a new one.
@@ -57,7 +57,7 @@ class SerializableZeekType:
     # We are not using abc.abstractmethod and friends here because the metaclass
     # magic they introduces clashes with multiple inheritance from other types,
     # affecting e.g. Enums below.
-    def to_brokertype(self):  # pylint: disable=no-self-use
+    def to_brokertype(self):
         """Returns a brokertype instance representing this object."""
         return None  # pragma: no cover
 

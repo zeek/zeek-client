@@ -89,7 +89,7 @@ class Type(abc.ABC):
             ) from err
 
     @abc.abstractmethod
-    def to_py(self):  # pylint: disable=no-self-use
+    def to_py(self):
         """Returns a Python-"native" rendering of the object.
 
         For most brokertypes this will be a native Python type (such as int or
@@ -101,7 +101,7 @@ class Type(abc.ABC):
         return None
 
     @abc.abstractmethod
-    def to_broker(self):  # pylint: disable=no-self-use
+    def to_broker(self):
         """Returns a Broker-JSON-compatible Python data structure representing
         a value of this type.
         """
