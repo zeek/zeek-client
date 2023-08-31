@@ -1,11 +1,17 @@
 [MASTER]
 disable=
+  fixme,
   missing-class-docstring,
   missing-function-docstring,
+  missing-module-docstring,
+  too-few-public-methods,
   too-many-arguments,
   too-many-branches,
   too-many-instance-attributes,
   too-many-lines,
+  too-many-locals,
+  too-many-public-methods,
+  too-many-return-statements,
   too-many-statements,
 
   # We previously ignored all these non-error lints.
@@ -14,11 +20,5 @@ disable=
   broad-exception-caught,
   cyclic-import,
   duplicate-code,
-  fixme,
-  missing-module-docstring,
-  too-few-public-methods,
-  too-many-locals,
-  too-many-public-methods,
-  too-many-return-statements,
 
 method-rgx=([a-z_][a-z0-9_]{2,64}$)|(assert[A-Z][a-zA-Z0-9]+$)
