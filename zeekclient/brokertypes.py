@@ -53,7 +53,7 @@ class Type(abc.ABC):
         return self.serialize(pretty=True)
 
     @classmethod
-    def unserialize(cls, data):  # pylint: disable=unused-argument
+    def unserialize(cls, data):
         """Instantiates an object of this class from Broker wire data.
 
         This assumes the message content in JSON and first unserializes it into
@@ -103,7 +103,7 @@ class Type(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def check_broker_data(cls, data):  # pylint: disable=unused-argument
+    def check_broker_data(cls, data):
         """Checks the Broker data for compliance with the expected type.
 
         If you use unserialize() to obtain objects, you can ignore this
@@ -116,7 +116,7 @@ class Type(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def from_broker(cls, data):  # pylint: disable=unused-argument
+    def from_broker(cls, data):
         """Returns an instance of the type given Broker's JSON data.
 
         This is a low-level method that you likely don't want to use. Consider

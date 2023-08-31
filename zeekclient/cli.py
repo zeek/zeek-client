@@ -280,7 +280,7 @@ def create_parser():
     return parser
 
 
-def cmd_deploy(args, controller=None):
+def cmd_deploy(_args, controller=None):
     # The deploy-config command first stages a configuration and then calls this
     # function to deploy. We re-use its controller, passed to us.
     if controller is None:

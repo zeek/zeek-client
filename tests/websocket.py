@@ -19,7 +19,7 @@ class UnknownException(Exception):
 
 
 class WebSocket:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *_args, **_kwargs):
         self.timeout = None
 
         # The URL provided to connect(). Doesn't look like there's a quick way
@@ -45,7 +45,7 @@ class WebSocket:
         # Messages sent via the socket
         self.mock_send_queue = []
 
-    def connect(self, url, **options):
+    def connect(self, url, **_options):
         if self.mock_connect_exc is not None:
             raise self.mock_connect_exc
 

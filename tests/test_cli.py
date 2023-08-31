@@ -132,7 +132,7 @@ class TestCli(unittest.TestCase):
         self.orig_create_controller = zc.cli.create_controller
         zc.cli.create_controller = mock_create_controller
 
-        def mock_make_uuid(prefix=""):
+        def mock_make_uuid(_prefix=""):
             return "mocked-reqid-00000"
 
         self.orig_make_uuid = zc.utils.make_uuid
