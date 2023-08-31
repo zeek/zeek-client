@@ -154,7 +154,7 @@ class Enum(ZeekType, enum.Enum):
         # The argument should be a brokertype.Enum a scoped value such as
         # "Foo::VALUE".
         try:
-            module, name = data.to_py().split("::", 1)
+            module = data.to_py().split("::", 1)[0]
             if module != cls.module_scope():
                 raise ValueError(
                     "module scope mismatch for {}: {} != {}.".format(

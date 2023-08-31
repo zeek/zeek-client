@@ -118,7 +118,9 @@ class TestTypes(unittest.TestCase):
         val0 = Configuration()
         val0.instances.append(Instance("instance1"))
         val0.nodes.append(Node("worker1", "instance1", ClusterRole.WORKER))
+
         val1 = self.brokertype_roundtrip(val0)
+        self.assertEqual(val0, val1)
 
         self.assertHash(val0)
 

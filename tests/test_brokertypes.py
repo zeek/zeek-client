@@ -492,23 +492,23 @@ class TestBrokertypes(unittest.TestCase):
         data = b"\x00\x00\x00"
 
         with self.assertRaisesRegex(TypeError, "cannot parse JSON data"):
-            obj = unserialize(data)
+            _ = unserialize(data)
         with self.assertRaisesRegex(TypeError, "cannot parse JSON data"):
-            obj = Count.unserialize(data)
+            _ = Count.unserialize(data)
 
     def test_unserialize_invalid_json(self):
         data = b"[ 1,2,3 ]"
         with self.assertRaisesRegex(TypeError, "invalid data layout"):
-            obj = unserialize(data)
+            _ = unserialize(data)
         with self.assertRaisesRegex(TypeError, "invalid data layout"):
-            obj = Count.unserialize(data)
+            _ = Count.unserialize(data)
 
         data = b'{ "data": "foobar" }'
         with self.assertRaisesRegex(TypeError, "unrecognized Broker type"):
-            obj = unserialize(data)
+            _ = unserialize(data)
         with self.assertRaisesRegex(TypeError, "invalid data layout"):
-            obj = Count.unserialize(data)
+            _ = Count.unserialize(data)
 
         data = b'{ "data": "foobar", "@data-type": "count" }'
         with self.assertRaisesRegex(TypeError, "invalid data for Count"):
-            obj = Count.unserialize(data)
+            _ = Count.unserialize(data)

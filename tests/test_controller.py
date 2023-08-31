@@ -121,7 +121,7 @@ class TestController(unittest.TestCase):
             zeekclient.CONFIG.set("ssl", error, "not-a-file")
 
             with self.assertRaises(zeekclient.controller.ConfigError):
-                controller = zeekclient.controller.Controller()
+                _ = zeekclient.controller.Controller()
 
     def test_connect_fails_with_refused(self):
         controller = zeekclient.controller.Controller()

@@ -30,7 +30,6 @@ disable=
   unnecessary-lambda-assignment,
   unused-argument,
   unused-import,
-  unused-variable,
   unused-wildcard-import,
   wildcard-import,
   wrong-import-position,

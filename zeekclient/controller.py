@@ -141,7 +141,7 @@ class Controller:
                         err,
                     )
                     return False
-                except ConnectionRefusedError as err:
+                except ConnectionRefusedError:
                     # We don't consider these fatal since they can happen
                     # naturally during tests and other automated setups where
                     # it's beneficial to keep trying.  Also, this is a subclass
@@ -286,7 +286,7 @@ class Controller:
                     return None, "protocol data error with controller {}:{}: {}".format(
                         self.controller_host, self.controller_port, err
                     )
-                except websocket.WebSocketTimeoutException as err:
+                except websocket.WebSocketTimeoutException:
                     return None, "websocket connection to {}:{} timed out".format(
                         self.controller_host, self.controller_port
                     )
