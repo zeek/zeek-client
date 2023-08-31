@@ -6,8 +6,6 @@ import ssl
 import sys
 import unittest
 
-from unittest.mock import patch
-
 TESTS = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.normpath(os.path.join(TESTS, ".."))
 

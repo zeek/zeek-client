@@ -25,8 +25,6 @@ from .brokertypes import (
     HandshakeMessage,
     HandshakeAckMessage,
     DataMessage,
-    ErrorMessage,
-    unserialize,
 )
 
 from .config import CONFIG

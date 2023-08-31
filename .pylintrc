@@ -29,7 +29,6 @@ disable=
   unidiomatic-typecheck,
   unnecessary-lambda-assignment,
   unused-argument,
-  unused-import,
   unused-wildcard-import,
   wildcard-import,
   wrong-import-position,
