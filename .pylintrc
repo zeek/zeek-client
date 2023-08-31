@@ -33,6 +33,5 @@ disable=
   unused-variable,
   unused-wildcard-import,
   useless-option-value,
-  useless-return,
   wildcard-import,
   wrong-import-position,

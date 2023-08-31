@@ -174,7 +174,7 @@ class TestCli(unittest.TestCase):
         parser = zc.cli.create_parser()
         args = parser.parse_args(inargs)
 
-        def mock_create_controller():
+        def mock_create_controller():  # pylint: disable=useless-return
             self.controller.wsock.mock_connect_exc = OSError()
             self.controller.connect()
             return None
