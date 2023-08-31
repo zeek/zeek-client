@@ -14,7 +14,6 @@ disable=
   # TODO(bbannier): audit this list and fix lints where possible.
   broad-exception-caught,
   consider-using-dict-items,
-  consider-using-with,
   cyclic-import,
   duplicate-code,
   expression-not-assigned,
