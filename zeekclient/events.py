@@ -15,10 +15,11 @@ from .types import (
     SerializableZeekType,
 )
 
+
 class Event(SerializableZeekType):
-    NAME = None # Name of the event, e.g. "Management::Controller::API::deploy_request"
-    ARG_NAMES = [] # Names of the arguments, e.g. "reqid"
-    ARG_TYPES = [] # Types in Python, e.g. str
+    NAME = None  # Name of the event, e.g. "Management::Controller::API::deploy_request"
+    ARG_NAMES = []  # Names of the arguments, e.g. "reqid"
+    ARG_TYPES = []  # Types in Python, e.g. str
 
     def __init__(self, *args):
         """Creates a Zeek event object.
@@ -32,8 +33,10 @@ class Event(SerializableZeekType):
                 match the expected ARG_TYPES or their number.
         """
         if len(args) != len(self.ARG_NAMES):
-            raise TypeError('event argument length mismatch: have %d, expected %d'
-                            % (len(args), len(self.ARG_NAMES)))
+            raise TypeError(
+                "event argument length mismatch: have %d, expected %d"
+                % (len(args), len(self.ARG_NAMES))
+            )
 
         self.args = []
 
@@ -50,17 +53,20 @@ class Event(SerializableZeekType):
                 # created the event classes.
                 maybe_arg = from_py(arg)
             except TypeError as err:
-                raise TypeError('event argument type mismatch: argument '
-                                '{} is {}, {}'.format(idx+1, type(arg), err)) from err
+                raise TypeError(
+                    "event argument type mismatch: argument "
+                    "{} is {}, {}".format(idx + 1, type(arg), err)
+                ) from err
 
             # Again: if we now have a type match, we're done.
             if isinstance(maybe_arg, self.ARG_TYPES[idx]):
                 self.args.append(maybe_arg)
                 continue
 
-            raise TypeError('event argument type mismatch: argument '
-                            '{} is {}, should be {}'.format(
-                                idx+1, type(arg), self.ARG_TYPES[idx]))
+            raise TypeError(
+                "event argument type mismatch: argument "
+                "{} is {}, should be {}".format(idx + 1, type(arg), self.ARG_TYPES[idx])
+            )
 
     def __getattr__(self, name):
         """Allow attribute-like access to event arguments."""
@@ -68,16 +74,17 @@ class Event(SerializableZeekType):
             idx = self.ARG_NAMES.index(name)
             return self.args[idx]
         except ValueError as err:
-            raise AttributeError('event type {} has no "{}" argument'.format(
-                self.NAME, name)) from err
+            raise AttributeError(
+                'event type {} has no "{}" argument'.format(self.NAME, name)
+            ) from err
 
     def __str__(self):
         # A list of pairs (argument name, typename)
         zeek_style_args = zip(self.ARG_NAMES, [str(type(arg)) for arg in self.args])
         # That list, with each item now a string "<name>: <typename"
-        zeek_style_arg_strings = [': '.join(arg) for arg in zeek_style_args]
+        zeek_style_arg_strings = [": ".join(arg) for arg in zeek_style_args]
         # A Zeek-looking event signature
-        return self.NAME + '(' + ', '.join(zeek_style_arg_strings) + ')'
+        return self.NAME + "(" + ", ".join(zeek_style_arg_strings) + ")"
 
     def to_brokertype(self):
         return ZeekEvent(self.NAME, *self.args)
@@ -106,15 +113,19 @@ class Registry:
         res = type(name, (Event,), {})
 
         if len(arg_names) != len(arg_types):
-            raise TypeError('error creating event type {}: number of event '
-                            'argument names and types must match ({}/{})'.format(
-                                name, len(arg_names), len(arg_types)))
+            raise TypeError(
+                "error creating event type {}: number of event "
+                "argument names and types must match ({}/{})".format(
+                    name, len(arg_names), len(arg_types)
+                )
+            )
 
         for idx, typ in enumerate(arg_types):
             if not issubclass(typ, Type):
-                raise TypeError('event type creation error: argument {}, '
-                                '"{}", is not a brokertype class'.format(
-                                    idx+1, arg_names[idx]))
+                raise TypeError(
+                    "event type creation error: argument {}, "
+                    '"{}", is not a brokertype class'.format(idx + 1, arg_names[idx])
+                )
         res.NAME = name
         res.ARG_NAMES = arg_names
         res.ARG_TYPES = arg_types
@@ -139,69 +150,93 @@ class Registry:
 # tuple below, reflecting Broker's representation thereof.
 
 DeployRequest = Registry.make_event_class(
-    'Management::Controller::API::deploy_request',
-    ('reqid',), (String,))
+    "Management::Controller::API::deploy_request", ("reqid",), (String,)
+)
 
 DeployResponse = Registry.make_event_class(
-    'Management::Controller::API::deploy_response',
-    ('reqid', 'results'), (String, Vector))
+    "Management::Controller::API::deploy_response",
+    ("reqid", "results"),
+    (String, Vector),
+)
 
 GetConfigurationRequest = Registry.make_event_class(
-    'Management::Controller::API::get_configuration_request',
-    ('reqid', 'deployed'), (String, Boolean))
+    "Management::Controller::API::get_configuration_request",
+    ("reqid", "deployed"),
+    (String, Boolean),
+)
 
 GetConfigurationResponse = Registry.make_event_class(
-    'Management::Controller::API::get_configuration_response',
-    ('reqid', 'result'), (String, Vector))
+    "Management::Controller::API::get_configuration_response",
+    ("reqid", "result"),
+    (String, Vector),
+)
 
 GetIdValueRequest = Registry.make_event_class(
-    'Management::Controller::API::get_id_value_request',
-    ('reqid', 'id', 'nodes'), (String, String, Set))
+    "Management::Controller::API::get_id_value_request",
+    ("reqid", "id", "nodes"),
+    (String, String, Set),
+)
 
 GetIdValueResponse = Registry.make_event_class(
-    'Management::Controller::API::get_id_value_response',
-    ('reqid', 'results'), (String, Vector))
+    "Management::Controller::API::get_id_value_response",
+    ("reqid", "results"),
+    (String, Vector),
+)
 
 GetInstancesRequest = Registry.make_event_class(
-    'Management::Controller::API::get_instances_request',
-    ('reqid',), (String,))
+    "Management::Controller::API::get_instances_request", ("reqid",), (String,)
+)
 
 GetInstancesResponse = Registry.make_event_class(
-    'Management::Controller::API::get_instances_response',
-    ('reqid', 'result'), (String, Vector))
+    "Management::Controller::API::get_instances_response",
+    ("reqid", "result"),
+    (String, Vector),
+)
 
 GetNodesRequest = Registry.make_event_class(
-    'Management::Controller::API::get_nodes_request',
-    ('reqid',), (String,))
+    "Management::Controller::API::get_nodes_request", ("reqid",), (String,)
+)
 
 GetNodesResponse = Registry.make_event_class(
-    'Management::Controller::API::get_nodes_response',
-    ('reqid', 'results'), (String, Vector))
+    "Management::Controller::API::get_nodes_response",
+    ("reqid", "results"),
+    (String, Vector),
+)
 
 RestartRequest = Registry.make_event_class(
-    'Management::Controller::API::restart_request',
-    ('reqid', 'nodes'), (String, Set))
+    "Management::Controller::API::restart_request", ("reqid", "nodes"), (String, Set)
+)
 
 RestartResponse = Registry.make_event_class(
-    'Management::Controller::API::restart_response',
-    ('reqid', 'results'), (String, Vector))
+    "Management::Controller::API::restart_response",
+    ("reqid", "results"),
+    (String, Vector),
+)
 
 StageConfigurationRequest = Registry.make_event_class(
-    'Management::Controller::API::stage_configuration_request',
-    ('reqid', 'config'), (String, Vector))
+    "Management::Controller::API::stage_configuration_request",
+    ("reqid", "config"),
+    (String, Vector),
+)
 
 StageConfigurationResponse = Registry.make_event_class(
-    'Management::Controller::API::stage_configuration_response',
-    ('reqid', 'results'), (String, Vector))
+    "Management::Controller::API::stage_configuration_response",
+    ("reqid", "results"),
+    (String, Vector),
+)
 
 TestNoopRequest = Registry.make_event_class(
-    'Management::Controller::API::test_noop_request',
-    ('reqid',), (String,))
+    "Management::Controller::API::test_noop_request", ("reqid",), (String,)
+)
 
 TestTimeoutRequest = Registry.make_event_class(
-    'Management::Controller::API::test_timeout_request',
-    ('reqid', 'with_state'), (String, Boolean))
+    "Management::Controller::API::test_timeout_request",
+    ("reqid", "with_state"),
+    (String, Boolean),
+)
 
 TestTimeoutResponse = Registry.make_event_class(
-    'Management::Controller::API::test_timeout_response',
-    ('reqid', 'result'), (String, Vector))
+    "Management::Controller::API::test_timeout_response",
+    ("reqid", "result"),
+    (String, Vector),
+)

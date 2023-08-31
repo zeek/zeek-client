@@ -43,7 +43,7 @@ def main():
 
     parser = zeekclient.cli.create_parser()
 
-    if 'argcomplete' in sys.modules:
+    if "argcomplete" in sys.modules:
         argcomplete.autocomplete(parser)
 
     args = parser.parse_args()
@@ -60,11 +60,12 @@ def main():
     # Establish logging as per requested verbosity and formatting
     if not args.quiet:
         zeekclient.logs.configure(
-            zeekclient.CONFIG.getint('client', 'verbosity'),
-            zeekclient.CONFIG.getboolean('client', 'rich_logging_format'))
+            zeekclient.CONFIG.getint("client", "verbosity"),
+            zeekclient.CONFIG.getboolean("client", "rich_logging_format"),
+        )
 
     if not args.command:
-        zeekclient.LOG.error('please provide a command to execute.')
+        zeekclient.LOG.error("please provide a command to execute.")
         return 1
 
     try:
@@ -73,5 +74,5 @@ def main():
         return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

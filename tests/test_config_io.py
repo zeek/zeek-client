@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 """This verifies zeekclient's ability to ingest cluster configurations, validate
 their content (excluding deeper validations happening in the cluster
 controller), and serialize them correctly to INI/JSON.
@@ -13,7 +12,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 TESTS = os.path.dirname(os.path.realpath(__file__))
-ROOT = os.path.normpath(os.path.join(TESTS, '..'))
+ROOT = os.path.normpath(os.path.join(TESTS, ".."))
 
 # Prepend the tree's root folder to the module searchpath so we find zeekclient
 # via it. This allows tests to run without package installation.
@@ -23,7 +22,7 @@ import zeekclient
 
 
 class TestRendering(unittest.TestCase):
-    INI_INPUT= """# A sample ini using all available keys.
+    INI_INPUT = """# A sample ini using all available keys.
 [instances]
 agent
 
@@ -137,6 +136,7 @@ cpu_affinity = 8
         }
     ]
 }"""
+
     def assertEqualStripped(self, str1, str2):
         self.assertEqual(str1.strip(), str2.strip())
 
@@ -191,11 +191,12 @@ cpu_affinity = 8
         jdata = config.to_json_data()
 
         # Canonicalize the ID:
-        canon = lambda c: '-' if c == '-' else 'x'
-        jdata['id'] = ''.join([canon(c) for c in jdata['id']])
+        canon = lambda c: "-" if c == "-" else "x"
+        jdata["id"] = "".join([canon(c) for c in jdata["id"]])
 
-        self.assertEqual(json.dumps(jdata, sort_keys=True, indent=4),
-                         self.JSON_EXPECTED)
+        self.assertEqual(
+            json.dumps(jdata, sort_keys=True, indent=4), self.JSON_EXPECTED
+        )
 
     def test_config_addl_key(self):
         # This test creates a Configuration from an INI file with additional
@@ -232,7 +233,8 @@ port = 5000
 
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'warning: ignoring unexpected keys: also_not_a_key, not_a_key')
+            "warning: ignoring unexpected keys: also_not_a_key, not_a_key",
+        )
 
     def test_config_invalid_instances(self):
         ini_input = """
@@ -250,7 +252,8 @@ role = manager
 
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'error: invalid spec for instance "agent": "foo:" should be <host>:<port>')
+            'error: invalid spec for instance "agent": "foo:" should be <host>:<port>',
+        )
 
     def test_config_missing_instance(self):
         ini_input = """
@@ -266,7 +269,8 @@ role = manager
 
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'error: omit instances section when skipping instances in node definitions')
+            "error: omit instances section when skipping instances in node definitions",
+        )
 
     def test_config_mixed_instances(self):
         ini_input = """
@@ -282,8 +286,8 @@ instance = agent1
         self.assertFalse(config)
 
         self.assertEqualStripped(
-            self.logbuf.getvalue(),
-            'error: either all or no nodes must state instances')
+            self.logbuf.getvalue(), "error: either all or no nodes must state instances"
+        )
 
     def test_config_missing_role(self):
         ini_input = """
@@ -300,7 +304,8 @@ port = 80
 
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'error: invalid node "manager" configuration: node requires a role')
+            'error: invalid node "manager" configuration: node requires a role',
+        )
 
     def test_config_invalid_role(self):
         ini_input = """
@@ -318,7 +323,8 @@ role = superintendent
 
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'error: invalid node "manager" configuration: role "superintendent" is invalid')
+            'error: invalid node "manager" configuration: role "superintendent" is invalid',
+        )
 
     def test_config_invalid_port_string(self):
         ini_input = """
@@ -336,7 +342,8 @@ role = manager
 
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'error: invalid node "manager" configuration: cannot convert "manager.port" value "eighty" to int')
+            'error: invalid node "manager" configuration: cannot convert "manager.port" value "eighty" to int',
+        )
 
     def test_config_invalid_port_number(self):
         ini_input = """
@@ -354,9 +361,10 @@ role = manager
 
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'error: invalid node "manager" configuration: port 70000 outside valid range')
+            'error: invalid node "manager" configuration: port 70000 outside valid range',
+        )
 
-    @patch('zeekclient.types.socket.gethostname', new=MagicMock(return_value='testbox'))
+    @patch("zeekclient.types.socket.gethostname", new=MagicMock(return_value="testbox"))
     def test_config_no_instances(self):
         ini_input = """
 [manager]
@@ -418,16 +426,3 @@ role = WORKER
         with io.StringIO() as buf:
             cfp.write(buf)
             self.assertEqualStripped(buf.getvalue(), ini_expected)
-
-
-def test():
-    """Entry point for testing this module.
-
-    Returns True if successful, False otherwise.
-    """
-    res = unittest.main(sys.modules[__name__], verbosity=0, exit=False)
-    # This is how unittest.main() implements the exit code itself:
-    return res.result.wasSuccessful()
-
-if __name__ == '__main__':
-    sys.exit(not test())

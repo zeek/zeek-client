@@ -1,3 +1,17 @@
+1.3.0-14 | 2023-08-31 08:00:18 +0200
+
+  * Add basic generic linters (Benjamin Bannier, Corelight)
+
+  * Use allow list for suppressed pylint warnings instead of ignoring them (Benjamin Bannier, Corelight)
+
+  * Run pylint via pre-commit hook (Benjamin Bannier, Corelight)
+
+  * Add `.git-blame-ignore-revs` file (Benjamin Bannier, Corelight)
+
+  * Format sources with black (Benjamin Bannier, Corelight)
+
+  * Remove manually implemented testing framework (Benjamin Bannier, Corelight)
+
 1.3.0-7 | 2023-08-30 13:23:27 -0700
 
   * For Zeek-bundled installs, add Zeek's package tree to the search path (Christian Kreibich, Corelight)
@@ -94,13 +108,13 @@
 1.0.0-8 | 2022-07-01 11:07:04 -0700
 
   * When a cluster node definition omits its instance, default to the local agent (Christian Kreibich, Corelight)
-  
+
   * When nodes omit instances in the config, ensure instances are absent entirely (Christian Kreibich, Corelight)
-  
+
   * Expand tests to cover new instance-free config support (Christian Kreibich, Corelight)
-  
+
   * Add test to cover new minimal, instance-free config behavior (Christian Kreibich, Corelight)
-  
+
   * Flesh out the README and add LICENSE (Christian Kreibich, Corelight)
 
   * Remove duplicate test definition (Christian Kreibich, Corelight)
