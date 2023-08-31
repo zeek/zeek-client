@@ -16,7 +16,6 @@ disable=
   consider-using-dict-items,
   cyclic-import,
   duplicate-code,
-  expression-not-assigned,
   fixme,
   invalid-name,
   line-too-long,

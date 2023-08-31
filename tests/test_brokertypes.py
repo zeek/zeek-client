@@ -482,9 +482,9 @@ class TestBrokertypes(unittest.TestCase):
         self.assertTrue(Timespan("10d") < Timestamp(datetime.datetime.now()))
 
         with self.assertRaises(TypeError):
-            Boolean(True) < True
+            _ = Boolean(True) < True
         with self.assertRaises(TypeError):
-            Boolean(True) < HandshakeMessage  # Not a data type
+            _ = Boolean(True) < HandshakeMessage  # Not a data type
 
         self.assertTrue(Boolean(True) < Count(10))
 
