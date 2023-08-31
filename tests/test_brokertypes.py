@@ -512,3 +512,25 @@ class TestBrokertypes(unittest.TestCase):
         data = b'{ "data": "foobar", "@data-type": "count" }'
         with self.assertRaisesRegex(TypeError, "invalid data for Count"):
             _ = Count.unserialize(data)
+
+    def test_container_from_broker(self):
+        s = Set.from_broker({"data": [{"@data-type": "string", "data": "s"}]})
+        self.assertEqual(1, len(s))
+
+        v = Vector.from_broker({"data": [{"@data-type": "string", "data": "s"}]})
+        self.assertEqual(1, len(v))
+
+        t = Table.from_broker(
+            {
+                "data": [
+                    {
+                        "key": {"@data-type": "string", "data": "s"},
+                        "value": {
+                            "@data-type": "integer",
+                            "data": "42",
+                        },
+                    }
+                ]
+            }
+        )
+        self.assertEqual(1, len(t))

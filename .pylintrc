@@ -16,7 +16,6 @@ disable=
   duplicate-code,
   fixme,
   missing-module-docstring,
-  protected-access,
   too-few-public-methods,
   too-many-locals,
   too-many-public-methods,
