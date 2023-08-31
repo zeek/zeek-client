@@ -21,7 +21,6 @@ disable=
   too-many-locals,
   too-many-public-methods,
   too-many-return-statements,
-  unidiomatic-typecheck,
   unused-argument,
   unused-wildcard-import,
   wildcard-import,

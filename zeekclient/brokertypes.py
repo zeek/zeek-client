@@ -39,7 +39,7 @@ class Type(abc.ABC):
         __dict__. The types complement this by each implementing their own
         __hash__() method.
         """
-        if type(self) != type(other):
+        if self.__class__ != other.__class__:
             return NotImplemented
         if len(self.__dict__) != len(other.__dict__):
             return False
@@ -145,7 +145,7 @@ class DataType(Type):
             )
         # Supporting comparison accross data types allows us to sort the members
         # of a set or table keys. We simply compare the type names:
-        if type(self) != type(other):
+        if self.__class__ != other.__class__:
             return type(self).__name__ < type(other).__name__
 
         return NotImplemented
@@ -325,7 +325,7 @@ class Timespan(DataType):
     def __eq__(self, other):
         # Make equality defined by the timedelta instances, not the
         # more variable string data (e.g. 1000ms == 1s):
-        if type(self) != type(other):
+        if self.__class__ != other.__class__:
             return False
         return self._td == other._td
 
@@ -429,7 +429,7 @@ class Timestamp(DataType):
     def __eq__(self, other):
         # Make equality defined by the timestamp instances, not the
         # more variable ISO 8601 data:
-        if type(self) != type(other):
+        if self.__class__ != other.__class__:
             return False
         return self._ts == other._ts
 

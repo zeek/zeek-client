@@ -97,13 +97,13 @@ class Enum(ZeekType, enum.Enum):
     """
 
     def __lt__(self, other):
-        if type(self) != type(other):
+        if self.__class__ != other.__class__:
             return NotImplemented
         return self.qualified_name() < other.qualified_name()
 
     def __eq__(self, other):
         return (
-            type(self) == type(other)
+            self.__class__ == other.__class__
             and self.qualified_name() == other.qualified_name()
         )
 
@@ -215,7 +215,7 @@ class Option(ZeekType):
 
     def __eq__(self, other):
         return (
-            type(self) == type(other)
+            self.__class__ == other.__class__
             and self.name == other.name
             and self.value == other.value
         )
@@ -247,7 +247,7 @@ class Instance(ZeekType):
 
     def __eq__(self, other):
         return (
-            type(self) == type(other)
+            self.__class__ == other.__class__
             and self.name == other.name
             and self.host == other.host
             and self.port == other.port
@@ -318,7 +318,7 @@ class Node(ZeekType, ConfigParserMixin):
 
     def __eq__(self, other):
         return (
-            type(self) == type(other)
+            self.__class__ == other.__class__
             and self.name == other.name
             and self.instance == other.instance
             and self.role == other.role
@@ -593,7 +593,7 @@ class Configuration(ZeekType, ConfigParserMixin):
 
     def __eq__(self, other):
         return (
-            type(self) == type(other)
+            self.__class__ == other.__class__
             and self.id == other.id
             and self.instances == other.instances
             and self.nodes == other.nodes
@@ -753,7 +753,7 @@ class NodeStatus(SerializableZeekType):
 
     def __eq__(self, other):
         return (
-            type(self) == type(other)
+            self.__class__ == other.__class__
             and self.node == other.node
             and self.state == other.state
             and self.mgmt_role == other.mgmt_role
@@ -843,7 +843,7 @@ class Result(SerializableZeekType):
 
     def __eq__(self, other):
         return (
-            type(self) == type(other)
+            self.__class__ == other.__class__
             and self.reqid == other.reqid
             and self.success == other.success
             and self.instance == other.instance
@@ -914,7 +914,7 @@ class NodeOutputs(SerializableZeekType):
 
     def __eq__(self, other):
         return (
-            type(self) == type(other)
+            self.__class__ == other.__class__
             and self.stdout == other.stdout
             and self.stderr == other.stderr
         )
