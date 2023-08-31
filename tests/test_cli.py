@@ -20,7 +20,7 @@ sys.path.insert(0, TESTS)
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
 
-import zeekclient as zc
+import zeekclient as zc  # pylint: disable=wrong-import-position
 
 
 # A context guard to switch the current working directory.

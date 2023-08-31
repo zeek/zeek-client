@@ -16,10 +16,10 @@ sys.path.insert(0, TESTS)
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
 
-# This is the mock, not the real one
-import websocket
+import zeekclient  # pylint: disable=wrong-import-position
 
-import zeekclient
+# This is the mock, not the real one
+import websocket  # pylint: disable=wrong-import-position,wrong-import-order
 
 
 class TestController(unittest.TestCase):

@@ -18,7 +18,7 @@ ROOT = os.path.normpath(os.path.join(TESTS, ".."))
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
 
-import zeekclient
+import zeekclient  # pylint: disable=wrong-import-position
 
 
 class TestRendering(unittest.TestCase):

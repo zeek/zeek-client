@@ -10,8 +10,8 @@ ROOT = os.path.normpath(os.path.join(TESTS, ".."))
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
 
-import zeekclient.brokertypes as bt
-from zeekclient.types import *
+import zeekclient.brokertypes as bt  # pylint: disable=wrong-import-position
+from zeekclient.types import *  # pylint: disable=wrong-import-position
 
 
 class TestTypes(unittest.TestCase):
