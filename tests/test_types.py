@@ -29,7 +29,7 @@ class TestTypes(unittest.TestCase):
 
         self.assertTrue(ClusterRole.LOGGER < ClusterRole.MANAGER)
         with self.assertRaises(TypeError):
-            ClusterRole.LOGGER < State.PENDING
+            _ = ClusterRole.LOGGER < State.PENDING
 
         val0_bt = val0.to_brokertype()
         self.assertEqual(val0_bt.to_py(), val0.qualified_name())

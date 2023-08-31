@@ -22,7 +22,6 @@ disable=
   invalid-name,
   line-too-long,
   missing-module-docstring,
-  pointless-statement,
   protected-access,
   redefined-outer-name,
   too-few-public-methods,
