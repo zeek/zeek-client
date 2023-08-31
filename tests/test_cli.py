@@ -160,9 +160,7 @@ class TestCli(unittest.TestCase):
                 todo.pop(0)
         msg = None
         if todo:
-            msg = "log pattern '{}' not found; have:\n{}".format(
-                todo[0], self.logbuf.getvalue().strip()
-            )
+            msg = f"log pattern '{todo[0]}' not found; have:\n{self.logbuf.getvalue().strip()}"
         self.assertEqual(len(todo), 0, msg)
 
     def enqueue_response_event(self, event):

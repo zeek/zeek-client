@@ -140,7 +140,7 @@ class Config(configparser.ConfigParser):
                 self.add_section(section)
             self.set(section, key, val)
         except ValueError as err:
-            raise ValueError('config item "{}" invalid'.format(item)) from err
+            raise ValueError(f'config item "{item}" invalid') from err
 
     def completer(self, **_kwargs):
         """A completer suitable for argcomplete."""

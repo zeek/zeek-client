@@ -69,26 +69,21 @@ class Controller:
         try:
             if self.controller_port < 1 or self.controller_port > 65535:
                 raise ValueError(
-                    "controller port number {} outside valid range".format(
-                        self.controller_port
-                    )
+                    f"controller port number {self.controller_port} outside valid range"
                 )
 
             disable_ssl = CONFIG.getboolean("ssl", "disable")
 
-            self.wsock_url = "{}://{}:{}/v1/messages/json".format(
-                "ws" if disable_ssl else "wss",
-                self.controller_host,
-                self.controller_port,
-            )
+            proto = "ws" if disable_ssl else "wss"
+            remote = f"{self.controller_host}:{self.controller_port}"
+            self.wsock_url = f"{proto}://{remote}/v1/messages/json"
 
             sslopt = None if disable_ssl else get_websocket_sslopt()
             self.wsock = websocket.WebSocket(sslopt=sslopt)
         except (ValueError, OSError, ssl.SSLError) as err:
             raise ConfigError(
-                "cannot configure connection to {}:{}: {}".format(
-                    self.controller_host, self.controller_port, err
-                )
+                f"cannot configure connection to "
+                f"{self.controller_host}:{self.controller_port}: {err}"
             ) from err
 
     def connect(self):
@@ -273,6 +268,8 @@ class Controller:
         try:
             self.wsock.settimeout(timeout)
 
+            remote = f"{self.controller_host}:{self.controller_port}"
+
             while True:
                 # Reading the event proceeds in three steps:
                 # (1) read data from the websocket
@@ -281,17 +278,20 @@ class Controller:
                 try:
                     msg = DataMessage.unserialize(self.wsock.recv())
                 except TypeError as err:
-                    return None, "protocol data error with controller {}:{}: {}".format(
-                        self.controller_host, self.controller_port, err
+                    return (
+                        None,
+                        f"protocol data error with controller {remote}: {err}",
                     )
                 except websocket.WebSocketTimeoutException:
-                    return None, "websocket connection to {}:{} timed out".format(
-                        self.controller_host, self.controller_port
+                    return (
+                        None,
+                        f"websocket connection to {remote} timed out",
                     )
                 except Exception as err:
                     LOG.exception("unexpected error")
-                    return None, "unexpected error with controller {}:{}: {}".format(
-                        self.controller_host, self.controller_port, err
+                    return (
+                        None,
+                        f"unexpected error with controller {remote}: {err}",
                     )
                 try:
                     # Events are a specially laid-out vector of vectors:
@@ -304,10 +304,8 @@ class Controller:
                         return res, ""
                 except TypeError as err:
                     return None, (
-                        "protocol data error with controller {}:{}: "
-                        "invalid event data, {}".format(
-                            self.controller_host, self.controller_port, repr(msg.data)
-                        )
+                        f"protocol data error with controller {remote}: "
+                        f"invalid event data, {repr(msg.data)}"
                     )
 
                 # This wasn't the event type we wanted, try again.
@@ -349,12 +347,14 @@ class Controller:
         # Verify that the first arguments of the event types are actually a
         # request ID -- we just look at the name:
         if request_type.ARG_NAMES[0] != "reqid":
-            return None, "type error: event type {} does not have request ID".format(
-                request_type.__name__
+            return (
+                None,
+                f"type error: event type {request_type.__name__} does not have request ID",
             )
         if response_type.ARG_NAMES[0] != "reqid":
-            return None, "type error: event type {} does not have request ID".format(
-                response_type.__name__
+            return (
+                None,
+                f"type error: event type {response_type.__name__} does not have request ID",
             )
 
         if reqid is None:

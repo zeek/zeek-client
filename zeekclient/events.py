@@ -34,8 +34,7 @@ class Event(SerializableZeekType):
         """
         if len(args) != len(self.ARG_NAMES):
             raise TypeError(
-                "event argument length mismatch: have %d, expected %d"
-                % (len(args), len(self.ARG_NAMES))
+                f"event argument length mismatch: have {len(args)}, expected {len(self.ARG_NAMES)}"
             )
 
         self.args = []
@@ -54,8 +53,8 @@ class Event(SerializableZeekType):
                 maybe_arg = from_py(arg)
             except TypeError as err:
                 raise TypeError(
-                    "event argument type mismatch: argument "
-                    "{} is {}, {}".format(idx + 1, type(arg), err)
+                    f"event argument type mismatch: argument "
+                    f"{idx+1} is {type(arg)}, {err}"
                 ) from err
 
             # Again: if we now have a type match, we're done.
@@ -64,8 +63,8 @@ class Event(SerializableZeekType):
                 continue
 
             raise TypeError(
-                "event argument type mismatch: argument "
-                "{} is {}, should be {}".format(idx + 1, type(arg), self.ARG_TYPES[idx])
+                f"event argument type mismatch: argument "
+                f"{idx+1} is {type(arg)}, should be {self.ARG_TYPES[idx]}"
             )
 
     def __getattr__(self, name):
@@ -75,7 +74,7 @@ class Event(SerializableZeekType):
             return self.args[idx]
         except ValueError as err:
             raise AttributeError(
-                'event type {} has no "{}" argument'.format(self.NAME, name)
+                f'event type {self.NAME} has no "{name}" argument'
             ) from err
 
     def __str__(self):
@@ -114,17 +113,15 @@ class Registry:
 
         if len(arg_names) != len(arg_types):
             raise TypeError(
-                "error creating event type {}: number of event "
-                "argument names and types must match ({}/{})".format(
-                    name, len(arg_names), len(arg_types)
-                )
+                f"error creating event type {name}: number of event "
+                f"argument names and types must match ({len(arg_names)}/{len(arg_types)})"
             )
 
         for idx, typ in enumerate(arg_types):
             if not issubclass(typ, Type):
                 raise TypeError(
-                    "event type creation error: argument {}, "
-                    '"{}", is not a brokertype class'.format(idx + 1, arg_names[idx])
+                    f"event type creation error: argument {idx+1}, "
+                    f'"{arg_names[idx]}", is not a brokertype class'
                 )
         res.NAME = name
         res.ARG_NAMES = arg_names

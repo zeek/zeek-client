@@ -34,21 +34,13 @@ def get_context():  # pragma: no cover
     ssl_passphrase = CONFIG.get("ssl", "passphrase") or None
 
     if ssl_certificate and not os.path.isfile(ssl_certificate):
-        raise FileNotFoundError(
-            'SSL certificate file "{}" not found'.format(ssl_certificate)
-        )
+        raise FileNotFoundError(f'SSL certificate file "{ssl_certificate}" not found')
     if ssl_keyfile and not os.path.isfile(ssl_keyfile):
-        raise FileNotFoundError(
-            'SSL private key file "{}" not found'.format(ssl_keyfile)
-        )
+        raise FileNotFoundError(f'SSL private key file "{ssl_keyfile}" not found')
     if ssl_cafile and not os.path.isfile(ssl_cafile):
-        raise FileNotFoundError(
-            'SSL trusted CAs file "{}" not found'.format(ssl_cafile)
-        )
+        raise FileNotFoundError(f'SSL trusted CAs file "{ssl_cafile}" not found')
     if ssl_capath and not os.path.isdir(ssl_capath):
-        raise FileNotFoundError(
-            'SSL trusted CAs path "{}" not found'.format(ssl_capath)
-        )
+        raise FileNotFoundError(f'SSL trusted CAs path "{ssl_capath}" not found')
 
     if not ssl_certificate:
         ctx.check_hostname = False
@@ -83,21 +75,13 @@ def get_websocket_sslopt():
     ssl_passphrase = CONFIG.get("ssl", "passphrase") or None
 
     if ssl_certificate and not os.path.isfile(ssl_certificate):
-        raise FileNotFoundError(
-            'SSL certificate file "{}" not found'.format(ssl_certificate)
-        )
+        raise FileNotFoundError(f'SSL certificate file "{ssl_certificate}" not found')
     if ssl_keyfile and not os.path.isfile(ssl_keyfile):
-        raise FileNotFoundError(
-            'SSL private key file "{}" not found'.format(ssl_keyfile)
-        )
+        raise FileNotFoundError(f'SSL private key file "{ssl_keyfile}" not found')
     if ssl_cafile and not os.path.isfile(ssl_cafile):
-        raise FileNotFoundError(
-            'SSL trusted CAs file "{}" not found'.format(ssl_cafile)
-        )
+        raise FileNotFoundError(f'SSL trusted CAs file "{ssl_cafile}" not found')
     if ssl_capath and not os.path.isdir(ssl_capath):
-        raise FileNotFoundError(
-            'SSL trusted CAs path "{}" not found'.format(ssl_capath)
-        )
+        raise FileNotFoundError(f'SSL trusted CAs path "{ssl_capath}" not found')
 
     # SSL options as understood by websocket-client
     sslopt = {}

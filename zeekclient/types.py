@@ -39,9 +39,7 @@ class ConfigParserMixin:
                     return typ(val)
                 except ValueError as err:
                     raise ValueError(
-                        'cannot convert "{}.{}" value "{}" to {}'.format(
-                            section, key, val, typ.__name__
-                        )
+                        f'cannot convert "{section}.{key}" value "{val}" to {typ.__name__}'
                     ) from err
         return None
 
@@ -157,14 +155,12 @@ class Enum(ZeekType, enum.Enum):
             module = data.to_py().split("::", 1)[0]
             if module != cls.module_scope():
                 raise ValueError(
-                    "module scope mismatch for {}: {} != {}.".format(
-                        cls.__name__, module, cls.module_scope()
-                    )
+                    f"module scope mismatch for {cls.__name__}: {module} != {cls.module_scope()}."
                 )
             return cls.lookup(data.to_py())
         except (ValueError, KeyError) as err:
             raise TypeError(
-                "unexpected enum value for {}: {}".format(cls.__name__, repr(data))
+                f"unexpected enum value for {cls.__name__}: {repr(data)}"
             ) from err
 
 
@@ -286,7 +282,7 @@ class Instance(ZeekType):
             return Instance(name, addr, None if port is None else port.number)
         except ValueError as err:
             raise TypeError(
-                "unexpected Broker data for Instance object ({})".format(data)
+                f"unexpected Broker data for Instance object ({data})"
             ) from err
 
 
@@ -418,9 +414,7 @@ class Node(ZeekType, ConfigParserMixin):
                 data[9].to_py(),  # env
             )
         except (IndexError, TypeError, ValueError) as err:
-            raise TypeError(
-                "unexpected Broker data for Node object ({})".format(data)
-            ) from err
+            raise TypeError(f"unexpected Broker data for Node object ({data})") from err
 
     @classmethod
     def from_config_parser(cls, cfp, section=None):
@@ -465,7 +459,7 @@ class Node(ZeekType, ConfigParserMixin):
         try:
             role = ClusterRole.lookup(role)
         except (AttributeError, KeyError) as err:
-            raise ValueError('role "{}" is invalid'.format(role)) from err
+            raise ValueError(f'role "{role}" is invalid') from err
 
         # Optional values follow:
 
@@ -473,7 +467,7 @@ class Node(ZeekType, ConfigParserMixin):
         # Management::Controller::auto_assign_ports is enabled. But when
         # present, we validate:
         if port is not None and (port < 1 or port > 65535):
-            raise ValueError("port {} outside valid range".format(port))
+            raise ValueError(f"port {port} outside valid range")
 
         try:
             # We support multiple scripts as a simple space-separated sequence
@@ -483,7 +477,7 @@ class Node(ZeekType, ConfigParserMixin):
             if val:
                 scripts = sorted(shlex.split(val))
         except (AttributeError, KeyError) as err:
-            raise ValueError('scripts value "{}" is invalid'.format(val)) from err
+            raise ValueError(f'scripts value "{val}" is invalid') from err
 
         try:
             # An environment variable dictionary is represented as a single
@@ -498,7 +492,7 @@ class Node(ZeekType, ConfigParserMixin):
                     key, kval = item.split("=", 1)
                     env[key] = kval
         except (AttributeError, KeyError, ValueError) as err:
-            raise ValueError('env value "{}" is invalid'.format(val)) from err
+            raise ValueError(f'env value "{val}" is invalid') from err
 
         # Warn about unexpected keys:
         cfp_subset = cfp[section] if section else cfp
@@ -579,7 +573,7 @@ class Node(ZeekType, ConfigParserMixin):
                 if len(str(val).split()) > 1:
                     val = '"' + val + '"'
 
-                env.append("{}={}".format(key, val))
+                env.append(f"{key}={val}")
 
             cfp.set(self.name, "env", " ".join(env))
 
@@ -732,9 +726,7 @@ class Configuration(ZeekType, ConfigParserMixin):
             for inst in sorted(self.instances):
                 if inst.port is not None:
                     # An instance the controller connects to
-                    cfp.set(
-                        "instances", inst.name, "{}:{}".format(inst.host, inst.port)
-                    )
+                    cfp.set("instances", inst.name, f"{inst.host}:{inst.port}")
                 else:
                     # An instance connecting to the controller
                     cfp.set("instances", inst.name)

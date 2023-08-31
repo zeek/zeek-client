@@ -71,9 +71,7 @@ class Type(abc.ABC):
             obj = json.loads(data)
         except json.JSONDecodeError as err:
             raise TypeError(
-                "cannot parse JSON data for {}: {} -- {}".format(
-                    cls.__name__, err.msg, data
-                )
+                f"cannot parse JSON data for {cls.__name__}: {err.msg} -- {data}"
             ) from err
 
         cls.check_broker_data(obj)
@@ -82,9 +80,7 @@ class Type(abc.ABC):
             # This may raise TypeError directly, which we pass on to the caller
             return cls.from_broker(obj)
         except (IndexError, KeyError, ValueError) as err:
-            raise TypeError(
-                "invalid data for {}: {}".format(cls.__name__, data)
-            ) from err
+            raise TypeError(f"invalid data for {cls.__name__}: {data}") from err
 
     @abc.abstractmethod
     def to_py(self):
@@ -144,8 +140,8 @@ class DataType(Type):
     def __lt__(self, other):
         if not isinstance(other, DataType):
             raise TypeError(
-                "'<' comparison not supported between instances "
-                "of '{}' and '{}'".format(type(self).__name__, type(other).__name__)
+                f"'<' comparison not supported between instances "
+                f"of '{type(self).__name__}' and '{type(other).__name__}'"
             )
         # Supporting comparison accross data types allows us to sort the members
         # of a set or table keys. We simply compare the type names:
@@ -360,7 +356,7 @@ class Timespan(DataType):
         """Converts Broker-compatible timespan string into timedelta object."""
         mob = cls.REGEX.fullmatch(data)
         if mob is None:
-            raise ValueError("'{}' is not an acceptable Timespan value".format(data))
+            raise ValueError(f"'{data}' is not an acceptable Timespan value")
 
         counter = float(mob[1])
         unit = Timespan.Unit(mob[3])
@@ -380,7 +376,7 @@ class Timespan(DataType):
                 return datetime.timedelta(weeks=counter / 7)
             return datetime.timedelta(days=counter)
 
-        assert False, "unhandled timespan unit '{}'".format(unit)
+        assert False, f"unhandled timespan unit '{unit}'"
 
     @classmethod
     def timedelta_to_broker_timespan(cls, tdelta):
@@ -392,7 +388,7 @@ class Timespan(DataType):
         def fmt(val, unit):
             # Don't say 10.0, say 10:
             val = int(val) if float(val).is_integer() else val
-            return "{}{}".format(val, unit)
+            return f"{val}{unit}"
 
         if tdelta.microseconds != 0:
             if tdelta.microseconds % 1000 == 0:
@@ -590,7 +586,7 @@ class Port(DataType):
         if not isinstance(proto, self.Proto):
             raise TypeError("Port constructor requires Proto enum")
         if self.number < 1 or self.number > 65535:
-            raise ValueError("Port number '{}' invalid".format(self.number))
+            raise ValueError(f"Port number '{self.number}' invalid")
 
     def __lt__(self, other):
         res = super().__lt__(other)
@@ -610,7 +606,7 @@ class Port(DataType):
     def to_broker(self):
         return {
             "@data-type": "port",
-            "data": "{}/{}".format(self.number, self.proto.value),
+            "data": f"{self.number}/{self.proto.value}",
         }
 
     @classmethod
@@ -870,13 +866,11 @@ class MessageType(Type):
     def check_broker_data(cls, data):
         if not isinstance(data, dict):
             raise TypeError(
-                "invalid data layout for Broker {}: not an object".format(cls.__name__)
+                f"invalid data layout for Broker {cls.__name__}: not an object"
             )
         if "type" not in data:
             raise TypeError(
-                "invalid data layout for Broker {}: required keys missing".format(
-                    cls.__name__
-                )
+                f"invalid data layout for Broker {cls.__name__}: required keys missing"
             )
 
 
@@ -946,8 +940,8 @@ class HandshakeAckMessage(MessageType):
         for key in ("type", "endpoint", "version"):
             if key not in data:
                 raise TypeError(
-                    "invalid data layout for HandshakeAckMessage: "
-                    'required key "{}" missing'.format(key)
+                    f"invalid data layout for HandshakeAckMessage: "
+                    f'required key "{key}" missing'
                 )
 
     @classmethod
@@ -979,8 +973,8 @@ class DataMessage(MessageType):
         for key in ("type", "topic", "@data-type", "data"):
             if key not in data:
                 raise TypeError(
-                    "invalid data layout for DataMessage: "
-                    'required key "{}" missing'.format(key)
+                    f"invalid data layout for DataMessage: "
+                    f'required key "{key}" missing'
                 )
 
     @classmethod
@@ -1012,8 +1006,8 @@ class ErrorMessage(Type):
         for key in ("type", "code", "context"):
             if key not in data:
                 raise TypeError(
-                    "invalid data layout for ErrorMessage: "
-                    'required key "{}" missing'.format(key)
+                    f"invalid data layout for ErrorMessage: "
+                    f'required key "{key}" missing'
                 )
 
     @classmethod
@@ -1062,9 +1056,7 @@ def unserialize(data):
     try:
         obj = json.loads(data)
     except json.JSONDecodeError as err:
-        raise TypeError(
-            "cannot parse JSON data: {} -- {}".format(err.msg, data)
-        ) from err
+        raise TypeError(f"cannot parse JSON data: {err.msg} -- {data}") from err
 
     return from_broker(obj)
 
@@ -1096,7 +1088,7 @@ def from_broker(data):
         typ.check_broker_data(data)
         return typ.from_broker(data)
     except KeyError as err:
-        raise TypeError("unrecognized Broker type: {}".format(data)) from err
+        raise TypeError(f"unrecognized Broker type: {data}") from err
 
 
 # Python types we can directly map to ones in this module, used by
@@ -1158,13 +1150,13 @@ def from_py(data, typ=None, check_none=True):
 
     if typ is not None:
         if not issubclass(typ, Type):
-            raise TypeError("not a brokertype: {}".format(typ.__name__))
+            raise TypeError(f"not a brokertype: {typ.__name__}")
     else:
         try:
             typ = _python_typemap[type(data)]
         except KeyError as err:
             raise TypeError(
-                "cannot map Python type {} to Broker type".format(type(data))
+                f"cannot map Python type {type(data)} to Broker type"
             ) from err
 
     if typ == Table:
