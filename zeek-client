@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+
 """
 This is a prototypical implementation of a Zeek management client, as sketched
 in the following architecture design doc:
@@ -11,6 +12,10 @@ the idioms and primitives also used by the zkg package manager.
 """
 # https://pypi.org/project/argcomplete/#global-completion
 # PYTHON_ARGCOMPLETE_OK
+
+# Suppress pylint diagnostic about invalid module name "zeek-client".
+# pylint: disable=invalid-name
+# pylint: enable=invalid-name
 
 import os.path
 import sys

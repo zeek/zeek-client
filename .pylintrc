@@ -17,7 +17,6 @@ disable=
   cyclic-import,
   duplicate-code,
   fixme,
-  invalid-name,
   missing-module-docstring,
   protected-access,
   redefined-outer-name,
@@ -30,3 +29,5 @@ disable=
   unused-wildcard-import,
   wildcard-import,
   wrong-import-position,
+
+method-rgx=([a-z_][a-z0-9_]{2,64}$)|(assert[A-Z][a-zA-Z0-9]+$)
