@@ -43,10 +43,8 @@ class Type(abc.ABC):
             return NotImplemented
         if len(self.__dict__) != len(other.__dict__):
             return False
-        for attr in self.__dict__:
-            if self.__dict__[attr] != other.__dict__[attr]:
-                return False
-        return True
+
+        return self.__dict__ == other.__dict__
 
     def __repr__(self):
         return self.serialize()

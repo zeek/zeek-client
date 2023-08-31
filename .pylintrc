@@ -13,7 +13,6 @@ disable=
   #
   # TODO(bbannier): audit this list and fix lints where possible.
   broad-exception-caught,
-  consider-using-dict-items,
   cyclic-import,
   duplicate-code,
   fixme,
