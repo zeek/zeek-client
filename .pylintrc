@@ -28,7 +28,6 @@ disable=
   protected-access,
   redefined-builtin,
   redefined-outer-name,
-  subprocess-run-check,
   too-few-public-methods,
   too-many-locals,
   too-many-public-methods,
