@@ -11,7 +11,7 @@ ROOT = os.path.normpath(os.path.join(TESTS, ".."))
 sys.path.insert(0, ROOT)
 
 import zeekclient.brokertypes as bt  # pylint: disable=wrong-import-position
-from zeekclient.types import *  # pylint: disable=wrong-import-position,unused-wildcard-import
+from zeekclient.types import *  # pylint: disable=wrong-import-position,unused-wildcard-import,wildcard-import
 
 
 class TestTypes(unittest.TestCase):
