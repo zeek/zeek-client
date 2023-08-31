@@ -344,7 +344,8 @@ role = manager
 
         self.assertEqualStripped(
             self.logbuf.getvalue(),
-            'error: invalid node "manager" configuration: cannot convert "manager.port" value "eighty" to int',
+            'error: invalid node "manager" configuration: '
+            'cannot convert "manager.port" value "eighty" to int',
         )
 
     def test_config_invalid_port_number(self):

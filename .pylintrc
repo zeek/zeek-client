@@ -18,7 +18,6 @@ disable=
   duplicate-code,
   fixme,
   invalid-name,
-  line-too-long,
   missing-module-docstring,
   protected-access,
   redefined-outer-name,
