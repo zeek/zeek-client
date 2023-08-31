@@ -893,9 +893,7 @@ class HandshakeMessage(MessageType):
 
         if topics:
             if not isinstance(topics, tuple) and not isinstance(topics, list):
-                raise TypeError(
-                    "HandshakeMessage construction requires a " "topics list"
-                )
+                raise TypeError("HandshakeMessage construction requires a topics list")
             for topic in topics:
                 if isinstance(topic, str):
                     self.topics.append(topic)
@@ -917,9 +915,7 @@ class HandshakeMessage(MessageType):
     @classmethod
     def check_broker_data(cls, data):
         if not isinstance(data, tuple) and not isinstance(data, list):
-            raise TypeError(
-                "invalid data layout for HandshakeMessage: not an " "object"
-            )
+            raise TypeError("invalid data layout for HandshakeMessage: not an object")
 
     @classmethod
     def from_broker(cls, data):

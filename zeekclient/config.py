@@ -110,7 +110,7 @@ class Config(configparser.ConfigParser):
                 self.apply(item)
             except ValueError:
                 LOG.error(
-                    'config item "%s" invalid. Please use ' "<section.key>=<val>.", item
+                    'config item "%s" invalid. Please use <section.key>=<val>.', item
                 )
 
         # The `--controller` argument is a shortcut for two `--set` arguments that
