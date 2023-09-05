@@ -587,7 +587,7 @@ class Configuration(ZeekType, ConfigParserMixin):
                             LOG.error('invalid spec for instance "%s": "%s" should be <host>:<port>', host, port)
                             return None
                         # remove brackets to support [ipv6]:port formats
-                        host = host.strip("[]")
+                        host = host.strip("[] ")
                         port = port.strip()
                         config.instances.append(Instance(key, host, port))
                 continue
