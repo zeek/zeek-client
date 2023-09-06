@@ -3,3 +3,4 @@ __pycache__
 *,cover
 dist
 zeek_client.egg-info
+.DS_Store
