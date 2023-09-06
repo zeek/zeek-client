@@ -39,14 +39,12 @@ class Type(abc.ABC):
         __dict__. The types complement this by each implementing their own
         __hash__() method.
         """
-        if type(self) != type(other):
+        if self.__class__ != other.__class__:
             return NotImplemented
         if len(self.__dict__) != len(other.__dict__):
             return False
-        for attr in self.__dict__:
-            if self.__dict__[attr] != other.__dict__[attr]:
-                return False
-        return True
+
+        return self.__dict__ == other.__dict__
 
     def __repr__(self):
         return self.serialize()
@@ -55,7 +53,7 @@ class Type(abc.ABC):
         return self.serialize(pretty=True)
 
     @classmethod
-    def unserialize(cls, data):  # pylint: disable=unused-argument
+    def unserialize(cls, data):
         """Instantiates an object of this class from Broker wire data.
 
         This assumes the message content in JSON and first unserializes it into
@@ -73,9 +71,7 @@ class Type(abc.ABC):
             obj = json.loads(data)
         except json.JSONDecodeError as err:
             raise TypeError(
-                "cannot parse JSON data for {}: {} -- {}".format(
-                    cls.__name__, err.msg, data
-                )
+                f"cannot parse JSON data for {cls.__name__}: {err.msg} -- {data}"
             ) from err
 
         cls.check_broker_data(obj)
@@ -84,12 +80,10 @@ class Type(abc.ABC):
             # This may raise TypeError directly, which we pass on to the caller
             return cls.from_broker(obj)
         except (IndexError, KeyError, ValueError) as err:
-            raise TypeError(
-                "invalid data for {}: {}".format(cls.__name__, data)
-            ) from err
+            raise TypeError(f"invalid data for {cls.__name__}: {data}") from err
 
     @abc.abstractmethod
-    def to_py(self):  # pylint: disable=no-self-use
+    def to_py(self):
         """Returns a Python-"native" rendering of the object.
 
         For most brokertypes this will be a native Python type (such as int or
@@ -101,7 +95,7 @@ class Type(abc.ABC):
         return None
 
     @abc.abstractmethod
-    def to_broker(self):  # pylint: disable=no-self-use
+    def to_broker(self):
         """Returns a Broker-JSON-compatible Python data structure representing
         a value of this type.
         """
@@ -109,7 +103,7 @@ class Type(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def check_broker_data(cls, data):  # pylint: disable=unused-argument
+    def check_broker_data(cls, data):
         """Checks the Broker data for compliance with the expected type.
 
         If you use unserialize() to obtain objects, you can ignore this
@@ -122,7 +116,7 @@ class Type(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def from_broker(cls, data):  # pylint: disable=unused-argument
+    def from_broker(cls, data):
         """Returns an instance of the type given Broker's JSON data.
 
         This is a low-level method that you likely don't want to use. Consider
@@ -146,12 +140,12 @@ class DataType(Type):
     def __lt__(self, other):
         if not isinstance(other, DataType):
             raise TypeError(
-                "'<' comparison not supported between instances "
-                "of '{}' and '{}'".format(type(self).__name__, type(other).__name__)
+                f"'<' comparison not supported between instances "
+                f"of '{type(self).__name__}' and '{type(other).__name__}'"
             )
         # Supporting comparison accross data types allows us to sort the members
         # of a set or table keys. We simply compare the type names:
-        if type(self) != type(other):
+        if self.__class__ != other.__class__:
             return type(self).__name__ < type(other).__name__
 
         return NotImplemented
@@ -331,7 +325,7 @@ class Timespan(DataType):
     def __eq__(self, other):
         # Make equality defined by the timedelta instances, not the
         # more variable string data (e.g. 1000ms == 1s):
-        if type(self) != type(other):
+        if self.__class__ != other.__class__:
             return False
         return self._td == other._td
 
@@ -362,7 +356,7 @@ class Timespan(DataType):
         """Converts Broker-compatible timespan string into timedelta object."""
         mob = cls.REGEX.fullmatch(data)
         if mob is None:
-            raise ValueError("'{}' is not an acceptable Timespan value".format(data))
+            raise ValueError(f"'{data}' is not an acceptable Timespan value")
 
         counter = float(mob[1])
         unit = Timespan.Unit(mob[3])
@@ -382,7 +376,7 @@ class Timespan(DataType):
                 return datetime.timedelta(weeks=counter / 7)
             return datetime.timedelta(days=counter)
 
-        assert False, "unhandled timespan unit '{}'".format(unit)
+        assert False, f"unhandled timespan unit '{unit}'"
 
     @classmethod
     def timedelta_to_broker_timespan(cls, tdelta):
@@ -391,14 +385,14 @@ class Timespan(DataType):
         # only three relevant members: .microseconds, .seconds, and .days)
         # and map it to the closest Broker unit.
 
-        def format(val, unit):
+        def fmt(val, unit):
             # Don't say 10.0, say 10:
             val = int(val) if float(val).is_integer() else val
-            return "{}{}".format(val, unit)
+            return f"{val}{unit}"
 
         if tdelta.microseconds != 0:
             if tdelta.microseconds % 1000 == 0:
-                return format(
+                return fmt(
                     tdelta.microseconds / 1e3
                     + tdelta.seconds * 1e3
                     + tdelta.days * 86400 * 1e3,
@@ -406,7 +400,7 @@ class Timespan(DataType):
                 )
             # There are no microseconds in the Broker data model,
             # so go full plaid to nanoseconds.
-            return format(
+            return fmt(
                 tdelta.microseconds * 1e3
                 + tdelta.seconds * 1e9
                 + tdelta.days * 86400 * 1e9,
@@ -414,12 +408,12 @@ class Timespan(DataType):
             )
         if tdelta.seconds != 0:
             if tdelta.seconds % 3600 == 0:
-                return format(tdelta.seconds / 3600 + tdelta.days * 24, "h")
+                return fmt(tdelta.seconds / 3600 + tdelta.days * 24, "h")
             if tdelta.seconds % 60 == 0:
-                return format(tdelta.seconds / 60 + tdelta.days * 1440, "min")
-            return format(tdelta.seconds + tdelta.days * 86400, "s")
+                return fmt(tdelta.seconds / 60 + tdelta.days * 1440, "min")
+            return fmt(tdelta.seconds + tdelta.days * 86400, "s")
 
-        return format(tdelta.days, "d")
+        return fmt(tdelta.days, "d")
 
 
 class Timestamp(DataType):
@@ -435,7 +429,7 @@ class Timestamp(DataType):
     def __eq__(self, other):
         # Make equality defined by the timestamp instances, not the
         # more variable ISO 8601 data:
-        if type(self) != type(other):
+        if self.__class__ != other.__class__:
             return False
         return self._ts == other._ts
 
@@ -592,7 +586,7 @@ class Port(DataType):
         if not isinstance(proto, self.Proto):
             raise TypeError("Port constructor requires Proto enum")
         if self.number < 1 or self.number > 65535:
-            raise ValueError("Port number '{}' invalid".format(self.number))
+            raise ValueError(f"Port number '{self.number}' invalid")
 
     def __lt__(self, other):
         res = super().__lt__(other)
@@ -612,7 +606,7 @@ class Port(DataType):
     def to_broker(self):
         return {
             "@data-type": "port",
-            "data": "{}/{}".format(self.number, self.proto.value),
+            "data": f"{self.number}/{self.proto.value}",
         }
 
     @classmethod
@@ -666,10 +660,7 @@ class Vector(DataType):
 
     @classmethod
     def from_broker(cls, data):
-        res = Vector()
-        for elem in data["data"]:
-            res._elements.append(from_broker(elem))
-        return res
+        return Vector([from_broker(elem) for elem in data["data"]])
 
 
 class Set(DataType):
@@ -714,10 +705,7 @@ class Set(DataType):
 
     @classmethod
     def from_broker(cls, data):
-        res = Set()
-        for elem in data["data"]:
-            res._elements.add(from_broker(elem))
-        return res
+        return Set({from_broker(elem) for elem in data["data"]})
 
 
 class Table(DataType):
@@ -781,10 +769,12 @@ class Table(DataType):
 
     @classmethod
     def from_broker(cls, data):
-        res = Table()
-        for elem in data["data"]:
-            res._elements[from_broker(elem["key"])] = from_broker(elem["value"])
-        return res
+        return Table(
+            {
+                from_broker(elem["key"]): from_broker(elem["value"])
+                for elem in data["data"]
+            }
+        )
 
 
 # ---- Special types ---------------------------------------------------
@@ -851,7 +841,7 @@ class ZeekEvent(Vector):
 
         # TODO: Extend to handle metadata
 
-        return ZeekEvent(name, *args._elements)
+        return ZeekEvent(name, *args._elements)  # pylint: disable=protected-access
 
     @classmethod
     def from_broker(cls, data):
@@ -872,13 +862,11 @@ class MessageType(Type):
     def check_broker_data(cls, data):
         if not isinstance(data, dict):
             raise TypeError(
-                "invalid data layout for Broker {}: not an object".format(cls.__name__)
+                f"invalid data layout for Broker {cls.__name__}: not an object"
             )
         if "type" not in data:
             raise TypeError(
-                "invalid data layout for Broker {}: required keys missing".format(
-                    cls.__name__
-                )
+                f"invalid data layout for Broker {cls.__name__}: required keys missing"
             )
 
 
@@ -893,9 +881,7 @@ class HandshakeMessage(MessageType):
 
         if topics:
             if not isinstance(topics, tuple) and not isinstance(topics, list):
-                raise TypeError(
-                    "HandshakeMessage construction requires a " "topics list"
-                )
+                raise TypeError("HandshakeMessage construction requires a topics list")
             for topic in topics:
                 if isinstance(topic, str):
                     self.topics.append(topic)
@@ -917,9 +903,7 @@ class HandshakeMessage(MessageType):
     @classmethod
     def check_broker_data(cls, data):
         if not isinstance(data, tuple) and not isinstance(data, list):
-            raise TypeError(
-                "invalid data layout for HandshakeMessage: not an " "object"
-            )
+            raise TypeError("invalid data layout for HandshakeMessage: not an object")
 
     @classmethod
     def from_broker(cls, data):
@@ -952,8 +936,8 @@ class HandshakeAckMessage(MessageType):
         for key in ("type", "endpoint", "version"):
             if key not in data:
                 raise TypeError(
-                    "invalid data layout for HandshakeAckMessage: "
-                    'required key "{}" missing'.format(key)
+                    f"invalid data layout for HandshakeAckMessage: "
+                    f'required key "{key}" missing'
                 )
 
     @classmethod
@@ -985,8 +969,8 @@ class DataMessage(MessageType):
         for key in ("type", "topic", "@data-type", "data"):
             if key not in data:
                 raise TypeError(
-                    "invalid data layout for DataMessage: "
-                    'required key "{}" missing'.format(key)
+                    f"invalid data layout for DataMessage: "
+                    f'required key "{key}" missing'
                 )
 
     @classmethod
@@ -1018,8 +1002,8 @@ class ErrorMessage(Type):
         for key in ("type", "code", "context"):
             if key not in data:
                 raise TypeError(
-                    "invalid data layout for ErrorMessage: "
-                    'required key "{}" missing'.format(key)
+                    f"invalid data layout for ErrorMessage: "
+                    f'required key "{key}" missing'
                 )
 
     @classmethod
@@ -1068,9 +1052,7 @@ def unserialize(data):
     try:
         obj = json.loads(data)
     except json.JSONDecodeError as err:
-        raise TypeError(
-            "cannot parse JSON data: {} -- {}".format(err.msg, data)
-        ) from err
+        raise TypeError(f"cannot parse JSON data: {err.msg} -- {data}") from err
 
     return from_broker(obj)
 
@@ -1102,7 +1084,7 @@ def from_broker(data):
         typ.check_broker_data(data)
         return typ.from_broker(data)
     except KeyError as err:
-        raise TypeError("unrecognized Broker type: {}".format(data)) from err
+        raise TypeError(f"unrecognized Broker type: {data}") from err
 
 
 # Python types we can directly map to ones in this module, used by
@@ -1164,31 +1146,33 @@ def from_py(data, typ=None, check_none=True):
 
     if typ is not None:
         if not issubclass(typ, Type):
-            raise TypeError("not a brokertype: {}".format(typ.__name__))
+            raise TypeError(f"not a brokertype: {typ.__name__}")
     else:
         try:
             typ = _python_typemap[type(data)]
         except KeyError as err:
             raise TypeError(
-                "cannot map Python type {} to Broker type".format(type(data))
+                f"cannot map Python type {type(data)} to Broker type"
             ) from err
 
     if typ == Table:
         res = Table()
         for key, val in data.items():
-            res._elements[from_py(key)] = from_py(val)
+            res._elements[from_py(key)] = from_py(  # pylint: disable=protected-access
+                val
+            )
         return res
 
     if typ == Vector:
         res = Vector()
         for elem in data:
-            res._elements.append(from_py(elem))
+            res._elements.append(from_py(elem))  # pylint: disable=protected-access
         return res
 
     if typ == Set:
         res = Set()
         for elem in data:
-            res._elements.add(from_py(elem))
+            res._elements.add(from_py(elem))  # pylint: disable=protected-access
         return res
 
     # For others the constructors of the types in this module should naturally

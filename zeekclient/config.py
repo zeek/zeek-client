@@ -110,7 +110,7 @@ class Config(configparser.ConfigParser):
                 self.apply(item)
             except ValueError:
                 LOG.error(
-                    'config item "%s" invalid. Please use ' "<section.key>=<val>.", item
+                    'config item "%s" invalid. Please use <section.key>=<val>.', item
                 )
 
         # The `--controller` argument is a shortcut for two `--set` arguments that
@@ -140,7 +140,7 @@ class Config(configparser.ConfigParser):
                 self.add_section(section)
             self.set(section, key, val)
         except ValueError as err:
-            raise ValueError('config item "{}" invalid'.format(item)) from err
+            raise ValueError(f'config item "{item}" invalid') from err
 
     def completer(self, **_kwargs):
         """A completer suitable for argcomplete."""

@@ -8,7 +8,7 @@ import sys
 import traceback
 
 from . import brokertypes as bt
-from . import controller
+from .controller import Controller, Error as ControllerError
 
 from .config import CONFIG
 
@@ -73,13 +73,13 @@ def json_dumps(obj):
         if isinstance(obj, bt.Port):
             return str(obj.number)
         if isinstance(obj, bt.Timespan):
-            return "{}{}".format(obj.value, obj.unit.value)
+            return f"{obj.value}{obj.unit.value}"
         # Fallback: assume the type's own Python representation is right.
         # json.dumps() will complain when that does not work.
         if isinstance(obj, bt.Type):
             return obj.to_py()
 
-        raise TypeError("cannot serialize {} ({})".format(type(obj), str(obj)))
+        raise TypeError(f"cannot serialize {type(obj)} ({str(obj)})")
 
     indent = 2 if CONFIG.getboolean("client", "pretty_json") else None
     return json.dumps(obj, default=default, sort_keys=True, indent=indent)
@@ -87,8 +87,8 @@ def json_dumps(obj):
 
 def create_controller():
     try:
-        ctl = controller.Controller()
-    except controller.Error as err:
+        ctl = Controller()
+    except ControllerError as err:
         LOG.error(str(err))
         return None
 
@@ -109,8 +109,8 @@ def create_parser():
         "Same as a space-separated series of `--set` arguments, but lower precedence.\n",
     )
 
-    controller = "{}:{}".format(
-        CONFIG.get("controller", "host"), CONFIG.get("controller", "port")
+    controller = (
+        f"{CONFIG.get('controller', 'host')}:{CONFIG.get('controller', 'port')}"
     )
 
     parser.add_argument(
@@ -118,13 +118,15 @@ def create_parser():
         "--configfile",
         metavar="FILE",
         default=CONFIG_FILE,
-        help="Path to zeek-client config file. (Default: {})".format(CONFIG_FILE),
+        help=f"Path to zeek-client config file. (Default: {CONFIG_FILE})",
     )
     parser.add_argument(
         "--controller",
         metavar="HOST:PORT",
-        help="Address and port of the controller, either of "
-        "which may be omitted (default: {})".format(controller),
+        help=(
+            f"Address and port of the controller, either of which may "
+            f"be omitted (default: {controller})"
+        ),
     )
     arg = parser.add_argument(
         "--set",
@@ -278,7 +280,7 @@ def create_parser():
     return parser
 
 
-def cmd_deploy(args, controller=None):
+def cmd_deploy(_args, controller=None):
     # The deploy-config command first stages a configuration and then calls this
     # function to deploy. We re-use its controller, passed to us.
     if controller is None:
@@ -377,7 +379,9 @@ def cmd_get_config(args):
     config = Configuration.from_brokertype(res.data)
 
     with open(
-        args.filename, "w"
+        args.filename,
+        "w",
+        encoding="utf-8",
     ) if args.filename and args.filename != "-" else STDOUT as hdl:
         if args.as_json:
             hdl.write(json_dumps(config.to_json_data()) + "\n")
@@ -432,7 +436,7 @@ def cmd_get_id_value(args):
                 json_data["errors"].append(
                     {
                         "source": res.node,
-                        "error": "invalid result data type {}".format(repr(res.data)),
+                        "error": f"invalid result data type {repr(res.data)}",
                     }
                 )
                 continue
@@ -443,14 +447,14 @@ def cmd_get_id_value(args):
                 json_data["errors"].append(
                     {
                         "source": res.node,
-                        "error": "JSON decode error: {}".format(err),
+                        "error": f"JSON decode error: {err}",
                     }
                 )
             continue
 
         json_data["errors"].append(
             {
-                "error": "result lacking node: {}".format(res.data),
+                "error": f"result lacking node: {res.data}",
             }
         )
 
@@ -578,9 +582,9 @@ def cmd_monitor(_args):
         resp, msg = controller.receive(timeout_secs=None)
 
         if resp is None:
-            print("no response received: {}".format(msg))
+            print(f"no response received: {msg}")
         else:
-            print('received "{}"'.format(resp))
+            print(f'received "{resp}"')
 
     return 0
 
@@ -626,7 +630,7 @@ def cmd_restart(args):
 
         json_data["errors"].append(
             {
-                "error": "result lacking node: {}".format(res),
+                "error": f"result lacking node: {res}",
             }
         )
 

@@ -10,8 +10,8 @@ ROOT = os.path.normpath(os.path.join(TESTS, ".."))
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
 
-import zeekclient.brokertypes as bt
-from zeekclient.types import *
+import zeekclient.brokertypes as bt  # pylint: disable=wrong-import-position
+from zeekclient.types import *  # pylint: disable=wrong-import-position,unused-wildcard-import,wildcard-import
 
 
 class TestTypes(unittest.TestCase):
@@ -19,8 +19,8 @@ class TestTypes(unittest.TestCase):
         d = {val: 1}
         self.assertEqual(d[val], 1)
 
-    def brokertype_roundtrip(self, input):
-        return type(input).from_brokertype(input.to_brokertype())
+    def brokertype_roundtrip(self, data):
+        return type(data).from_brokertype(data.to_brokertype())
 
     def test_cluster_role(self):
         val0 = ClusterRole.LOGGER
@@ -29,7 +29,7 @@ class TestTypes(unittest.TestCase):
 
         self.assertTrue(ClusterRole.LOGGER < ClusterRole.MANAGER)
         with self.assertRaises(TypeError):
-            ClusterRole.LOGGER < State.PENDING
+            _ = ClusterRole.LOGGER < State.PENDING
 
         val0_bt = val0.to_brokertype()
         self.assertEqual(val0_bt.to_py(), val0.qualified_name())
@@ -118,7 +118,9 @@ class TestTypes(unittest.TestCase):
         val0 = Configuration()
         val0.instances.append(Instance("instance1"))
         val0.nodes.append(Node("worker1", "instance1", ClusterRole.WORKER))
+
         val1 = self.brokertype_roundtrip(val0)
+        self.assertEqual(val0, val1)
 
         self.assertHash(val0)
 

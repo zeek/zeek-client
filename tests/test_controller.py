@@ -6,8 +6,6 @@ import ssl
 import sys
 import unittest
 
-from unittest.mock import patch
-
 TESTS = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.normpath(os.path.join(TESTS, ".."))
 
@@ -18,10 +16,10 @@ sys.path.insert(0, TESTS)
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
 
-# This is the mock, not the real one
-import websocket
+import zeekclient  # pylint: disable=wrong-import-position
 
-import zeekclient
+# This is the mock, not the real one
+import websocket  # pylint: disable=wrong-import-position,wrong-import-order
 
 
 class TestController(unittest.TestCase):
@@ -40,9 +38,7 @@ class TestController(unittest.TestCase):
                 todo.pop(0)
         msg = None
         if todo:
-            msg = "log pattern '{}' not found; have:\n{}".format(
-                todo[0], self.logbuf.getvalue().strip()
-            )
+            msg = f"log pattern '{todo[0]}' not found; have:\n{self.logbuf.getvalue().strip()}"
         self.assertEqual(len(todo), 0, msg)
 
     def test_connect_successful(self):
@@ -121,7 +117,7 @@ class TestController(unittest.TestCase):
             zeekclient.CONFIG.set("ssl", error, "not-a-file")
 
             with self.assertRaises(zeekclient.controller.ConfigError):
-                controller = zeekclient.controller.Controller()
+                _ = zeekclient.controller.Controller()
 
     def test_connect_fails_with_refused(self):
         controller = zeekclient.controller.Controller()
@@ -132,7 +128,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: websocket connection to 127.0.0.1:2149 timed out in connect\(\)",
+            r"error: websocket connection to 127.0.0.1:2149 timed out in connect\(\)",
         )
 
     def test_connect_fails_with_timeout(self):
@@ -146,7 +142,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: websocket connection to 127.0.0.1:2149 timed out in connect\(\)",
+            r"error: websocket connection to 127.0.0.1:2149 timed out in connect\(\)",
         )
 
     def test_connect_fails_with_websocket_error(self):
@@ -155,7 +151,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: websocket error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
+            r"error: websocket error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
         )
 
     def test_connect_fails_with_sslerror(self):
@@ -166,7 +162,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: socket TLS error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
+            r"error: socket TLS error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
         )
 
     def test_connect_fails_with_oserror(self):
@@ -175,7 +171,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: socket error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
+            r"error: socket error in connect\(\) with controller 127.0.0.1:2149: uh-oh",
         )
 
     def test_connect_fails_with_unknown_error(self):
@@ -184,7 +180,7 @@ class TestController(unittest.TestCase):
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
-            "error: unexpected error in connect\(\) with controller 127.0.0.1:2149: surprise",
+            r"error: unexpected error in connect\(\) with controller 127.0.0.1:2149: surprise",
         )
 
     def test_handshake_fails_with_timeout(self):

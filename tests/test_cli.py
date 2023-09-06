@@ -20,7 +20,7 @@ sys.path.insert(0, TESTS)
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
 
-import zeekclient as zc
+import zeekclient as zc  # pylint: disable=wrong-import-position
 
 
 # A context guard to switch the current working directory.
@@ -96,6 +96,7 @@ class TestBundledCliInvocation(unittest.TestCase):
             cproc = subprocess.run(
                 [os.path.join(tmpdir, "bin", "zeek-client"), "--help"],
                 capture_output=True,
+                check=False,
             )
             if cproc.returncode != 0:
                 print("==== STDOUT ====")
@@ -131,7 +132,7 @@ class TestCli(unittest.TestCase):
         self.orig_create_controller = zc.cli.create_controller
         zc.cli.create_controller = mock_create_controller
 
-        def mock_make_uuid(prefix=""):
+        def mock_make_uuid(_prefix=""):
             return "mocked-reqid-00000"
 
         self.orig_make_uuid = zc.utils.make_uuid
@@ -159,9 +160,7 @@ class TestCli(unittest.TestCase):
                 todo.pop(0)
         msg = None
         if todo:
-            msg = "log pattern '{}' not found; have:\n{}".format(
-                todo[0], self.logbuf.getvalue().strip()
-            )
+            msg = f"log pattern '{todo[0]}' not found; have:\n{self.logbuf.getvalue().strip()}"
         self.assertEqual(len(todo), 0, msg)
 
     def enqueue_response_event(self, event):
@@ -173,7 +172,7 @@ class TestCli(unittest.TestCase):
         parser = zc.cli.create_parser()
         args = parser.parse_args(inargs)
 
-        def mock_create_controller():
+        def mock_create_controller():  # pylint: disable=useless-return
             self.controller.wsock.mock_connect_exc = OSError()
             self.controller.connect()
             return None

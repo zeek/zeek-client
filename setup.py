@@ -1,10 +1,21 @@
 from setuptools import setup
 
+
+def get_readme():
+    with open("README.md", encoding="utf-8") as readme:
+        return readme.read()
+
+
+def get_version():
+    with open("VERSION", encoding="utf-8") as version:
+        return version.read().replace("-", ".dev", 1).strip()
+
+
 setup(
     name="zeek-client",
-    version=open("VERSION").read().replace("-", ".dev", 1).strip(),
+    version=get_version(),
     description="A CLI for Zeek's Management Framework",
-    long_description=open("README.md").read(),
+    long_description=get_readme(),
     long_description_content_type="text/markdown",
     license="3-clause BSD License",
     keywords="zeek management client cluster",

@@ -11,15 +11,15 @@ ROOT = os.path.normpath(os.path.join(TESTS, ".."))
 # via it. This allows tests to run without package installation.
 sys.path.insert(0, ROOT)
 
-from zeekclient.brokertypes import *
+from zeekclient.brokertypes import *  # pylint: disable=wrong-import-position,unused-wildcard-import,wildcard-import
 
 
 class TestBrokertypes(unittest.TestCase):
-    def assertEqualRoundtrip(self, input):
+    def assertEqualRoundtrip(self, data):
         # This verifies for the given Brokertype object that it can serialize
         # into Broker's wire format, unserialize, and yield an identical object.
-        output = type(input).unserialize(input.serialize())
-        self.assertEqual(input, output)
+        output = type(data).unserialize(data.serialize())
+        self.assertEqual(data, output)
 
     def assertHash(self, val):
         d = {val: 1}
@@ -482,9 +482,9 @@ class TestBrokertypes(unittest.TestCase):
         self.assertTrue(Timespan("10d") < Timestamp(datetime.datetime.now()))
 
         with self.assertRaises(TypeError):
-            Boolean(True) < True
+            _ = Boolean(True) < True
         with self.assertRaises(TypeError):
-            Boolean(True) < HandshakeMessage  # Not a data type
+            _ = Boolean(True) < HandshakeMessage  # Not a data type
 
         self.assertTrue(Boolean(True) < Count(10))
 
@@ -492,23 +492,45 @@ class TestBrokertypes(unittest.TestCase):
         data = b"\x00\x00\x00"
 
         with self.assertRaisesRegex(TypeError, "cannot parse JSON data"):
-            obj = unserialize(data)
+            _ = unserialize(data)
         with self.assertRaisesRegex(TypeError, "cannot parse JSON data"):
-            obj = Count.unserialize(data)
+            _ = Count.unserialize(data)
 
     def test_unserialize_invalid_json(self):
         data = b"[ 1,2,3 ]"
         with self.assertRaisesRegex(TypeError, "invalid data layout"):
-            obj = unserialize(data)
+            _ = unserialize(data)
         with self.assertRaisesRegex(TypeError, "invalid data layout"):
-            obj = Count.unserialize(data)
+            _ = Count.unserialize(data)
 
         data = b'{ "data": "foobar" }'
         with self.assertRaisesRegex(TypeError, "unrecognized Broker type"):
-            obj = unserialize(data)
+            _ = unserialize(data)
         with self.assertRaisesRegex(TypeError, "invalid data layout"):
-            obj = Count.unserialize(data)
+            _ = Count.unserialize(data)
 
         data = b'{ "data": "foobar", "@data-type": "count" }'
         with self.assertRaisesRegex(TypeError, "invalid data for Count"):
-            obj = Count.unserialize(data)
+            _ = Count.unserialize(data)
+
+    def test_container_from_broker(self):
+        s = Set.from_broker({"data": [{"@data-type": "string", "data": "s"}]})
+        self.assertEqual(1, len(s))
+
+        v = Vector.from_broker({"data": [{"@data-type": "string", "data": "s"}]})
+        self.assertEqual(1, len(v))
+
+        t = Table.from_broker(
+            {
+                "data": [
+                    {
+                        "key": {"@data-type": "string", "data": "s"},
+                        "value": {
+                            "@data-type": "integer",
+                            "data": "42",
+                        },
+                    }
+                ]
+            }
+        )
+        self.assertEqual(1, len(t))
