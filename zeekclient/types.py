@@ -3,6 +3,7 @@ import configparser
 import enum
 import shlex
 import socket
+from ipaddress import ip_address
 
 from . import brokertypes as bt
 from .utils import make_uuid
@@ -225,8 +226,10 @@ class Instance(ZeekType):
         self.name = name
         # This is a workaround until we've resolved addresses in instances
         self.host = '0.0.0.0' # XXX needs proper optionality
-        if addr is not None:
-            self.host = str(addr)
+
+        # If addr isn't a valid address, the ipaddress module will raise a ValueError
+        if addr is not None and ip_address(addr):
+                self.host = str(addr)
         self.port = port # None or integer value; we always mean TCP
 
     def __lt__(self, other):

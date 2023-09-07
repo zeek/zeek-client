@@ -234,6 +234,70 @@ port = 5000
             self.logbuf.getvalue(),
             'warning: ignoring unexpected keys: also_not_a_key, not_a_key')
 
+    def test_config_ipv4_ipv6_instances(self):
+        # This test creates a Configuration from an INI file with various IP addresses
+        # and ports specified for the agents.
+
+        ini_input = """[instances]
+agent = 127.0.0.1:2151
+agent2 = ::1:2151
+agent3 = [::2]:2151
+
+[manager]
+instance = agent
+role = MANAGER
+port = 5000
+"""
+        ini_expected = """[instances]
+agent = 127.0.0.1:2151
+agent2 = ::1:2151
+agent3 = ::2:2151
+
+[manager]
+instance = agent
+role = MANAGER
+port = 5000
+"""
+        cfp = self.parserFromString(ini_input)
+        config = zeekclient.types.Configuration.from_config_parser(cfp)
+        self.assertTrue(config is not None)
+
+        # Turning that back into a config parser should have expected content:
+        cfp = config.to_config_parser()
+        with io.StringIO() as buf:
+            cfp.write(buf)
+            self.assertEqualStripped(buf.getvalue(), ini_expected)
+
+    def test_config_invalid_ipv4_instance(self):
+        # This test creates a Configuration with an invalid IPv4 address
+
+        ini_input = """[instances]
+agent = 127.0.0.1.1:2151
+
+[manager]
+instance = agent
+role = MANAGER
+port = 5000
+"""
+        cfp = self.parserFromString(ini_input)
+        with self.assertRaisesRegex(ValueError, "'127.0.0.1.1' does not appear to be an IPv4 or IPv6 address"):
+            zeekclient.types.Configuration.from_config_parser(cfp)
+
+    def test_config_invalid_ipv6_instance(self):
+        # This test creates a Configuration with an invalid IPv6 address
+
+        ini_input = """[instances]
+agent = ::2/128:2151
+
+[manager]
+instance = agent
+role = MANAGER
+port = 5000
+"""
+        cfp = self.parserFromString(ini_input)
+        with self.assertRaisesRegex(ValueError,"'::2/128' does not appear to be an IPv4 or IPv6 address"):
+            zeekclient.types.Configuration.from_config_parser(cfp)
+
     def test_config_invalid_instances(self):
         ini_input = """
 [instances]
