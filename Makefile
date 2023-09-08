@@ -18,6 +18,10 @@ test-coverage:
 	       test_types.py \
 	    && coverage report -m
 
+.PHONY: man
+man:
+	./man/build.py
+
 .PHONY: dist
 dist:
 	rm -rf dist/*.tar.gz
