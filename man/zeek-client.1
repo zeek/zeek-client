@@ -1,0 +1,166 @@
+.TH ZEEK\-CLIENT "1" "" "zeek\-client" "User Commands"
+.SH NAME
+zeek\-client
+.SH SYNOPSIS
+.B zeek\-client
+[-h] [-c FILE] [--controller HOST:PORT] [--set SECTION.KEY=VAL] [--quiet | --verbose] [--version] {deploy,deploy-config,get-config,get-id-value,get-instances,get-nodes,monitor,restart,stage-config,show-settings,test-timeout} ...
+.SH DESCRIPTION
+A command\-line client for Zeek's Management Framework.
+
+Use this client to push cluster configurations to a cluster controller, retrieve
+running state from the system, restart nodes, and more.
+
+For details about Zeek's Management Framework, please consult the documentation
+at https://docs.zeek.org/en/master/frameworks/management.html.
+
+.SH OPTIONS
+.TP
+\fB\-c\fR \fI\,FILE\/\fR, \fB\-\-configfile\fR \fI\,FILE\/\fR
+Path to zeek\-client config file. (Default: @ZEEK_CLIENT_CONFIG_FILE@)
+
+.TP
+\fB\-\-controller\fR \fI\,HOST:PORT\/\fR
+Address and port of the controller, either of which may be omitted (default: 127.0.0.1:2149)
+
+.TP
+\fB\-\-set\fR \fI\,SECTION.KEY=VAL\/\fR
+Adjust a configuration setting. Can use repeatedly. See show\-settings.
+
+.TP
+\fB\-\-quiet\fR, \fB\-q\fR
+Suppress informational output to stderr.
+
+.TP
+\fB\-\-verbose\fR, \fB\-v\fR
+Increase informational output to stderr. Repeat for more output (e.g. \-vvv).
+
+.TP
+\fB\-\-version\fR
+Show version number and exit.
+
+.SH
+COMMANDS
+.SS \fBzeek\-client deploy\fR
+Deploy a staged cluster configuration.
+
+usage: zeek\-client deploy [\-h]
+.SS \fBzeek\-client deploy\-config\fR
+Upload a cluster configuration and deploy it.
+
+usage: zeek\-client deploy\-config [\-h] FILE
+
+arguments:
+.RS 7
+.TP
+\fBFILE\fR
+Cluster configuration file, "\-" for stdin
+.RE
+
+.SS \fBzeek\-client get\-config\fR
+Retrieve staged or deployed cluster configuration.
+
+usage: zeek\-client get\-config [\-h] [\-\-filename FILE] [\-\-as\-json]
+                              [\-\-deployed | \-\-staged]
+
+options:
+.RS 7
+.TP
+\fB\-\-filename\fR \fI\,FILE\/\fR, \fB\-f\fR \fI\,FILE\/\fR
+Output file for the configuration, default stdout
+
+.TP
+\fB\-\-as\-json\fR
+Report in JSON instead of INI\-style config file
+
+.TP
+\fB\-\-deployed\fR
+Return deployed configuration
+
+.TP
+\fB\-\-staged\fR
+Return staged configuration (default)
+.RE
+
+.SS \fBzeek\-client get\-id\-value\fR
+Show the value of a given identifier in Zeek cluster nodes.
+
+usage: zeek\-client get\-id\-value [\-h] IDENTIFIER [NODES ...]
+
+arguments:
+.RS 7
+.TP
+\fBIDENTIFIER\fR
+Name of the Zeek script identifier to retrieve.
+
+.TP
+\fBNODES\fR
+Name(s) of Zeek cluster nodes to query. When omitted, queries all nodes.
+.RE
+
+.SS \fBzeek\-client get\-instances\fR
+Show instances connected to the controller.
+
+usage: zeek\-client get\-instances [\-h]
+.SS \fBzeek\-client get\-nodes\fR
+Show active Zeek nodes at each instance.
+
+usage: zeek\-client get\-nodes [\-h]
+.SS \fBzeek\-client monitor\fR
+For troubleshooting: do nothing, just report events.
+
+usage: zeek\-client monitor [\-h]
+.SS \fBzeek\-client restart\fR
+Restart cluster nodes.
+
+usage: zeek\-client restart [\-h] [NODES ...]
+
+arguments:
+.RS 7
+.TP
+\fBNODES\fR
+Name(s) of Zeek cluster nodes to restart. When omitted, restarts all nodes.
+.RE
+
+.SS \fBzeek\-client stage\-config\fR
+Upload a cluster configuration for later deployment.
+
+usage: zeek\-client stage\-config [\-h] FILE
+
+arguments:
+.RS 7
+.TP
+\fBFILE\fR
+Cluster configuration file, "\-" for stdin
+.RE
+
+.SS \fBzeek\-client show\-settings\fR
+Show zeek-client's own configuration.
+
+usage: zeek\-client show\-settings [\-h]
+.SS \fBzeek\-client test\-timeout\fR
+Send timeout test event.
+
+usage: zeek\-client test\-timeout [\-h] [\-\-with\-state]
+
+options:
+.RS 7
+.TP
+\fB\-\-with\-state\fR
+Make request stateful in the controller.
+.RE
+
+.SH EXIT STATUS
+The client exits with 0 on
+success and 1 if a problem arises, such as lack of a response from the
+controller, unexpected response data, or the controller explicitly reporting an
+error in its handling of a command.
+.SH ENVIRONMENT
+zeek-client supports the following environment variables:
+
+    ZEEK_CLIENT_CONFIG_FILE:      Same as `--configfile` argument, but lower precedence.
+    ZEEK_CLIENT_CONFIG_SETTINGS:  Same as a space-separated series of `--set` arguments, but lower precedence.
+.SH SUGGESTIONS AND BUG REPORTS
+The Management Framework and this client are experimental
+software. The Zeek team welcomes your feedback. Please file issues on Github at
+https://github.com/zeek/zeek-client/issues, or contact us on Discourse or Slack:
+https://zeek.org/community

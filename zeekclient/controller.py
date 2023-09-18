@@ -10,12 +10,14 @@ import time
 try:
     import websocket
 except ImportError:
-    print("The zeek-client package requires websocket-client.\n"
-          "If you use 'pip', you can install it as follows:\n"
-          "\n"
-          "    pip3 install websocket-client\n"
-          "\n",
-          file=sys.stderr)
+    print(
+        "The zeek-client package requires websocket-client.\n"
+        "If you use 'pip', you can install it as follows:\n"
+        "\n"
+        "    pip3 install websocket-client\n"
+        "\n",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 from .brokertypes import (
@@ -23,8 +25,6 @@ from .brokertypes import (
     HandshakeMessage,
     HandshakeAckMessage,
     DataMessage,
-    ErrorMessage,
-    unserialize
 )
 
 from .config import CONFIG
@@ -34,11 +34,14 @@ from .logs import LOG
 from .ssl import get_websocket_sslopt
 from .utils import make_uuid
 
+
 class Error(Exception):
     """Catch-all for exceptions arising from use of Controller objects."""
 
+
 class ConfigError(Error):
     """A problem occurred while configuring the WebSocket object."""
+
 
 class UsageError(Error):
     """Invalid sequence of operations on a Controller object."""
@@ -46,34 +49,42 @@ class UsageError(Error):
 
 class Controller:
     """A class managing a connection to the Zeek cluster controller."""
-    def __init__(self, controller_host=None, controller_port=None,
-                 controller_topic=CONTROLLER_TOPIC):
+
+    def __init__(
+        self,
+        controller_host=None,
+        controller_port=None,
+        controller_topic=CONTROLLER_TOPIC,
+    ):
         """Controller connection constructor.
 
         This may raise ConfigError in case of trouble with the
         connection settings.
         """
-        self.controller_host = controller_host or CONFIG.get('controller', 'host')
-        self.controller_port = controller_port or CONFIG.getint('controller', 'port')
+        self.controller_host = controller_host or CONFIG.get("controller", "host")
+        self.controller_port = controller_port or CONFIG.getint("controller", "port")
         self.controller_topic = controller_topic
-        self.controller_broker_id = None # Defined in Handshake ACK message
+        self.controller_broker_id = None  # Defined in Handshake ACK message
 
         try:
             if self.controller_port < 1 or self.controller_port > 65535:
-                raise ValueError('controller port number {} outside valid range'
-                                 .format(self.controller_port))
+                raise ValueError(
+                    f"controller port number {self.controller_port} outside valid range"
+                )
 
-            disable_ssl = CONFIG.getboolean('ssl', 'disable')
+            disable_ssl = CONFIG.getboolean("ssl", "disable")
 
-            self.wsock_url = '{}://{}:{}/v1/messages/json'.format(
-                'ws' if disable_ssl else 'wss',
-                self.controller_host, self.controller_port)
+            proto = "ws" if disable_ssl else "wss"
+            remote = f"{self.controller_host}:{self.controller_port}"
+            self.wsock_url = f"{proto}://{remote}/v1/messages/json"
 
             sslopt = None if disable_ssl else get_websocket_sslopt()
             self.wsock = websocket.WebSocket(sslopt=sslopt)
         except (ValueError, OSError, ssl.SSLError) as err:
-            raise ConfigError('cannot configure connection to {}:{}: {}'.format(
-                self.controller_host, self.controller_port, err)) from err
+            raise ConfigError(
+                f"cannot configure connection to "
+                f"{self.controller_host}:{self.controller_port}: {err}"
+            ) from err
 
     def connect(self):
         """Connect to the configured controller.
@@ -89,11 +100,12 @@ class Controller:
         Returns True if peering completes successfully, False otherwise, with
         according messages written to the log.
         """
-        LOG.info('connecting to controller %s:%s', self.controller_host,
-                 self.controller_port)
+        LOG.info(
+            "connecting to controller %s:%s", self.controller_host, self.controller_port
+        )
 
-        attempts = CONFIG.getint('client', 'peering_attempts')
-        retry_delay = CONFIG.getfloat('client', 'peering_retry_delay_secs')
+        attempts = CONFIG.getint("client", "peering_attempts")
+        retry_delay = CONFIG.getfloat("client", "peering_retry_delay_secs")
 
         handshake = HandshakeMessage([self.controller_topic])
 
@@ -114,41 +126,64 @@ class Controller:
                     time.sleep(retry_delay)
                     continue
                 except websocket.WebSocketException as err:
-                    LOG.error('websocket error in %s with controller %s:%s: %s',
-                              stage, self.controller_host, self.controller_port,
-                              err)
+                    LOG.error(
+                        "websocket error in %s with controller %s:%s: %s",
+                        stage,
+                        self.controller_host,
+                        self.controller_port,
+                        err,
+                    )
                     return False
-                except ConnectionRefusedError as err:
+                except ConnectionRefusedError:
                     # We don't consider these fatal since they can happen
                     # naturally during tests and other automated setups where
                     # it's beneficial to keep trying.  Also, this is a subclass
                     # of OSError, so needs to come before it:
-                    LOG.debug('connection refused for controller %s:%s',
-                              self.controller_host, self.controller_port)
+                    LOG.debug(
+                        "connection refused for controller %s:%s",
+                        self.controller_host,
+                        self.controller_port,
+                    )
                     time.sleep(retry_delay)
                     continue
                 except ssl.SSLError as err:
                     # Same here, likewise a subclass of OSError:
-                    LOG.error('socket TLS error in %s with controller %s:%s: %s',
-                              stage, self.controller_host, self.controller_port,
-                              err)
+                    LOG.error(
+                        "socket TLS error in %s with controller %s:%s: %s",
+                        stage,
+                        self.controller_host,
+                        self.controller_port,
+                        err,
+                    )
                     return False
                 except OSError as err:
                     # From socket.py docs: "Errors related to socket or address
                     # semantics raise OSError or one of its subclasses".
-                    LOG.error('socket error in %s with controller %s:%s: %s',
-                              stage, self.controller_host, self.controller_port,
-                              err)
+                    LOG.error(
+                        "socket error in %s with controller %s:%s: %s",
+                        stage,
+                        self.controller_host,
+                        self.controller_port,
+                        err,
+                    )
                     return False
                 except Exception as err:
-                    LOG.exception('unexpected error in %s with controller %s:%s: %s',
-                                  stage, self.controller_host, self.controller_port,
-                                  err)
+                    LOG.exception(
+                        "unexpected error in %s with controller %s:%s: %s",
+                        stage,
+                        self.controller_host,
+                        self.controller_port,
+                        err,
+                    )
                     return False
 
             if attempts == 0:
-                LOG.error('websocket connection to %s:%s timed out in %s',
-                          self.controller_host, self.controller_port, stage)
+                LOG.error(
+                    "websocket connection to %s:%s timed out in %s",
+                    self.controller_host,
+                    self.controller_port,
+                    stage,
+                )
             return False
 
         def connect_op():
@@ -161,18 +196,26 @@ class Controller:
             try:
                 msg = HandshakeAckMessage.unserialize(rawdata)
             except TypeError as err:
-                LOG.error('protocol data error with controller %s:%s: %s, raw data: %s',
-                          self.controller_host, self.controller_port, err, rawdata)
+                LOG.error(
+                    "protocol data error with controller %s:%s: %s, raw data: %s",
+                    self.controller_host,
+                    self.controller_port,
+                    err,
+                    rawdata,
+                )
                 return False
 
             self.controller_broker_id = msg.endpoint
-            LOG.info('peered with controller %s:%s', self.controller_host,
-                     self.controller_port)
+            LOG.info(
+                "peered with controller %s:%s",
+                self.controller_host,
+                self.controller_port,
+            )
             return True
 
-        if not wsock_operation(connect_op, 'connect()'):
+        if not wsock_operation(connect_op, "connect()"):
             return False
-        if not wsock_operation(handshake_op, 'handshake'):
+        if not wsock_operation(handshake_op, "handshake"):
             return False
 
         return True
@@ -186,7 +229,7 @@ class Controller:
             event (zeekclient.event.Event): the event to publish.
         """
         if self.controller_broker_id is None:
-            raise UsageError('cannot publish without established peering')
+            raise UsageError("cannot publish without established peering")
 
         msg = DataMessage(self.controller_topic, event.to_brokertype())
         self.wsock.send(msg.serialize())
@@ -217,13 +260,15 @@ class Controller:
             empty when no error occurs.
         """
         if self.controller_broker_id is None:
-            raise UsageError('cannot receive without established peering')
+            raise UsageError("cannot receive without established peering")
 
-        timeout = timeout_secs or CONFIG.getint('client', 'request_timeout_secs')
+        timeout = timeout_secs or CONFIG.getint("client", "request_timeout_secs")
         old_timeout = self.wsock.gettimeout()
 
         try:
             self.wsock.settimeout(timeout)
+
+            remote = f"{self.controller_host}:{self.controller_port}"
 
             while True:
                 # Reading the event proceeds in three steps:
@@ -233,15 +278,21 @@ class Controller:
                 try:
                     msg = DataMessage.unserialize(self.wsock.recv())
                 except TypeError as err:
-                    return None, 'protocol data error with controller {}:{}: {}'.format(
-                        self.controller_host, self.controller_port, err)
-                except websocket.WebSocketTimeoutException as err:
-                    return None, 'websocket connection to {}:{} timed out'.format(
-                        self.controller_host, self.controller_port)
+                    return (
+                        None,
+                        f"protocol data error with controller {remote}: {err}",
+                    )
+                except websocket.WebSocketTimeoutException:
+                    return (
+                        None,
+                        f"websocket connection to {remote} timed out",
+                    )
                 except Exception as err:
-                    LOG.exception('unexpected error')
-                    return None, 'unexpected error with controller {}:{}: {}'.format(
-                        self.controller_host, self.controller_port, err)
+                    LOG.exception("unexpected error")
+                    return (
+                        None,
+                        f"unexpected error with controller {remote}: {err}",
+                    )
                 try:
                     # Events are a specially laid-out vector of vectors:
                     # https://docs.zeek.org/projects/broker/en/current/web-socket.html#encoding-of-zeek-events
@@ -250,12 +301,12 @@ class Controller:
                     # Turn Broker-level event data into a zeekclient.event.Event:
                     res = Registry.make_event(evt.name, *evt.args)
                     if res is not None and (filter_pred is None or filter_pred(res)):
-                        return res, ''
+                        return res, ""
                 except TypeError as err:
-                    return None, ('protocol data error with controller {}:{}: '
-                                  'invalid event data, {}'.format(
-                                      self.controller_host, self.controller_port,
-                                      repr(msg.data)))
+                    return None, (
+                        f"protocol data error with controller {remote}: "
+                        f"invalid event data, {repr(msg.data)}"
+                    )
 
                 # This wasn't the event type we wanted, try again.
         finally:
@@ -295,12 +346,16 @@ class Controller:
         """
         # Verify that the first arguments of the event types are actually a
         # request ID -- we just look at the name:
-        if request_type.ARG_NAMES[0] != 'reqid':
-            return None, 'type error: event type {} does not have request ID'.format(
-                request_type.__name__)
-        if response_type.ARG_NAMES[0] != 'reqid':
-            return None, 'type error: event type {} does not have request ID'.format(
-                response_type.__name__)
+        if request_type.ARG_NAMES[0] != "reqid":
+            return (
+                None,
+                f"type error: event type {request_type.__name__} does not have request ID",
+            )
+        if response_type.ARG_NAMES[0] != "reqid":
+            return (
+                None,
+                f"type error: event type {response_type.__name__} does not have request ID",
+            )
 
         if reqid is None:
             reqid = make_uuid()

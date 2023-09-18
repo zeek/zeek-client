@@ -1,7 +1,24 @@
 [MASTER]
-disable=missing-function-docstring,
+disable=
+  fixme,
   missing-class-docstring,
-  too-many-arguments, too-many-branches,
+  missing-function-docstring,
+  missing-module-docstring,
+  too-few-public-methods,
+  too-many-arguments,
+  too-many-branches,
   too-many-instance-attributes,
-  too-many-lines, too-many-statements,
-  consider-using-f-string
+  too-many-lines,
+  too-many-locals,
+  too-many-public-methods,
+  too-many-return-statements,
+  too-many-statements,
+
+  # We previously ignored all these non-error lints.
+  #
+  # TODO(bbannier): audit this list and fix lints where possible.
+  broad-exception-caught,
+  cyclic-import,
+  duplicate-code,
+
+method-rgx=([a-z_][a-z0-9_]{2,64}$)|(assert[A-Z][a-zA-Z0-9]+$)

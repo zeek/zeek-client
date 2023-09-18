@@ -33,6 +33,13 @@ configure_file(
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/zeekclient/consts.py
     DESTINATION ${PY_MOD_INSTALL_DIR}/zeekclient)
 
+# This mirrors what we do in zkg:
+if ( NOT ZEEK_MAN_INSTALL_PATH )
+    set(ZEEK_MAN_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/share/man)
+endif ()
+
+install(FILES man/zeek-client.1 DESTINATION ${ZEEK_MAN_INSTALL_PATH}/man1)
+
 message(
     "\n==================|  zeek-client Build Summary  |==============="
     "\n"

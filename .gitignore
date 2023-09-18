@@ -1,6 +1,7 @@
 __pycache__
 .coverage
 *,cover
+build
 dist
 zeek_client.egg-info
 .DS_Store
