@@ -284,7 +284,9 @@ role = MANAGER
 port = 5000
 """
         cfp = self.parserFromString(ini_input)
-        with self.assertRaisesRegex(ValueError, "'127.0.0.1.1' does not appear to be an IPv4 or IPv6 address"):
+        with self.assertRaisesRegex(
+            ValueError, "'127.0.0.1.1' does not appear to be an IPv4 or IPv6 address"
+        ):
             zeekclient.types.Configuration.from_config_parser(cfp)
 
     def test_config_invalid_ipv6_instance(self):
@@ -299,7 +301,9 @@ role = MANAGER
 port = 5000
 """
         cfp = self.parserFromString(ini_input)
-        with self.assertRaisesRegex(ValueError,"'::2/128' does not appear to be an IPv4 or IPv6 address"):
+        with self.assertRaisesRegex(
+            ValueError, "'::2/128' does not appear to be an IPv4 or IPv6 address"
+        ):
             zeekclient.types.Configuration.from_config_parser(cfp)
 
     def test_config_invalid_instances(self):

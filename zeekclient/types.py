@@ -238,12 +238,12 @@ class Instance(ZeekType):
     def __init__(self, name, addr=None, port=None):
         self.name = name
         # This is a workaround until we've resolved addresses in instances
-        self.host = '0.0.0.0' # XXX needs proper optionality
+        self.host = "0.0.0.0"  # XXX needs proper optionality
 
         # If addr isn't a valid address, the ipaddress module will raise a ValueError
         if addr is not None and ip_address(addr):
-                self.host = str(addr)
-        self.port = port # None or integer value; we always mean TCP
+            self.host = str(addr)
+        self.port = port  # None or integer value; we always mean TCP
 
     def __lt__(self, other):
         return self.name < other.name
@@ -653,9 +653,13 @@ class Configuration(ZeekType, ConfigParserMixin):
                         config.instances.append(Instance(key))
                     else:
                         hostport = val
-                        host, _, port = hostport.rpartition(':')
-                        if(host == '' or port == ''):
-                            LOG.error('invalid spec for instance "%s": "%s" should be <host>:<port>', key, val)
+                        host, _, port = hostport.rpartition(":")
+                        if host == "" or port == "":
+                            LOG.error(
+                                'invalid spec for instance "%s": "%s" should be <host>:<port>',
+                                key,
+                                val,
+                            )
                             return None
                         # remove brackets to support [ipv6]:port formats
                         host = host.strip("[] ")
