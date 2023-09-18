@@ -1,3 +1,15 @@
+1.3.1-15 | 2023-09-18 11:00:08 -0700
+
+  * Instance constructor now checks if the IP addr is valid.  Tests check for ValueError if not. (Michael Dopheide)
+
+  * add .DS_Store to gitignore (Michael Dopheide)
+
+  * Change error message back to key/val to match test output (Michael Dopheide)
+
+  * Also strip whitespace from the IP (Michael Dopheide)
+
+  * Some suggestions for better IPv6 support (Michael Dopheide)
+
 1.3.1-3 | 2023-09-12 17:30:15 -0700
 
   * Add manpage generation/checking to pre-commit setup (Christian Kreibich, Corelight)

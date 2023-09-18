@@ -525,7 +525,11 @@ class Address(DataType):
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
-        return self._addr < other._addr
+        if self._addr.version == other._addr.version:
+            return self._addr < other._addr
+
+        # Make a blanket assumption that an IPv4 address is "less than" an IPv6 address
+        return self._addr.version < other._addr.version
 
     def __hash__(self):
         return hash(self._value)

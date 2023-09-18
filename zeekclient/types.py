@@ -3,6 +3,7 @@ import configparser
 import enum
 import shlex
 import socket
+from ipaddress import ip_address
 
 from . import brokertypes as bt
 from .utils import make_uuid
@@ -238,7 +239,9 @@ class Instance(ZeekType):
         self.name = name
         # This is a workaround until we've resolved addresses in instances
         self.host = "0.0.0.0"  # XXX needs proper optionality
-        if addr is not None:
+
+        # If addr isn't a valid address, the ipaddress module will raise a ValueError
+        if addr is not None and ip_address(addr):
             self.host = str(addr)
         self.port = port  # None or integer value; we always mean TCP
 
@@ -650,17 +653,18 @@ class Configuration(ZeekType, ConfigParserMixin):
                         config.instances.append(Instance(key))
                     else:
                         hostport = val
-                        parts = hostport.split(":", 1)
-                        if len(parts) != 2 or not parts[0] or not parts[1]:
+                        host, _, port = hostport.rpartition(":")
+                        if host == "" or port == "":
                             LOG.error(
                                 'invalid spec for instance "%s": "%s" should be <host>:<port>',
                                 key,
                                 val,
                             )
                             return None
-                        config.instances.append(
-                            Instance(key, parts[0].strip(), parts[1].strip())
-                        )
+                        # remove brackets to support [ipv6]:port formats
+                        host = host.strip("[] ")
+                        port = port.strip()
+                        config.instances.append(Instance(key, host, port))
                 continue
 
             # All keys for sections other than "instances" need to have a value.
