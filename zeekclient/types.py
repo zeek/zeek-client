@@ -372,7 +372,7 @@ class Node(ZeekType, ConfigParserMixin):
                 bt.from_py(self.scripts),
                 options,
                 bt.from_py(self.interface),
-                bt.from_py(self.cpu_affinity, typ=bt.Count),
+                bt.from_py(self.cpu_affinity, typ=bt.Integer),
                 bt.from_py(self.env),
             ]
         )
