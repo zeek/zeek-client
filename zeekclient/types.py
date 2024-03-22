@@ -304,6 +304,7 @@ class Node(ZeekType, ConfigParserMixin):
         interface=None,
         cpu_affinity=None,
         env=None,
+        metrics_port=None,
     ):
         self.name = name
         self.instance = instance
@@ -315,6 +316,7 @@ class Node(ZeekType, ConfigParserMixin):
         self.interface = interface
         self.cpu_affinity = cpu_affinity
         self.env = env or {}
+        self.metrics_port = metrics_port
 
     def __lt__(self, other):
         return self.name < other.name
@@ -332,6 +334,7 @@ class Node(ZeekType, ConfigParserMixin):
             and self.interface == other.interface
             and self.cpu_affinity == other.cpu_affinity
             and self.env == other.env
+            and self.metrics_port == other.metrics_port
         )
 
     def __hash__(self):
@@ -354,6 +357,7 @@ class Node(ZeekType, ConfigParserMixin):
                 self.interface,
                 self.cpu_affinity,
                 env,
+                self.metrics_port,
             )
         )
 
@@ -374,6 +378,7 @@ class Node(ZeekType, ConfigParserMixin):
                 bt.from_py(self.interface),
                 bt.from_py(self.cpu_affinity, typ=bt.Count),
                 bt.from_py(self.env),
+                bt.from_py(self.metrics_port, typ=bt.Port),
             ]
         )
 
@@ -391,6 +396,7 @@ class Node(ZeekType, ConfigParserMixin):
             "interface": self.interface,
             "cpu_affinity": self.cpu_affinity,
             "env": self.env,
+            "metrics_port": self.metrics_port,
         }
 
     @classmethod
@@ -404,6 +410,10 @@ class Node(ZeekType, ConfigParserMixin):
             if isinstance(data[4], bt.Port):
                 port = data[4].number
 
+            metrics_port = None
+            if len(data) >= 11 and isinstance(data[10], bt.Port):
+                metrics_port = data[10].number
+
             return Node(
                 data[0].to_py(),  # name
                 data[1].to_py(),  # instance
@@ -415,6 +425,7 @@ class Node(ZeekType, ConfigParserMixin):
                 data[7].to_py(),  # interface
                 data[8].to_py(),  # cpu_affinity
                 data[9].to_py(),  # env
+                metrics_port,
             )
         except (IndexError, TypeError, ValueError) as err:
             raise TypeError(f"unexpected Broker data for Node object ({data})") from err
@@ -447,6 +458,7 @@ class Node(ZeekType, ConfigParserMixin):
         interface = get(str, "interface")
         cpu_affinity = get(int, "cpu_affinity")
         env = None
+        metrics_port = get(int, "metrics_port")
 
         # Validate the specified values
         if not instance:
@@ -471,6 +483,10 @@ class Node(ZeekType, ConfigParserMixin):
         # present, we validate:
         if port is not None and (port < 1 or port > 65535):
             raise ValueError(f"port {port} outside valid range")
+
+        # Same for metrics ports.
+        if metrics_port is not None and (metrics_port < 1 or metrics_port > 65535):
+            raise ValueError(f"metrics port {port} outside valid range")
 
         try:
             # We support multiple scripts as a simple space-separated sequence
@@ -510,6 +526,7 @@ class Node(ZeekType, ConfigParserMixin):
                 "interface",
                 "cpu_affinity",
                 "env",
+                "metrics_port",
             ]
         )
 
@@ -526,6 +543,7 @@ class Node(ZeekType, ConfigParserMixin):
             interface=interface,
             cpu_affinity=cpu_affinity,
             env=env,
+            metrics_port=metrics_port,
         )
 
     def to_config_parser(self, cfp=None):
@@ -579,6 +597,9 @@ class Node(ZeekType, ConfigParserMixin):
                 env.append(f"{key}={val}")
 
             cfp.set(self.name, "env", " ".join(env))
+
+        if self.metrics_port is not None:
+            cfp.set(self.name, "metrics_port", str(self.metrics_port))
 
         return cfp
 
@@ -744,13 +765,23 @@ class Configuration(ZeekType, ConfigParserMixin):
 class NodeStatus(SerializableZeekType):
     """Equivalent of Management::NodeState."""
 
-    def __init__(self, node, state, mgmt_role, cluster_role, pid=None, port=None):
+    def __init__(
+        self,
+        node,
+        state,
+        mgmt_role,
+        cluster_role,
+        pid=None,
+        port=None,
+        metrics_port=None,
+    ):
         self.node = node  # A string containing the name of the node
         self.state = state  # A State enum value
         self.mgmt_role = mgmt_role  # A ManagementRole enum value
         self.cluster_role = cluster_role  # A ClusterRole enum value
         self.pid = pid  # A numeric process ID
         self.port = port  # A numeric (TCP) port
+        self.metrics_port = metrics_port  # A numeric (TCP) port for Prometheus
 
     def __lt__(self, other):
         return self.node < other.node
@@ -764,6 +795,7 @@ class NodeStatus(SerializableZeekType):
             and self.cluster_role == other.cluster_role
             and self.pid == other.pid
             and self.port == other.port
+            and self.metrics_port == other.metrics_port
         )
 
     def __hash__(self):
@@ -775,6 +807,7 @@ class NodeStatus(SerializableZeekType):
                 self.cluster_role,
                 self.pid,
                 self.port,
+                self.metrics_port,
             )
         )
 
@@ -783,6 +816,9 @@ class NodeStatus(SerializableZeekType):
         # it helps to be able to serialize.
         pid = bt.NoneType() if self.pid is None else bt.Integer(self.pid)
         port = bt.NoneType() if self.port is None else bt.Port(self.port)
+        metrics_port = (
+            bt.NoneType() if self.metrics_port is None else bt.Port(self.metrics_port)
+        )
 
         return bt.Vector(
             [
@@ -792,6 +828,7 @@ class NodeStatus(SerializableZeekType):
                 self.cluster_role.to_brokertype(),
                 pid,
                 port,
+                metrics_port,
             ]
         )
 
@@ -801,6 +838,12 @@ class NodeStatus(SerializableZeekType):
         if port is not None:
             port = port.number
 
+        metrics_port = None
+        if len(data) >= 7:
+            metrics_port = data[6].to_py()
+            if metrics_port is not None:
+                metrics_port = metrics_port.number
+
         return NodeStatus(
             data[0].to_py(),
             State.from_brokertype(data[1]),
@@ -808,6 +851,7 @@ class NodeStatus(SerializableZeekType):
             ClusterRole.from_brokertype(data[3]),
             data[4].to_py(),
             port,
+            metrics_port,
         )
 
 
