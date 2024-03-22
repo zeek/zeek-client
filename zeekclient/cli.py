@@ -565,6 +565,8 @@ def cmd_get_nodes(_args):
                     json_data["results"][res.instance][nstat.node]["pid"] = nstat.pid
                 if nstat.port is not None:
                     json_data["results"][res.instance][nstat.node]["port"] = nstat.port
+                if nstat.metrics_port is not None:
+                    json_data["results"][res.instance][nstat.node]["metrics_port"] = nstat.metrics_port
         except TypeError as err:
             LOG.error("NodeStatus data invalid: %s", err)
             LOG.debug(traceback.format_exc())
