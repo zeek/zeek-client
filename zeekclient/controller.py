@@ -287,7 +287,7 @@ class Controller:
                     res = Registry.make_event(evt.name, *evt.args)
                     if res is not None and (filter_pred is None or filter_pred(res)):
                         return res, ""
-                except TypeError as err:
+                except TypeError:
                     return None, (
                         f"protocol data error with controller {remote}: "
                         f"invalid event data, {repr(msg.data)}"

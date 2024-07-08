@@ -48,3 +48,12 @@ requires = ["setuptools"]
 [tool.setuptools]
 packages = ["zeekclient"]
 script-files = ["zeek-client"]
+
+[tool.ruff.lint]
+select = [
+    "ISC",
+    "UP",
+]
+ignore = [
+    "ISC001"
+]

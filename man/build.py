@@ -14,7 +14,7 @@ ROOTDIR = os.path.normpath(os.path.join(LOCALDIR, ".."))
 # zeekclient package locally.
 sys.path.insert(0, ROOTDIR)
 
-import zeekclient.cli  # pylint: disable=wrong-import-position,import-error
+import zeekclient.cli  # pylint: disable=wrong-import-position,import-error # noqa: E402
 
 
 def main():
