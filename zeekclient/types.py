@@ -142,12 +142,11 @@ class Enum(ZeekType, enum.Enum):
         return cls[name.upper()]
 
     @classmethod
-    def module_scope(cls):  # pragma: no cover
+    def module_scope(cls) -> str:  # pragma: no cover
         # Reimplement this in derived classes to convey the Zeek-level enum
         # scope. For example, for a Foo.BAR (or Foo::BAR, in Zeek) enum value,
         # this should return the string "Foo".
-        assert False, "reimplement module_scope() in your Enum derivative"
-        return ""
+        raise AssertionError("reimplement module_scope() in your Enum derivative")
 
     @classmethod
     def from_brokertype(cls, data):

@@ -377,7 +377,7 @@ class Timespan(DataType):
                 return datetime.timedelta(weeks=counter / 7)
             return datetime.timedelta(days=counter)
 
-        assert False, f"unhandled timespan unit '{unit}'"
+        raise AssertionError(f"unhandled timespan unit '{unit}'")
 
     @classmethod
     def timedelta_to_broker_timespan(cls, tdelta):
