@@ -7,7 +7,6 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-
 from contextlib import contextmanager
 
 import zeekclient as zc

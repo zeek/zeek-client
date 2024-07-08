@@ -9,7 +9,7 @@ from .brokertypes import (
     ZeekEvent,
     from_py,
 )
-
+from .logs import LOG
 from .types import (
     SerializableZeekType,
 )

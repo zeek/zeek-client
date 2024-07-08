@@ -6,12 +6,11 @@ import time
 import websocket
 
 from .brokertypes import (
-    ZeekEvent,
-    HandshakeMessage,
-    HandshakeAckMessage,
     DataMessage,
+    HandshakeAckMessage,
+    HandshakeMessage,
+    ZeekEvent,
 )
-
 from .config import CONFIG
 from .consts import CONTROLLER_TOPIC
 from .events import Registry

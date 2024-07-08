@@ -9,12 +9,10 @@ import sys
 import traceback
 
 from . import brokertypes as bt
-from .controller import Controller, Error as ControllerError
-
 from .config import CONFIG
-
 from .consts import CONFIG_FILE
-
+from .controller import Controller
+from .controller import Error as ControllerError
 from .events import (
     DeployRequest,
     DeployResponse,
@@ -33,17 +31,15 @@ from .events import (
     TestTimeoutRequest,
     TestTimeoutResponse,
 )
-
 from .logs import LOG
-
 from .types import (
-    Enum,
     ClusterRole,
     Configuration,
+    Enum,
     Instance,
     ManagementRole,
-    NodeStatus,
     NodeOutputs,
+    NodeStatus,
     Result,
 )
 

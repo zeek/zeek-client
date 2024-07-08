@@ -52,6 +52,8 @@ script-files = ["zeek-client"]
 [tool.ruff.lint]
 select = [
     "COM",
+    "F",
+    "I",
     "ISC",
     "UP",
 ]

@@ -7,8 +7,8 @@ import socket
 from ipaddress import ip_address
 
 from . import brokertypes as bt
-from .utils import make_uuid
 from .logs import LOG
+from .utils import make_uuid
 
 
 class ConfigParserMixin:

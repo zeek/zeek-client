@@ -18,12 +18,10 @@ from . import (
     utils,
 )
 from .config import CONFIG
-
 from .consts import (
-    CONTROLLER_TOPIC,
     CONFIG_FILE,
+    CONTROLLER_TOPIC,
 )
-
 from .logs import LOG
 
 __version__ = "1.3.1-21"
