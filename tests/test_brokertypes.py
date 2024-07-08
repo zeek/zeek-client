@@ -1,17 +1,7 @@
 """This verifies the behavior of the types provied by the brokertypes module."""
 import datetime
-import os.path
-import sys
 import unittest
-
-TESTS = os.path.dirname(os.path.realpath(__file__))
-ROOT = os.path.normpath(os.path.join(TESTS, ".."))
-
-# Prepend the tree's root folder to the module searchpath so we find zeekclient
-# via it. This allows tests to run without package installation.
-sys.path.insert(0, ROOT)
-
-from zeekclient.brokertypes import *  # pylint: disable=wrong-import-position,unused-wildcard-import,wildcard-import
+from zeekclient.brokertypes import *
 
 
 class TestBrokertypes(unittest.TestCase):

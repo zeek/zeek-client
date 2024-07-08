@@ -11,6 +11,8 @@ except ImportError:
     print("The manpage builder needs the argparse_manpage package.")
     sys.exit(1)
 
+import zeekclient.cli
+
 LOCALDIR = os.path.dirname(os.path.realpath(__file__))
 ROOTDIR = os.path.normpath(os.path.join(LOCALDIR, ".."))
 

@@ -1,15 +1,5 @@
 """This verifies the Python-level representations of Zeek records in types module."""
-import os.path
-import sys
 import unittest
-
-TESTS = os.path.dirname(os.path.realpath(__file__))
-ROOT = os.path.normpath(os.path.join(TESTS, ".."))
-
-# Prepend the tree's root folder to the module searchpath so we find zeekclient
-# via it. This allows tests to run without package installation.
-sys.path.insert(0, ROOT)
-
 import zeekclient.brokertypes as bt  # pylint: disable=wrong-import-position
 from zeekclient.types import *  # pylint: disable=wrong-import-position,unused-wildcard-import,wildcard-import
 

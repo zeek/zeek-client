@@ -4,23 +4,15 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 
 from contextlib import contextmanager
 
+import zeekclient as zc
+
 TESTS = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.normpath(os.path.join(TESTS, ".."))
-
-# Prepend this folder so we can load our mocks
-sys.path.insert(0, TESTS)
-
-# Prepend the tree's root folder to the module searchpath so we find zeekclient
-# via it. This allows tests to run without package installation.
-sys.path.insert(0, ROOT)
-
-import zeekclient as zc  # pylint: disable=wrong-import-position
 
 
 # A context guard to switch the current working directory.
@@ -37,27 +29,19 @@ def setdir(path):
 
 class TestCliInvocation(unittest.TestCase):
     # This invokes the zeek-client toplevel script.
-    def setUp(self):
-        # Set up an environment in which subprocesses pick up our package first:
-        self.env = os.environ.copy()
-        self.env["PYTHONPATH"] = os.pathsep.join(sys.path)
 
     def test_help(self):
         cproc = subprocess.run(
-            [os.path.join(ROOT, "zeek-client"), "--help"],
+            ["zeek-client", "--help"],
             check=True,
-            env=self.env,
             capture_output=True,
         )
         self.assertEqual(cproc.returncode, 0)
 
     def test_show_settings(self):
-        env = os.environ.copy()
-        env["PYTHONPATH"] = os.pathsep.join(sys.path)
         cproc = subprocess.run(
-            [os.path.join(ROOT, "zeek-client"), "show-settings"],
+            ["zeek-client", "show-settings"],
             check=True,
-            env=self.env,
             capture_output=True,
         )
         self.assertEqual(cproc.returncode, 0)

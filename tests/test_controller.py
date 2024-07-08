@@ -3,23 +3,13 @@ import io
 import os
 import re
 import ssl
-import sys
 import unittest
 
+import websocket
+
+import zeekclient
+
 TESTS = os.path.dirname(os.path.realpath(__file__))
-ROOT = os.path.normpath(os.path.join(TESTS, ".."))
-
-# Prepend this folder so we can load our mocks
-sys.path.insert(0, TESTS)
-
-# Prepend the tree's root folder to the module searchpath so we find zeekclient
-# via it. This allows tests to run without package installation.
-sys.path.insert(0, ROOT)
-
-import zeekclient  # pylint: disable=wrong-import-position
-
-# This is the mock, not the real one
-import websocket  # pylint: disable=wrong-import-position,wrong-import-order
 
 
 class TestController(unittest.TestCase):
