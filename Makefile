@@ -7,16 +7,7 @@ test:
 
 .PHONY: test-coverage
 test-coverage:
-	command -v coverage >/dev/null || { echo "Please install coverage via 'pip install coverage'"; exit 1; }
-	cd tests \
-	    && coverage run --source=../zeekclient -m unittest \
-	       test_brokertypes.py \
-	       test_cli.py \
-	       test_config_io.py \
-	       test_config_overrides.py \
-	       test_controller.py \
-	       test_types.py \
-	    && coverage report -m
+	pytest --cov=zeekclient  --cov-report=html --cov-report=term
 
 .PHONY: man
 man:
