@@ -15,7 +15,7 @@ class ConfigParserMixin:
     """Methods to create and render the object via ConfigParser instances."""
 
     @classmethod
-    def from_config_parser(cls, cfp, section=None):  # pylint: disable=unused-argument
+    def from_config_parser(cls, cfp, section=None):
         """Instantiates an object of this class based on the given
         ConfigParser, and optional section name in it, as applicable.
 
@@ -24,7 +24,7 @@ class ConfigParserMixin:
         """
         return None  # pragma: no cover
 
-    def to_config_parser(self, cfp=None):  # pylint: disable=unused-argument
+    def to_config_parser(self, cfp=None):
         """Returns this object in a ConfigParser instance. When the optional cfp
         argument is not None, the caller requests the implementation to add to
         the given parser, not create a new one.
@@ -62,7 +62,7 @@ class SerializableZeekType:
         return None  # pragma: no cover
 
     @classmethod
-    def from_brokertype(cls, data):  # pylint: disable=unused-argument
+    def from_brokertype(cls, data):
         """Returns an instance of this class for the given brokertype data.
 
         data: a brokertype instance

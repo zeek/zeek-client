@@ -13,10 +13,6 @@ the idioms and primitives also used by the zkg package manager.
 # https://pypi.org/project/argcomplete/#global-completion
 # PYTHON_ARGCOMPLETE_OK
 
-# Suppress pylint diagnostic about invalid module name "zeek-client".
-# pylint: disable=invalid-name
-# pylint: enable=invalid-name
-
 import sys
 
 import zeekclient

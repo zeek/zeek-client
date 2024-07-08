@@ -848,7 +848,7 @@ class ZeekEvent(Vector):
 
         # TODO: Extend to handle metadata
 
-        return ZeekEvent(name, *args._elements)  # pylint: disable=protected-access
+        return ZeekEvent(name, *args._elements)
 
     @classmethod
     def from_broker(cls, data):
@@ -1165,7 +1165,7 @@ def from_py(data, typ=None, check_none=True):
     if typ == Table:
         res = Table()
         for key, val in data.items():
-            res._elements[from_py(key)] = from_py(  # pylint: disable=protected-access
+            res._elements[from_py(key)] = from_py(
                 val,
             )
         return res
@@ -1173,13 +1173,13 @@ def from_py(data, typ=None, check_none=True):
     if typ == Vector:
         res = Vector()
         for elem in data:
-            res._elements.append(from_py(elem))  # pylint: disable=protected-access
+            res._elements.append(from_py(elem))
         return res
 
     if typ == Set:
         res = Set()
         for elem in data:
-            res._elements.add(from_py(elem))  # pylint: disable=protected-access
+            res._elements.add(from_py(elem))
         return res
 
     # For others the constructors of the types in this module should naturally
