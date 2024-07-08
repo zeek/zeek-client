@@ -53,6 +53,7 @@ script-files = ["zeek-client"]
 select = [
     "A",
     "B",
+    "C4",
     "COM",
     "F",
     "I",

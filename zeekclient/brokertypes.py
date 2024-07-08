@@ -702,7 +702,7 @@ class Set(DataType):
         return key in self._elements
 
     def to_py(self):
-        return set(elem.to_py() for elem in self._elements)
+        return {elem.to_py() for elem in self._elements}
 
     def to_broker(self):
         return {

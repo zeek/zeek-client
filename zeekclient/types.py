@@ -516,19 +516,16 @@ class Node(ZeekType, ConfigParserMixin):
         # Warn about unexpected keys:
         cfp_subset = cfp[section] if section else cfp
         keys = set(cfp_subset.keys())
-        keys -= set(
-            [
-                "instance",
-                "role",
-                "scripts",
-                "port",
-                "scripts",
-                "interface",
-                "cpu_affinity",
-                "env",
-                "metrics_port",
-            ]
-        )
+        keys -= {
+            "instance",
+            "role",
+            "scripts",
+            "port",
+            "interface",
+            "cpu_affinity",
+            "env",
+            "metrics_port",
+        }
 
         if len(keys) > 0:
             LOG.warning("ignoring unexpected keys: %s", ", ".join(sorted(keys)))
