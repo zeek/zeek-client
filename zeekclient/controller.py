@@ -1,4 +1,5 @@
 """This module provides Broker-based communication with a Zeek cluster controller."""
+
 import ssl
 import time
 

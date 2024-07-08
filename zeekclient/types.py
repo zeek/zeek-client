@@ -1,4 +1,5 @@
 """Python-level representations of the records in policy/framework/management/types.zeek."""
+
 import configparser
 import enum
 import shlex

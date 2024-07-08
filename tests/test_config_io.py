@@ -2,6 +2,7 @@
 their content (excluding deeper validations happening in the cluster
 controller), and serialize them correctly to INI/JSON.
 """
+
 import configparser
 import io
 import json

@@ -1,4 +1,5 @@
 """This verifies the Python-level representations of Zeek records in types module."""
+
 import unittest
 
 import zeekclient.brokertypes as bt

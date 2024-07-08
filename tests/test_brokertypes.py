@@ -1,4 +1,5 @@
 """This verifies the behavior of the types provied by the brokertypes module."""
+
 import datetime
 import unittest
 

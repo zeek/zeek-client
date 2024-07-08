@@ -1,5 +1,4 @@
 """Infrastructure for typed Zeek events."""
-from .logs import LOG
 
 from .brokertypes import (
     Boolean,

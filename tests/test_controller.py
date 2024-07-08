@@ -1,4 +1,5 @@
 """This verifies zeekclient.controller.Controller's behavior."""
+
 import io
 import os
 import re

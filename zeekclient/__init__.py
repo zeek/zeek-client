@@ -4,17 +4,19 @@ Zeek event abstraction on top of Broker, and various types that mirror those
 defined in Zeek's policy/management/frameworks/management/types.zeek, needed
 for request/response events.
 """
-from . import brokertypes
-from . import cli
-from . import config
-from . import consts
-from . import controller
-from . import events
-from . import logs
-from . import ssl
-from . import types
-from . import utils
 
+from . import (
+    brokertypes,
+    cli,
+    config,
+    consts,
+    controller,
+    events,
+    logs,
+    ssl,
+    types,
+    utils,
+)
 from .config import CONFIG
 
 from .consts import (

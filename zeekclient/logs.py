@@ -1,4 +1,5 @@
 """Logging configuration for zeek-client."""
+
 import logging
 
 LOG = logging.getLogger(__name__)

@@ -8,6 +8,7 @@ Python type.
 For reference, see: https://docs.zeek.org/projects/broker/en/current/web-socket.html
 
 """
+
 import abc
 import datetime
 import enum

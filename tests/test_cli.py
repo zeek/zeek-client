@@ -1,4 +1,5 @@
 """This verifies zeek-client invocations."""
+
 import io
 import os
 import re
