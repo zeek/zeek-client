@@ -31,13 +31,13 @@ from zeekclient.brokertypes import (
 
 
 class TestBrokertypes(unittest.TestCase):
-    def assertEqualRoundtrip(self, data):
+    def assertEqualRoundtrip(self, data):  # noqa: N802
         # This verifies for the given Brokertype object that it can serialize
         # into Broker's wire format, unserialize, and yield an identical object.
         output = type(data).unserialize(data.serialize())
         self.assertEqual(data, output)
 
-    def assertHash(self, val):
+    def assertHash(self, val):  # noqa: N802
         d = {val: 1}
         self.assertEqual(d[val], 1)
 

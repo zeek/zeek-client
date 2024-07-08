@@ -18,7 +18,7 @@ from zeekclient.types import (
 
 
 class TestTypes(unittest.TestCase):
-    def assertHash(self, val):
+    def assertHash(self, val):  # noqa: N802
         d = {val: 1}
         self.assertEqual(d[val], 1)
 

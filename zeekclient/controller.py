@@ -108,10 +108,10 @@ class Controller:
                 try:
                     attempts -= 1
                     return op()
-                except websocket.WebSocketTimeoutException:
+                except websocket.WebSocketTimeoutError:
                     time.sleep(retry_delay)
                     continue
-                except websocket.WebSocketException as err:
+                except websocket.WebSocketError as err:
                     LOG.error(
                         "websocket error in %s with controller %s:%s: %s",
                         stage,
@@ -268,7 +268,7 @@ class Controller:
                         None,
                         f"protocol data error with controller {remote}: {err}",
                     )
-                except websocket.WebSocketTimeoutException:
+                except websocket.WebSocketTimeoutError:
                     return (
                         None,
                         f"websocket connection to {remote} timed out",

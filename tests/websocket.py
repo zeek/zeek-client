@@ -6,15 +6,15 @@ For details, see https://github.com/websocket-client/websocket-client.
 import zeekclient
 
 
-class WebSocketException(Exception):
+class WebSocketError(Exception):
     pass
 
 
-class WebSocketTimeoutException(WebSocketException):
+class WebSocketTimeoutError(WebSocketError):
     pass
 
 
-class UnknownException(Exception):
+class UnknownError(Exception):
     pass
 
 

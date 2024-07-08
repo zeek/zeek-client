@@ -58,6 +58,7 @@ select = [
     "F",
     "I",
     "ISC",
+    "N",
     "UP",
 ]
 ignore = [

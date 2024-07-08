@@ -136,7 +136,7 @@ metrics_port = 6001
     ]
 }"""
 
-    def assertEqualStripped(self, str1, str2):
+    def assertEqualStripped(self, str1, str2):  # noqa: N802
         self.assertEqual(str1.strip(), str2.strip())
 
     def parser_from_string(self, content):

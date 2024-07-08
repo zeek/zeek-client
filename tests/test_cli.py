@@ -136,7 +136,7 @@ class TestCli(unittest.TestCase):
         zc.types.make_uuid = self.orig_make_uuid
         zc.utils.make_uuid = self.orig_make_uuid
 
-    def assertLogLines(self, *patterns):
+    def assertLogLines(self, *patterns):  # noqa: N802
         buflines = self.logbuf.getvalue().split("\n")
         todo = list(patterns)
         for line in buflines:
