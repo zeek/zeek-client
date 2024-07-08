@@ -1,7 +1,19 @@
 """This verifies the Python-level representations of Zeek records in types module."""
 import unittest
-import zeekclient.brokertypes as bt  # pylint: disable=wrong-import-position
-from zeekclient.types import *  # pylint: disable=wrong-import-position,unused-wildcard-import,wildcard-import
+
+import zeekclient.brokertypes as bt
+from zeekclient.types import (
+    ClusterRole,
+    Configuration,
+    Instance,
+    ManagementRole,
+    Node,
+    NodeOutputs,
+    NodeStatus,
+    Option,
+    Result,
+    State,
+)
 
 
 class TestTypes(unittest.TestCase):

@@ -7,8 +7,6 @@ import sys
 
 from argparse_manpage.manpage import Manpage
 
-import zeekclient.cli
-
 LOCALDIR = os.path.dirname(os.path.realpath(__file__))
 ROOTDIR = os.path.normpath(os.path.join(LOCALDIR, ".."))
 

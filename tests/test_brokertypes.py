@@ -1,7 +1,32 @@
 """This verifies the behavior of the types provied by the brokertypes module."""
 import datetime
 import unittest
-from zeekclient.brokertypes import *
+
+from zeekclient.brokertypes import (
+    Address,
+    Boolean,
+    Count,
+    DataMessage,
+    Enum,
+    ErrorMessage,
+    HandshakeAckMessage,
+    HandshakeMessage,
+    Integer,
+    NoneType,
+    Port,
+    Real,
+    Set,
+    String,
+    Subnet,
+    Table,
+    Timespan,
+    Timestamp,
+    Vector,
+    ZeekEvent,
+    from_py,
+    ipaddress,
+    unserialize,
+)
 
 
 class TestBrokertypes(unittest.TestCase):
