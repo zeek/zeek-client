@@ -38,8 +38,9 @@ class WebSocket:
         # HandshakeAckMessage, so put that in the queue:
         self.mock_recv_queue = [
             zeekclient.brokertypes.HandshakeAckMessage(
-                self.mock_broker_id, 1.0
-            ).serialize()
+                self.mock_broker_id,
+                1.0,
+            ).serialize(),
         ]
 
         # Messages sent via the socket

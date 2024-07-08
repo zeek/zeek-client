@@ -126,10 +126,12 @@ class TestBrokertypes(unittest.TestCase):
         self.assertEqual(Timespan("10s").to_py(), datetime.timedelta(seconds=10))
 
         self.assertEqual(
-            Timespan("10.5d").to_py(), datetime.timedelta(days=10, hours=12)
+            Timespan("10.5d").to_py(),
+            datetime.timedelta(days=10, hours=12),
         )
         self.assertEqual(
-            Timespan(datetime.timedelta(microseconds=1)), Timespan("1000ns")
+            Timespan(datetime.timedelta(microseconds=1)),
+            Timespan("1000ns"),
         )
         self.assertEqual(Timespan(datetime.timedelta(milliseconds=1)), Timespan("1ms"))
         self.assertEqual(Timespan(datetime.timedelta(seconds=1)), Timespan("1000ms"))
@@ -161,7 +163,8 @@ class TestBrokertypes(unittest.TestCase):
         self.assertEqual(Timestamp(ts1), Timestamp(ts1))
         self.assertEqual(Timestamp(ts1).to_py(), datetime.datetime.fromisoformat(ts1))
         self.assertEqual(
-            Timestamp(ts1), Timestamp(datetime.datetime.fromisoformat(ts1))
+            Timestamp(ts1),
+            Timestamp(datetime.datetime.fromisoformat(ts1)),
         )
 
         self.assertNotEqual(Timestamp(ts1), Timestamp(ts2))
@@ -205,16 +208,20 @@ class TestBrokertypes(unittest.TestCase):
     def test_address(self):
         self.assertEqual(Address("127.0.0.1"), Address("127.0.0.1"))
         self.assertEqual(
-            Address(ipaddress.ip_address("127.0.0.1")), Address("127.0.0.1")
+            Address(ipaddress.ip_address("127.0.0.1")),
+            Address("127.0.0.1"),
         )
         self.assertEqual(
-            Address(ipaddress.ip_address("2001:db8::")), Address("2001:db8::")
+            Address(ipaddress.ip_address("2001:db8::")),
+            Address("2001:db8::"),
         )
         self.assertEqual(
-            Address("127.0.0.1").to_py(), ipaddress.ip_address("127.0.0.1")
+            Address("127.0.0.1").to_py(),
+            ipaddress.ip_address("127.0.0.1"),
         )
         self.assertEqual(
-            Address("127.0.0.1"), from_py(ipaddress.ip_address("127.0.0.1"))
+            Address("127.0.0.1"),
+            from_py(ipaddress.ip_address("127.0.0.1")),
         )
 
         self.assertNotEqual(Address("127.0.0.1"), Address("10.0.0.1"))
@@ -232,16 +239,20 @@ class TestBrokertypes(unittest.TestCase):
     def test_subnet(self):
         self.assertEqual(Subnet("10.0.0.0/8"), Subnet("10.0.0.0/8"))
         self.assertEqual(
-            Subnet(ipaddress.ip_network("10.0.0.0/8")), Subnet("10.0.0.0/8")
+            Subnet(ipaddress.ip_network("10.0.0.0/8")),
+            Subnet("10.0.0.0/8"),
         )
         self.assertEqual(
-            Subnet(ipaddress.ip_network("2001:db8::/32")), Subnet("2001:db8::/32")
+            Subnet(ipaddress.ip_network("2001:db8::/32")),
+            Subnet("2001:db8::/32"),
         )
         self.assertEqual(
-            Subnet("10.0.0.0/8").to_py(), ipaddress.ip_network("10.0.0.0/8")
+            Subnet("10.0.0.0/8").to_py(),
+            ipaddress.ip_network("10.0.0.0/8"),
         )
         self.assertEqual(
-            Subnet("10.0.0.0/8"), from_py(ipaddress.ip_network("10.0.0.0/8"))
+            Subnet("10.0.0.0/8"),
+            from_py(ipaddress.ip_network("10.0.0.0/8")),
         )
 
         self.assertNotEqual(Subnet("10.0.0.0/8"), Subnet("10.0.0.1"))
@@ -295,7 +306,8 @@ class TestBrokertypes(unittest.TestCase):
 
         self.assertNotEqual(Vector([from_py(1), from_py("foo")]), Vector([from_py(1)]))
         self.assertNotEqual(
-            Vector([from_py(1), from_py("foo")]), Vector([from_py(1), from_py("noo")])
+            Vector([from_py(1), from_py("foo")]),
+            Vector([from_py(1), from_py("noo")]),
         )
 
         self.assertEqualRoundtrip(Vector([from_py(1), from_py("foo"), from_py(True)]))
@@ -322,7 +334,8 @@ class TestBrokertypes(unittest.TestCase):
 
         self.assertNotEqual(Set({from_py(1), from_py("foo")}), Set({from_py(1)}))
         self.assertNotEqual(
-            Set({from_py(1), from_py("foo")}), Set({from_py(1), from_py("noo")})
+            Set({from_py(1), from_py("foo")}),
+            Set({from_py(1), from_py("noo")}),
         )
 
         self.assertEqualRoundtrip(Set({from_py(1), from_py("foo"), from_py(True)}))
@@ -360,7 +373,7 @@ class TestBrokertypes(unittest.TestCase):
         )
 
         self.assertEqualRoundtrip(
-            Table({from_py("foo"): from_py(1), from_py("bar"): from_py(2)})
+            Table({from_py("foo"): from_py(1), from_py("bar"): from_py(2)}),
         )
         for _ in val:
             pass
@@ -374,22 +387,22 @@ class TestBrokertypes(unittest.TestCase):
         self.assertTrue(String("foo") in val)
 
         self.assertFalse(
-            Table({from_py("foo"): from_py(1)}) < Table({from_py("foo"): from_py(1)})
+            Table({from_py("foo"): from_py(1)}) < Table({from_py("foo"): from_py(1)}),
         )
         self.assertTrue(
-            Table({from_py("foo"): from_py(1)}) < Table({from_py("foo"): from_py(2)})
+            Table({from_py("foo"): from_py(1)}) < Table({from_py("foo"): from_py(2)}),
         )
         self.assertTrue(
             Table({from_py("bar"): from_py(1)})
-            < Table({from_py("foo"): from_py(1), from_py("bar"): from_py(1)})
+            < Table({from_py("foo"): from_py(1), from_py("bar"): from_py(1)}),
         )
         self.assertTrue(
             Table({from_py("foo"): from_py(1)})
-            < Table({from_py("foo"): from_py(1), from_py("bar"): from_py(2)})
+            < Table({from_py("foo"): from_py(1), from_py("bar"): from_py(2)}),
         )
         self.assertTrue(
             Table({from_py("aaa"): from_py(1)})
-            < Table({from_py("foo"): from_py(1), from_py("bar"): from_py(2)})
+            < Table({from_py("foo"): from_py(1), from_py("bar"): from_py(2)}),
         )
         self.assertHash(val)
 
@@ -454,26 +467,31 @@ class TestBrokertypes(unittest.TestCase):
 
     def test_handshake_message(self):
         self.assertEqual(
-            HandshakeMessage(["foo", "bar"]), HandshakeMessage(["foo", String("bar")])
+            HandshakeMessage(["foo", "bar"]),
+            HandshakeMessage(["foo", String("bar")]),
         )
         self.assertNotEqual(HandshakeMessage(["foo", "bar"]), HandshakeMessage(["foo"]))
         self.assertEqualRoundtrip(HandshakeMessage(["foo", "bar"]))
 
     def test_handshake_ack_message(self):
         self.assertEqual(
-            HandshakeAckMessage("aaaa", "1.0"), HandshakeAckMessage("aaaa", "1.0")
+            HandshakeAckMessage("aaaa", "1.0"),
+            HandshakeAckMessage("aaaa", "1.0"),
         )
         self.assertNotEqual(
-            HandshakeAckMessage("aaaa", "1.0"), HandshakeAckMessage("bbbb", "1.0")
+            HandshakeAckMessage("aaaa", "1.0"),
+            HandshakeAckMessage("bbbb", "1.0"),
         )
         self.assertEqualRoundtrip(HandshakeAckMessage("aaaa", "1.0"))
 
     def test_data_message(self):
         self.assertEqual(
-            DataMessage("foo", String("test")), DataMessage("foo", String("test"))
+            DataMessage("foo", String("test")),
+            DataMessage("foo", String("test")),
         )
         self.assertNotEqual(
-            DataMessage("foo", String("test")), DataMessage("foo", String("other"))
+            DataMessage("foo", String("test")),
+            DataMessage("foo", String("other")),
         )
         self.assertEqualRoundtrip(DataMessage("foo", String("test")))
 
@@ -545,8 +563,8 @@ class TestBrokertypes(unittest.TestCase):
                             "@data-type": "integer",
                             "data": "42",
                         },
-                    }
-                ]
-            }
+                    },
+                ],
+            },
         )
         self.assertEqual(1, len(t))

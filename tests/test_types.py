@@ -84,7 +84,8 @@ class TestTypes(unittest.TestCase):
         val1 = self.brokertype_roundtrip(val0)
         self.assertEqual(val0, val1)
         self.assertEqual(
-            val0.to_json_data(), {"name": "instance1", "host": "10.0.0.1", "port": 1234}
+            val0.to_json_data(),
+            {"name": "instance1", "host": "10.0.0.1", "port": 1234},
         )
 
         self.assertHash(val0)
@@ -150,8 +151,8 @@ class TestTypes(unittest.TestCase):
                     bt.Enum("Supervisor::WORKER"),
                     bt.Integer(123),
                     bt.Port(1234),
-                ]
-            )
+                ],
+            ),
         )
 
         self.assertEqual(val0, val1)
@@ -176,8 +177,8 @@ class TestTypes(unittest.TestCase):
                     bt.String("data"),
                     bt.String("an error"),
                     bt.String("worker1"),
-                ]
-            )
+                ],
+            ),
         )
 
         self.assertEqual(val0, val1)
@@ -190,8 +191,8 @@ class TestTypes(unittest.TestCase):
                 [
                     bt.String("stdout content"),
                     bt.String("stderr content"),
-                ]
-            )
+                ],
+            ),
         )
 
         self.assertEqual(val0, val1)

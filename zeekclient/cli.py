@@ -157,7 +157,9 @@ def create_parser():
     )
 
     parser.add_argument(
-        "--version", action="store_true", help="Show version number and exit."
+        "--version",
+        action="store_true",
+        help="Show version number and exit.",
     )
 
     command_parser = parser.add_subparsers(
@@ -167,20 +169,25 @@ def create_parser():
     )
 
     sub_parser = command_parser.add_parser(
-        "deploy", help="Deploy a staged cluster configuration."
+        "deploy",
+        help="Deploy a staged cluster configuration.",
     )
     sub_parser.set_defaults(run_cmd=cmd_deploy)
 
     sub_parser = command_parser.add_parser(
-        "deploy-config", help="Upload a cluster configuration and deploy it."
+        "deploy-config",
+        help="Upload a cluster configuration and deploy it.",
     )
     sub_parser.set_defaults(run_cmd=cmd_deploy_config)
     sub_parser.add_argument(
-        "config", metavar="FILE", help='Cluster configuration file, "-" for stdin'
+        "config",
+        metavar="FILE",
+        help='Cluster configuration file, "-" for stdin',
     )
 
     sub_parser = command_parser.add_parser(
-        "get-config", help="Retrieve staged or deployed cluster configuration."
+        "get-config",
+        help="Retrieve staged or deployed cluster configuration.",
     )
     sub_parser.set_defaults(run_cmd=cmd_get_config)
     sub_parser.add_argument(
@@ -230,17 +237,20 @@ def create_parser():
     )
 
     sub_parser = command_parser.add_parser(
-        "get-instances", help="Show instances connected to the controller."
+        "get-instances",
+        help="Show instances connected to the controller.",
     )
     sub_parser.set_defaults(run_cmd=cmd_get_instances)
 
     sub_parser = command_parser.add_parser(
-        "get-nodes", help="Show active Zeek nodes at each instance."
+        "get-nodes",
+        help="Show active Zeek nodes at each instance.",
     )
     sub_parser.set_defaults(run_cmd=cmd_get_nodes)
 
     sub_parser = command_parser.add_parser(
-        "monitor", help="For troubleshooting: do nothing, just report events."
+        "monitor",
+        help="For troubleshooting: do nothing, just report events.",
     )
     sub_parser.set_defaults(run_cmd=cmd_monitor)
 
@@ -256,20 +266,25 @@ def create_parser():
     )
 
     sub_parser = command_parser.add_parser(
-        "stage-config", help="Upload a cluster configuration for later deployment."
+        "stage-config",
+        help="Upload a cluster configuration for later deployment.",
     )
     sub_parser.set_defaults(run_cmd=cmd_stage_config)
     sub_parser.add_argument(
-        "config", metavar="FILE", help='Cluster configuration file, "-" for stdin'
+        "config",
+        metavar="FILE",
+        help='Cluster configuration file, "-" for stdin',
     )
 
     sub_parser = command_parser.add_parser(
-        "show-settings", help="Show zeek-client's own configuration."
+        "show-settings",
+        help="Show zeek-client's own configuration.",
     )
     sub_parser.set_defaults(run_cmd=cmd_show_settings)
 
     sub_parser = command_parser.add_parser(
-        "test-timeout", help="Send timeout test event."
+        "test-timeout",
+        help="Send timeout test event.",
     )
     sub_parser.set_defaults(run_cmd=cmd_test_timeout)
     sub_parser.add_argument(
@@ -359,7 +374,9 @@ def cmd_get_config(args):
         return 1
 
     resp, msg = controller.transact(
-        GetConfigurationRequest, GetConfigurationResponse, args.deployed
+        GetConfigurationRequest,
+        GetConfigurationResponse,
+        args.deployed,
     )
 
     if resp is None:
@@ -399,7 +416,10 @@ def cmd_get_id_value(args):
         return 1
 
     resp, msg = controller.transact(
-        GetIdValueRequest, GetIdValueResponse, args.id, set(args.nodes)
+        GetIdValueRequest,
+        GetIdValueResponse,
+        args.id,
+        set(args.nodes),
     )
 
     if resp is None:
@@ -424,7 +444,7 @@ def cmd_get_id_value(args):
                 {
                     "source": res.node,
                     "error": res.error,
-                }
+                },
             )
             continue
 
@@ -438,7 +458,7 @@ def cmd_get_id_value(args):
                     {
                         "source": res.node,
                         "error": f"invalid result data type {repr(res.data)}",
-                    }
+                    },
                 )
                 continue
 
@@ -449,14 +469,14 @@ def cmd_get_id_value(args):
                     {
                         "source": res.node,
                         "error": f"JSON decode error: {err}",
-                    }
+                    },
                 )
             continue
 
         json_data["errors"].append(
             {
                 "error": f"result lacking node: {res.data}",
-            }
+            },
         )
 
     print(json_dumps(json_data), file=STDOUT)
@@ -525,7 +545,7 @@ def cmd_get_nodes(_args):
                 {
                     "source": res.instance,
                     "error": res.error,
-                }
+                },
             )
             continue
 
@@ -534,7 +554,7 @@ def cmd_get_nodes(_args):
                 {
                     "source": res.instance,
                     "error": "result does not contain node status data",
-                }
+                },
             )
             continue
 
@@ -567,9 +587,9 @@ def cmd_get_nodes(_args):
                 if nstat.port is not None:
                     json_data["results"][res.instance][nstat.node]["port"] = nstat.port
                 if nstat.metrics_port is not None:
-                    json_data["results"][res.instance][nstat.node][
-                        "metrics_port"
-                    ] = nstat.metrics_port
+                    json_data["results"][res.instance][nstat.node]["metrics_port"] = (
+                        nstat.metrics_port
+                    )
         except TypeError as err:
             LOG.error("NodeStatus data invalid: %s", err)
             LOG.debug(traceback.format_exc())
@@ -624,7 +644,7 @@ def cmd_restart(args):
                 {
                     "source": res.node,
                     "error": res.error,
-                }
+                },
             )
             continue
 
@@ -636,7 +656,7 @@ def cmd_restart(args):
         json_data["errors"].append(
             {
                 "error": f"result lacking node: {res}",
-            }
+            },
         )
 
     print(json_dumps(json_data), file=STDOUT)
@@ -680,7 +700,9 @@ def cmd_stage_config_impl(args):
         return 1, None, None
 
     resp, msg = controller.transact(
-        StageConfigurationRequest, StageConfigurationResponse, config.to_brokertype()
+        StageConfigurationRequest,
+        StageConfigurationResponse,
+        config.to_brokertype(),
     )
 
     if resp is None:
@@ -742,7 +764,9 @@ def cmd_test_timeout(args):
         return 1
 
     resp, msg = controller.transact(
-        TestTimeoutRequest, TestTimeoutResponse, args.with_state
+        TestTimeoutRequest,
+        TestTimeoutResponse,
+        args.with_state,
     )
 
     if resp is None:

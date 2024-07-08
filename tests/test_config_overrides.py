@@ -18,7 +18,8 @@ class TestConfig(unittest.TestCase):
         # One of each type:
         self.assertEqual(self.config.getint("client", "request_timeout_secs"), 20)
         self.assertEqual(
-            self.config.getfloat("client", "peering_retry_delay_secs"), 1.0
+            self.config.getfloat("client", "peering_retry_delay_secs"),
+            1.0,
         )
         self.assertEqual(self.config.getboolean("client", "rich_logging_format"), False)
 
@@ -32,7 +33,7 @@ class TestConfig(unittest.TestCase):
     @unittest.mock.patch.dict(
         os.environ,
         {
-            "ZEEK_CLIENT_CONFIG_SETTINGS": 'client.request_timeout_secs=23 server.FOO="1 2 3"'
+            "ZEEK_CLIENT_CONFIG_SETTINGS": 'client.request_timeout_secs=23 server.FOO="1 2 3"',
         },
     )
     def test_update_from_env(self):
@@ -43,7 +44,7 @@ class TestConfig(unittest.TestCase):
     def test_update_from_args(self):
         parser = zeekclient.cli.create_parser()
         args = parser.parse_args(
-            ["--set", "client.request_timeout_secs=42", "--set", "server.FOO=1 2 3"]
+            ["--set", "client.request_timeout_secs=42", "--set", "server.FOO=1 2 3"],
         )
         self.config.update_from_args(args)
         self.assertEqual(self.config.getint("client", "request_timeout_secs"), 42)

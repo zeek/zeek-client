@@ -33,7 +33,7 @@ class Event(SerializableZeekType):
         """
         if len(args) != len(self.ARG_NAMES):
             raise TypeError(
-                f"event argument length mismatch: have {len(args)}, expected {len(self.ARG_NAMES)}"
+                f"event argument length mismatch: have {len(args)}, expected {len(self.ARG_NAMES)}",
             )
 
         self.args = []
@@ -53,7 +53,7 @@ class Event(SerializableZeekType):
             except TypeError as err:
                 raise TypeError(
                     f"event argument type mismatch: argument "
-                    f"{idx+1} is {type(arg)}, {err}"
+                    f"{idx+1} is {type(arg)}, {err}",
                 ) from err
 
             # Again: if we now have a type match, we're done.
@@ -63,7 +63,7 @@ class Event(SerializableZeekType):
 
             raise TypeError(
                 f"event argument type mismatch: argument "
-                f"{idx+1} is {type(arg)}, should be {self.ARG_TYPES[idx]}"
+                f"{idx+1} is {type(arg)}, should be {self.ARG_TYPES[idx]}",
             )
 
     def __getattr__(self, name):
@@ -73,7 +73,7 @@ class Event(SerializableZeekType):
             return self.args[idx]
         except ValueError as err:
             raise AttributeError(
-                f'event type {self.NAME} has no "{name}" argument'
+                f'event type {self.NAME} has no "{name}" argument',
             ) from err
 
     def __str__(self):
@@ -113,14 +113,14 @@ class Registry:
         if len(arg_names) != len(arg_types):
             raise TypeError(
                 f"error creating event type {name}: number of event "
-                f"argument names and types must match ({len(arg_names)}/{len(arg_types)})"
+                f"argument names and types must match ({len(arg_names)}/{len(arg_types)})",
             )
 
         for idx, typ in enumerate(arg_types):
             if not issubclass(typ, Type):
                 raise TypeError(
                     f"event type creation error: argument {idx+1}, "
-                    f'"{arg_names[idx]}", is not a brokertype class'
+                    f'"{arg_names[idx]}", is not a brokertype class',
                 )
         res.NAME = name
         res.ARG_NAMES = arg_names
@@ -146,7 +146,9 @@ class Registry:
 # tuple below, reflecting Broker's representation thereof.
 
 DeployRequest = Registry.make_event_class(
-    "Management::Controller::API::deploy_request", ("reqid",), (String,)
+    "Management::Controller::API::deploy_request",
+    ("reqid",),
+    (String,),
 )
 
 DeployResponse = Registry.make_event_class(
@@ -180,7 +182,9 @@ GetIdValueResponse = Registry.make_event_class(
 )
 
 GetInstancesRequest = Registry.make_event_class(
-    "Management::Controller::API::get_instances_request", ("reqid",), (String,)
+    "Management::Controller::API::get_instances_request",
+    ("reqid",),
+    (String,),
 )
 
 GetInstancesResponse = Registry.make_event_class(
@@ -190,7 +194,9 @@ GetInstancesResponse = Registry.make_event_class(
 )
 
 GetNodesRequest = Registry.make_event_class(
-    "Management::Controller::API::get_nodes_request", ("reqid",), (String,)
+    "Management::Controller::API::get_nodes_request",
+    ("reqid",),
+    (String,),
 )
 
 GetNodesResponse = Registry.make_event_class(
@@ -200,7 +206,9 @@ GetNodesResponse = Registry.make_event_class(
 )
 
 RestartRequest = Registry.make_event_class(
-    "Management::Controller::API::restart_request", ("reqid", "nodes"), (String, Set)
+    "Management::Controller::API::restart_request",
+    ("reqid", "nodes"),
+    (String, Set),
 )
 
 RestartResponse = Registry.make_event_class(
@@ -222,7 +230,9 @@ StageConfigurationResponse = Registry.make_event_class(
 )
 
 TestNoopRequest = Registry.make_event_class(
-    "Management::Controller::API::test_noop_request", ("reqid",), (String,)
+    "Management::Controller::API::test_noop_request",
+    ("reqid",),
+    (String,),
 )
 
 TestTimeoutRequest = Registry.make_event_class(

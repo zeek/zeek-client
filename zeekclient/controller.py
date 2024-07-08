@@ -54,7 +54,7 @@ class Controller:
         try:
             if self.controller_port < 1 or self.controller_port > 65535:
                 raise ValueError(
-                    f"controller port number {self.controller_port} outside valid range"
+                    f"controller port number {self.controller_port} outside valid range",
                 )
 
             disable_ssl = CONFIG.getboolean("ssl", "disable")
@@ -68,7 +68,7 @@ class Controller:
         except (ValueError, OSError, ssl.SSLError) as err:
             raise ConfigError(
                 f"cannot configure connection to "
-                f"{self.controller_host}:{self.controller_port}: {err}"
+                f"{self.controller_host}:{self.controller_port}: {err}",
             ) from err
 
     def connect(self):
@@ -86,7 +86,9 @@ class Controller:
         according messages written to the log.
         """
         LOG.info(
-            "connecting to controller %s:%s", self.controller_host, self.controller_port
+            "connecting to controller %s:%s",
+            self.controller_host,
+            self.controller_port,
         )
 
         attempts = CONFIG.getint("client", "peering_attempts")

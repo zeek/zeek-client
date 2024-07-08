@@ -51,9 +51,11 @@ script-files = ["zeek-client"]
 
 [tool.ruff.lint]
 select = [
+    "COM",
     "ISC",
     "UP",
 ]
 ignore = [
-    "ISC001"
+    "COM812",
+    "ISC001",
 ]
