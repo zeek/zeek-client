@@ -18,12 +18,6 @@ the idioms and primitives also used by the zkg package manager.
 # pylint: enable=invalid-name
 
 import sys
-try:
-    # Argcomplete provides command-line completion for users of argparse.
-    # We support it if available, but don't complain when it isn't.
-    import argcomplete  # pylint: disable=import-error
-except ImportError:
-    pass
 
 import zeekclient
 
@@ -35,9 +29,6 @@ def main():
     zeekclient.CONFIG.update_from_env()
 
     parser = zeekclient.cli.create_parser()
-
-    if "argcomplete" in sys.modules:
-        argcomplete.autocomplete(parser)
 
     args = parser.parse_args()
 

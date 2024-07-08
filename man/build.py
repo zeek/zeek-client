@@ -5,11 +5,7 @@
 import os
 import sys
 
-try:
-    from argparse_manpage.manpage import Manpage
-except ImportError:
-    print("The manpage builder needs the argparse_manpage package.")
-    sys.exit(1)
+from argparse_manpage.manpage import Manpage
 
 import zeekclient.cli
 

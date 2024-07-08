@@ -4,6 +4,8 @@ dynamic = ["version"]
 description = "A CLI for Zeek's Management Framework"
 dependencies = [
     "websocket-client>=1.8.0",
+    "argcomplete>=3.4.0",
+    "argparse>=1.4.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

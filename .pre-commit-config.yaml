@@ -9,7 +9,9 @@ repos:
   hooks:
   - id: pylint
     additional_dependencies:
+      - argcomplete
       - argparse_manpage
+      - setuptools
       - websocket-client
 
 - repo: https://github.com/pre-commit/pre-commit-hooks
