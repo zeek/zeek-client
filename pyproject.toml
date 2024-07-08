@@ -1,0 +1,47 @@
+[project]
+name = "zeek-client"
+dynamic = ["version"]
+description = "A CLI for Zeek's Management Framework"
+dependencies = [
+    "websocket-client>=1.8.0",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+license = {text = "3-clause BSD License"}
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Networking :: Monitoring",
+    "Topic :: Utilities",
+]
+
+keywords=[
+    "zeek",
+    "management",
+    "client",
+    "cluster",
+]
+
+[[project.maintainers]]
+name = "The Zeek Project"
+email = "info@zeek.org"
+
+[project.urls]
+Repository = "https://github.com/zeek/zeek-client"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.1.1",
+]
+
+[build-system]
+requires = ["setuptools"]
+
+[tool.setuptools]
+packages = ["zeekclient"]
+script-files = ["zeek-client"]
