@@ -30,6 +30,7 @@ agent
 instance = agent
 port = 5000
 role = manager
+metrics_port = 6000
 
 [logger-01]
 instance = agent
@@ -49,6 +50,7 @@ instance = agent
 role = worker
 interface = enp3s0
 cpu_affinity = 8
+metrics_port = 6001
 """
     INI_EXPECTED = """[instances]
 agent
@@ -63,6 +65,7 @@ scripts = foo/bar/baz
 instance = agent
 role = MANAGER
 port = 5000
+metrics_port = 6000
 
 [worker-01]
 instance = agent
@@ -76,6 +79,7 @@ instance = agent
 role = WORKER
 interface = enp3s0
 cpu_affinity = 8
+metrics_port = 6001
 """
     JSON_EXPECTED = """{
     "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
@@ -90,6 +94,7 @@ cpu_affinity = 8
             "env": {},
             "instance": "agent",
             "interface": null,
+            "metrics_port": null,
             "name": "logger-01",
             "options": null,
             "port": 5001,
@@ -103,6 +108,7 @@ cpu_affinity = 8
             "env": {},
             "instance": "agent",
             "interface": null,
+            "metrics_port": 6000,
             "name": "manager",
             "options": null,
             "port": 5000,
@@ -117,6 +123,7 @@ cpu_affinity = 8
             },
             "instance": "agent",
             "interface": "lo",
+            "metrics_port": null,
             "name": "worker-01",
             "options": null,
             "port": null,
@@ -128,6 +135,7 @@ cpu_affinity = 8
             "env": {},
             "instance": "agent",
             "interface": "enp3s0",
+            "metrics_port": 6001,
             "name": "worker-02",
             "options": null,
             "port": null,

@@ -327,6 +327,7 @@ class TestCli(unittest.TestCase):
       "env": {},
       "instance": "instance1",
       "interface": null,
+      "metrics_port": null,
       "name": "worker1",
       "options": null,
       "port": null,

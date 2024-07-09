@@ -105,6 +105,7 @@ class TestTypes(unittest.TestCase):
             interface="eth0",
             cpu_affinity=13,
             env={"FOO": "BAR"},
+            metrics_port=9000,
         )
         val1 = self.brokertype_roundtrip(val0)
         self.assertEqual(val0, val1)
