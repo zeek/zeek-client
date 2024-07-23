@@ -2,23 +2,14 @@
 their content (excluding deeper validations happening in the cluster
 controller), and serialize them correctly to INI/JSON.
 """
+
 import configparser
 import io
 import json
-import os
-import sys
 import unittest
+from unittest.mock import MagicMock, patch
 
-from unittest.mock import patch, MagicMock
-
-TESTS = os.path.dirname(os.path.realpath(__file__))
-ROOT = os.path.normpath(os.path.join(TESTS, ".."))
-
-# Prepend the tree's root folder to the module searchpath so we find zeekclient
-# via it. This allows tests to run without package installation.
-sys.path.insert(0, ROOT)
-
-import zeekclient  # pylint: disable=wrong-import-position
+import zeekclient
 
 
 class TestRendering(unittest.TestCase):
@@ -145,7 +136,7 @@ metrics_port = 6001
     ]
 }"""
 
-    def assertEqualStripped(self, str1, str2):
+    def assertEqualStripped(self, str1, str2):  # noqa: N802
         self.assertEqual(str1.strip(), str2.strip())
 
     def parser_from_string(self, content):
@@ -205,7 +196,8 @@ metrics_port = 6001
         jdata["id"] = "".join([canon(c) for c in jdata["id"]])
 
         self.assertEqual(
-            json.dumps(jdata, sort_keys=True, indent=4), self.JSON_EXPECTED
+            json.dumps(jdata, sort_keys=True, indent=4),
+            self.JSON_EXPECTED,
         )
 
     def test_config_addl_key(self):
@@ -293,7 +285,8 @@ port = 5000
 """
         cfp = self.parser_from_string(ini_input)
         with self.assertRaisesRegex(
-            ValueError, "'127.0.0.1.1' does not appear to be an IPv4 or IPv6 address"
+            ValueError,
+            "'127.0.0.1.1' does not appear to be an IPv4 or IPv6 address",
         ):
             zeekclient.types.Configuration.from_config_parser(cfp)
 
@@ -310,7 +303,8 @@ port = 5000
 """
         cfp = self.parser_from_string(ini_input)
         with self.assertRaisesRegex(
-            ValueError, "'::2/128' does not appear to be an IPv4 or IPv6 address"
+            ValueError,
+            "'::2/128' does not appear to be an IPv4 or IPv6 address",
         ):
             zeekclient.types.Configuration.from_config_parser(cfp)
 
@@ -364,7 +358,8 @@ instance = agent1
         self.assertFalse(config)
 
         self.assertEqualStripped(
-            self.logbuf.getvalue(), "error: either all or no nodes must state instances"
+            self.logbuf.getvalue(),
+            "error: either all or no nodes must state instances",
         )
 
     def test_config_missing_role(self):

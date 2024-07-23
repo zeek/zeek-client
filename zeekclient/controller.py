@@ -1,32 +1,16 @@
 """This module provides Broker-based communication with a Zeek cluster controller."""
+
 import ssl
-import sys
 import time
 
-# This requires the websockets-client package, confusingly imported under the
-# name "websocket", and called "python3-websocket" in the Debian/Ubuntu
-# world. Not to be confused with "websockets", the alternative, async-oriented
-# Python package! Please see: https://websocket-client.readthedocs.io
-try:
-    import websocket
-except ImportError:
-    print(
-        "The zeek-client package requires websocket-client.\n"
-        "If you use 'pip', you can install it as follows:\n"
-        "\n"
-        "    pip3 install websocket-client\n"
-        "\n",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+import websocket
 
 from .brokertypes import (
-    ZeekEvent,
-    HandshakeMessage,
-    HandshakeAckMessage,
     DataMessage,
+    HandshakeAckMessage,
+    HandshakeMessage,
+    ZeekEvent,
 )
-
 from .config import CONFIG
 from .consts import CONTROLLER_TOPIC
 from .events import Registry
@@ -69,7 +53,7 @@ class Controller:
         try:
             if self.controller_port < 1 or self.controller_port > 65535:
                 raise ValueError(
-                    f"controller port number {self.controller_port} outside valid range"
+                    f"controller port number {self.controller_port} outside valid range",
                 )
 
             disable_ssl = CONFIG.getboolean("ssl", "disable")
@@ -83,7 +67,7 @@ class Controller:
         except (ValueError, OSError, ssl.SSLError) as err:
             raise ConfigError(
                 f"cannot configure connection to "
-                f"{self.controller_host}:{self.controller_port}: {err}"
+                f"{self.controller_host}:{self.controller_port}: {err}",
             ) from err
 
     def connect(self):
@@ -101,7 +85,9 @@ class Controller:
         according messages written to the log.
         """
         LOG.info(
-            "connecting to controller %s:%s", self.controller_host, self.controller_port
+            "connecting to controller %s:%s",
+            self.controller_host,
+            self.controller_port,
         )
 
         attempts = CONFIG.getint("client", "peering_attempts")
@@ -122,10 +108,10 @@ class Controller:
                 try:
                     attempts -= 1
                     return op()
-                except websocket.WebSocketTimeoutException:
+                except websocket.WebSocketTimeoutError:
                     time.sleep(retry_delay)
                     continue
-                except websocket.WebSocketException as err:
+                except websocket.WebSocketError as err:
                     LOG.error(
                         "websocket error in %s with controller %s:%s: %s",
                         stage,
@@ -282,7 +268,7 @@ class Controller:
                         None,
                         f"protocol data error with controller {remote}: {err}",
                     )
-                except websocket.WebSocketTimeoutException:
+                except websocket.WebSocketTimeoutError:
                     return (
                         None,
                         f"websocket connection to {remote} timed out",
@@ -302,7 +288,7 @@ class Controller:
                     res = Registry.make_event(evt.name, *evt.args)
                     if res is not None and (filter_pred is None or filter_pred(res)):
                         return res, ""
-                except TypeError as err:
+                except TypeError:
                     return None, (
                         f"protocol data error with controller {remote}: "
                         f"invalid event data, {repr(msg.data)}"

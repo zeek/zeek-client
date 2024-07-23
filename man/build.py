@@ -5,11 +5,7 @@
 import os
 import sys
 
-try:
-    from argparse_manpage.manpage import Manpage
-except ImportError:
-    print("The manpage builder needs the argparse_manpage package.")
-    sys.exit(1)
+from argparse_manpage.manpage import Manpage
 
 LOCALDIR = os.path.dirname(os.path.realpath(__file__))
 ROOTDIR = os.path.normpath(os.path.join(LOCALDIR, ".."))
@@ -18,7 +14,7 @@ ROOTDIR = os.path.normpath(os.path.join(LOCALDIR, ".."))
 # zeekclient package locally.
 sys.path.insert(0, ROOTDIR)
 
-import zeekclient.cli  # pylint: disable=wrong-import-position,import-error
+import zeekclient.cli  # noqa: E402
 
 
 def main():

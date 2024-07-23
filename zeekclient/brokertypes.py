@@ -8,6 +8,7 @@ Python type.
 For reference, see: https://docs.zeek.org/projects/broker/en/current/web-socket.html
 
 """
+
 import abc
 import datetime
 import enum
@@ -71,7 +72,7 @@ class Type(abc.ABC):
             obj = json.loads(data)
         except json.JSONDecodeError as err:
             raise TypeError(
-                f"cannot parse JSON data for {cls.__name__}: {err.msg} -- {data}"
+                f"cannot parse JSON data for {cls.__name__}: {err.msg} -- {data}",
             ) from err
 
         cls.check_broker_data(obj)
@@ -141,7 +142,7 @@ class DataType(Type):
         if not isinstance(other, DataType):
             raise TypeError(
                 f"'<' comparison not supported between instances "
-                f"of '{type(self).__name__}' and '{type(other).__name__}'"
+                f"of '{type(self).__name__}' and '{type(other).__name__}'",
             )
         # Supporting comparison accross data types allows us to sort the members
         # of a set or table keys. We simply compare the type names:
@@ -156,7 +157,7 @@ class DataType(Type):
             raise TypeError("invalid data layout for Broker data: not an object")
         if "@data-type" not in data or "data" not in data:
             raise TypeError(
-                "invalid data layout for Broker data: required keys missing"
+                "invalid data layout for Broker data: required keys missing",
             )
 
 
@@ -376,7 +377,7 @@ class Timespan(DataType):
                 return datetime.timedelta(weeks=counter / 7)
             return datetime.timedelta(days=counter)
 
-        assert False, f"unhandled timespan unit '{unit}'"
+        raise AssertionError(f"unhandled timespan unit '{unit}'")
 
     @classmethod
     def timedelta_to_broker_timespan(cls, tdelta):
@@ -616,7 +617,8 @@ class Port(DataType):
     @classmethod
     def from_broker(cls, data):
         return Port(
-            data["data"].split("/", 1)[0], Port.Proto(data["data"].split("/", 1)[1])
+            data["data"].split("/", 1)[0],
+            Port.Proto(data["data"].split("/", 1)[1]),
         )
 
 
@@ -624,7 +626,8 @@ class Vector(DataType):
     def __init__(self, elements=None):
         self._elements = elements or []
         if not isinstance(self._elements, tuple) and not isinstance(
-            self._elements, list
+            self._elements,
+            list,
         ):
             raise TypeError("Vector initialization requires tuple or list data")
         if not all(isinstance(elem, Type) for elem in self._elements):
@@ -699,7 +702,7 @@ class Set(DataType):
         return key in self._elements
 
     def to_py(self):
-        return set(elem.to_py() for elem in self._elements)
+        return {elem.to_py() for elem in self._elements}
 
     def to_broker(self):
         return {
@@ -777,7 +780,7 @@ class Table(DataType):
             {
                 from_broker(elem["key"]): from_broker(elem["value"])
                 for elem in data["data"]
-            }
+            },
         )
 
 
@@ -845,7 +848,7 @@ class ZeekEvent(Vector):
 
         # TODO: Extend to handle metadata
 
-        return ZeekEvent(name, *args._elements)  # pylint: disable=protected-access
+        return ZeekEvent(name, *args._elements)
 
     @classmethod
     def from_broker(cls, data):
@@ -866,11 +869,11 @@ class MessageType(Type):
     def check_broker_data(cls, data):
         if not isinstance(data, dict):
             raise TypeError(
-                f"invalid data layout for Broker {cls.__name__}: not an object"
+                f"invalid data layout for Broker {cls.__name__}: not an object",
             )
         if "type" not in data:
             raise TypeError(
-                f"invalid data layout for Broker {cls.__name__}: required keys missing"
+                f"invalid data layout for Broker {cls.__name__}: required keys missing",
             )
 
 
@@ -895,7 +898,7 @@ class HandshakeMessage(MessageType):
                     continue
                 raise TypeError(
                     "topics for HandshakeMessage must be Python or "
-                    "brokertype strings"
+                    "brokertype strings",
                 )
 
     def to_py(self):
@@ -941,7 +944,7 @@ class HandshakeAckMessage(MessageType):
             if key not in data:
                 raise TypeError(
                     f"invalid data layout for HandshakeAckMessage: "
-                    f'required key "{key}" missing'
+                    f'required key "{key}" missing',
                 )
 
     @classmethod
@@ -974,7 +977,7 @@ class DataMessage(MessageType):
             if key not in data:
                 raise TypeError(
                     f"invalid data layout for DataMessage: "
-                    f'required key "{key}" missing'
+                    f'required key "{key}" missing',
                 )
 
     @classmethod
@@ -1007,7 +1010,7 @@ class ErrorMessage(Type):
             if key not in data:
                 raise TypeError(
                     f"invalid data layout for ErrorMessage: "
-                    f'required key "{key}" missing'
+                    f'required key "{key}" missing',
                 )
 
     @classmethod
@@ -1156,27 +1159,27 @@ def from_py(data, typ=None, check_none=True):
             typ = _python_typemap[type(data)]
         except KeyError as err:
             raise TypeError(
-                f"cannot map Python type {type(data)} to Broker type"
+                f"cannot map Python type {type(data)} to Broker type",
             ) from err
 
     if typ == Table:
         res = Table()
         for key, val in data.items():
-            res._elements[from_py(key)] = from_py(  # pylint: disable=protected-access
-                val
+            res._elements[from_py(key)] = from_py(
+                val,
             )
         return res
 
     if typ == Vector:
         res = Vector()
         for elem in data:
-            res._elements.append(from_py(elem))  # pylint: disable=protected-access
+            res._elements.append(from_py(elem))
         return res
 
     if typ == Set:
         res = Set()
         for elem in data:
-            res._elements.add(from_py(elem))  # pylint: disable=protected-access
+            res._elements.add(from_py(elem))
         return res
 
     # For others the constructors of the types in this module should naturally

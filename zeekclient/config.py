@@ -2,6 +2,7 @@
 a set of config settings for zeek-client and includes ways to override these
 from the environment and the command line.
 """
+
 import configparser
 import os
 import shlex
@@ -87,7 +88,7 @@ class Config(configparser.ConfigParser):
                     # A passphrase to decrypt the private key, if required.
                     "passphrase": "",
                 },
-            }
+            },
         )
 
     def update_from_file(self, config_file=CONFIG_FILE):
@@ -110,7 +111,8 @@ class Config(configparser.ConfigParser):
                 self.apply(item)
             except ValueError:
                 LOG.error(
-                    'config item "%s" invalid. Please use <section.key>=<val>.', item
+                    'config item "%s" invalid. Please use <section.key>=<val>.',
+                    item,
                 )
 
         # The `--controller` argument is a shortcut for two `--set` arguments that

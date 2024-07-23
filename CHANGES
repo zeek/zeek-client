@@ -1,3 +1,47 @@
+1.3.1-36 | 2024-07-23 10:08:29 +0200
+
+  * Bump pre-commit hooks (Benjamin Bannier, Corelight)
+
+  * Stop linting with pylint (Benjamin Bannier, Corelight)
+
+  * Fix ruff N lints (Benjamin Bannier, Corelight)
+
+  * Fix ruff C4 lints (Benjamin Bannier, Corelight)
+
+  * Fix ruff B lints (Benjamin Bannier, Corelight)
+
+  * Fix ruff I lints (Benjamin Bannier, Corelight)
+
+  * Fix ruff COM lints (Benjamin Bannier, Corelight)
+
+  * Start linting with ruff (Benjamin Bannier, Corelight)
+
+  * Format project with ruff-format instead of black (Benjamin Bannier, Corelight)
+
+  * Fix useless return flagged by linters (Benjamin Bannier, Corelight)
+
+  * Clean up imports (Benjamin Bannier, Corelight)
+
+  * Make optional dependencies required (Benjamin Bannier, Corelight)
+
+    We would previously included code to deal with optional dependencies in
+    an ad hoc way in the code. Since we are a proper package which already
+    has requirements this is not really needded. Instead simply require
+    these dependencies with this patch.
+
+  * Switch coverage generation over to `pytest-cov` (Benjamin Bannier, Corelight)
+
+  * Remove workarounds for running from uninstalled package (Benjamin Bannier, Corelight)
+
+    We had dedicated code which replicated setuptools' "development
+    mode"[^1] in that we could import from a not installed package. This not
+    only complicated the code for no good reason, but also tripped up
+    linting tools.
+
+    This patch removes these workarounds.
+
+    [^1]: https://setuptools.pypa.io/en/latest/userguide/development_mode.html
+
 1.3.1-21 | 2024-07-08 22:24:21 -0700
 
   * Move project configuration to `pyproject.toml` (Benjamin Bannier, Corelight)

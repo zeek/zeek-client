@@ -1,21 +1,24 @@
 """This verifies the Python-level representations of Zeek records in types module."""
-import os.path
-import sys
+
 import unittest
 
-TESTS = os.path.dirname(os.path.realpath(__file__))
-ROOT = os.path.normpath(os.path.join(TESTS, ".."))
-
-# Prepend the tree's root folder to the module searchpath so we find zeekclient
-# via it. This allows tests to run without package installation.
-sys.path.insert(0, ROOT)
-
-import zeekclient.brokertypes as bt  # pylint: disable=wrong-import-position
-from zeekclient.types import *  # pylint: disable=wrong-import-position,unused-wildcard-import,wildcard-import
+import zeekclient.brokertypes as bt
+from zeekclient.types import (
+    ClusterRole,
+    Configuration,
+    Instance,
+    ManagementRole,
+    Node,
+    NodeOutputs,
+    NodeStatus,
+    Option,
+    Result,
+    State,
+)
 
 
 class TestTypes(unittest.TestCase):
-    def assertHash(self, val):
+    def assertHash(self, val):  # noqa: N802
         d = {val: 1}
         self.assertEqual(d[val], 1)
 
@@ -81,7 +84,8 @@ class TestTypes(unittest.TestCase):
         val1 = self.brokertype_roundtrip(val0)
         self.assertEqual(val0, val1)
         self.assertEqual(
-            val0.to_json_data(), {"name": "instance1", "host": "10.0.0.1", "port": 1234}
+            val0.to_json_data(),
+            {"name": "instance1", "host": "10.0.0.1", "port": 1234},
         )
 
         self.assertHash(val0)
@@ -147,8 +151,8 @@ class TestTypes(unittest.TestCase):
                     bt.Enum("Supervisor::WORKER"),
                     bt.Integer(123),
                     bt.Port(1234),
-                ]
-            )
+                ],
+            ),
         )
 
         self.assertEqual(val0, val1)
@@ -173,8 +177,8 @@ class TestTypes(unittest.TestCase):
                     bt.String("data"),
                     bt.String("an error"),
                     bt.String("worker1"),
-                ]
-            )
+                ],
+            ),
         )
 
         self.assertEqual(val0, val1)
@@ -187,8 +191,8 @@ class TestTypes(unittest.TestCase):
                 [
                     bt.String("stdout content"),
                     bt.String("stderr content"),
-                ]
-            )
+                ],
+            ),
         )
 
         self.assertEqual(val0, val1)

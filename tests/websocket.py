@@ -6,15 +6,15 @@ For details, see https://github.com/websocket-client/websocket-client.
 import zeekclient
 
 
-class WebSocketException(Exception):
+class WebSocketError(Exception):
     pass
 
 
-class WebSocketTimeoutException(WebSocketException):
+class WebSocketTimeoutError(WebSocketError):
     pass
 
 
-class UnknownException(Exception):
+class UnknownError(Exception):
     pass
 
 
@@ -38,8 +38,9 @@ class WebSocket:
         # HandshakeAckMessage, so put that in the queue:
         self.mock_recv_queue = [
             zeekclient.brokertypes.HandshakeAckMessage(
-                self.mock_broker_id, 1.0
-            ).serialize()
+                self.mock_broker_id,
+                1.0,
+            ).serialize(),
         ]
 
         # Messages sent via the socket

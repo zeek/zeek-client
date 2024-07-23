@@ -1,4 +1,5 @@
 """This module provides compatibility goop for OpenSSL."""
+
 import os.path
 import ssl
 

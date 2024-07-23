@@ -1,26 +1,18 @@
 """This verifies zeek-client invocations."""
+
 import io
 import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
-
 from contextlib import contextmanager
+
+import zeekclient as zc
 
 TESTS = os.path.dirname(os.path.realpath(__file__))
 ROOT = os.path.normpath(os.path.join(TESTS, ".."))
-
-# Prepend this folder so we can load our mocks
-sys.path.insert(0, TESTS)
-
-# Prepend the tree's root folder to the module searchpath so we find zeekclient
-# via it. This allows tests to run without package installation.
-sys.path.insert(0, ROOT)
-
-import zeekclient as zc  # pylint: disable=wrong-import-position
 
 
 # A context guard to switch the current working directory.
@@ -37,27 +29,19 @@ def setdir(path):
 
 class TestCliInvocation(unittest.TestCase):
     # This invokes the zeek-client toplevel script.
-    def setUp(self):
-        # Set up an environment in which subprocesses pick up our package first:
-        self.env = os.environ.copy()
-        self.env["PYTHONPATH"] = os.pathsep.join(sys.path)
 
     def test_help(self):
         cproc = subprocess.run(
-            [os.path.join(ROOT, "zeek-client"), "--help"],
+            ["zeek-client", "--help"],
             check=True,
-            env=self.env,
             capture_output=True,
         )
         self.assertEqual(cproc.returncode, 0)
 
     def test_show_settings(self):
-        env = os.environ.copy()
-        env["PYTHONPATH"] = os.pathsep.join(sys.path)
         cproc = subprocess.run(
-            [os.path.join(ROOT, "zeek-client"), "show-settings"],
+            ["zeek-client", "show-settings"],
             check=True,
-            env=self.env,
             capture_output=True,
         )
         self.assertEqual(cproc.returncode, 0)
@@ -152,7 +136,7 @@ class TestCli(unittest.TestCase):
         zc.types.make_uuid = self.orig_make_uuid
         zc.utils.make_uuid = self.orig_make_uuid
 
-    def assertLogLines(self, *patterns):
+    def assertLogLines(self, *patterns):  # noqa: N802
         buflines = self.logbuf.getvalue().split("\n")
         todo = list(patterns)
         for line in buflines:
@@ -172,10 +156,9 @@ class TestCli(unittest.TestCase):
         parser = zc.cli.create_parser()
         args = parser.parse_args(inargs)
 
-        def mock_create_controller():  # pylint: disable=useless-return
+        def mock_create_controller():
             self.controller.wsock.mock_connect_exc = OSError()
             self.controller.connect()
-            return None
 
         zc.cli.create_controller = mock_create_controller
 
@@ -213,13 +196,18 @@ class TestCli(unittest.TestCase):
                 zc.brokertypes.Vector(
                     [
                         zc.types.Result(
-                            "reqid-0001", data=zc.brokertypes.String("reqid-config-id")
+                            "reqid-0001",
+                            data=zc.brokertypes.String("reqid-config-id"),
                         ).to_brokertype(),
                         zc.types.Result(
-                            "reqid-0002", instance="instance1", node="manager"
+                            "reqid-0002",
+                            instance="instance1",
+                            node="manager",
                         ).to_brokertype(),
                         zc.types.Result(
-                            "reqid-0003", instance="instance1", node="logger"
+                            "reqid-0003",
+                            instance="instance1",
+                            node="logger",
                         ).to_brokertype(),
                         zc.types.Result(
                             "reqid-0004",
@@ -235,12 +223,13 @@ class TestCli(unittest.TestCase):
                             error="uh-oh",
                         ).to_brokertype(),
                         zc.types.Result(
-                            "reqid-0006", instance="instance1"
+                            "reqid-0006",
+                            instance="instance1",
                         ).to_brokertype(),
                         zc.types.Result("reqid-0007").to_brokertype(),
-                    ]
+                    ],
                 ),
-            )
+            ),
         )
 
         parser = zc.cli.create_parser()
@@ -287,16 +276,17 @@ class TestCli(unittest.TestCase):
         config = zc.types.Configuration()
         config.instances.append(zc.types.Instance("instance1"))
         config.nodes.append(
-            zc.types.Node("worker1", "instance1", zc.types.ClusterRole.WORKER)
+            zc.types.Node("worker1", "instance1", zc.types.ClusterRole.WORKER),
         )
 
         self.enqueue_response_event(
             zc.events.GetConfigurationResponse(
                 zc.brokertypes.String(zc.utils.make_uuid()),
                 zc.types.Result(
-                    "reqid-0001", data=config.to_brokertype()
+                    "reqid-0001",
+                    data=config.to_brokertype(),
                 ).to_brokertype(),
-            )
+            ),
         )
 
         parser = zc.cli.create_parser()
@@ -343,16 +333,17 @@ class TestCli(unittest.TestCase):
         config = zc.types.Configuration()
         config.instances.append(zc.types.Instance("instance1"))
         config.nodes.append(
-            zc.types.Node("worker1", "instance1", zc.types.ClusterRole.WORKER)
+            zc.types.Node("worker1", "instance1", zc.types.ClusterRole.WORKER),
         )
 
         self.enqueue_response_event(
             zc.events.GetConfigurationResponse(
                 zc.brokertypes.String(zc.utils.make_uuid()),
                 zc.types.Result(
-                    "reqid-0001", data=config.to_brokertype()
+                    "reqid-0001",
+                    data=config.to_brokertype(),
                 ).to_brokertype(),
-            )
+            ),
         )
 
         parser = zc.cli.create_parser()
@@ -385,9 +376,11 @@ role = WORKER
             zc.events.GetConfigurationResponse(
                 zc.brokertypes.String(zc.utils.make_uuid()),
                 zc.types.Result(
-                    "reqid-0001", success=False, error="uh-oh"
+                    "reqid-0001",
+                    success=False,
+                    error="uh-oh",
                 ).to_brokertype(),
-            )
+            ),
         )
 
         parser = zc.cli.create_parser()
@@ -401,7 +394,7 @@ role = WORKER
             zc.events.GetConfigurationResponse(
                 zc.brokertypes.String(zc.utils.make_uuid()),
                 zc.types.Result("reqid-0001").to_brokertype(),
-            )
+            ),
         )
 
         parser = zc.cli.create_parser()
@@ -439,11 +432,13 @@ role = WORKER
                             node="worker2",
                         ).to_brokertype(),
                         zc.types.Result(
-                            "reqid-0004", data=zc.brokertypes.Count(10), node="worker2"
+                            "reqid-0004",
+                            data=zc.brokertypes.Count(10),
+                            node="worker2",
                         ).to_brokertype(),
-                    ]
+                    ],
                 ),
-            )
+            ),
         )
 
         parser = zc.cli.create_parser()
@@ -487,15 +482,19 @@ role = WORKER
                     data=zc.brokertypes.Vector(
                         [
                             zc.types.Instance(
-                                "instance1", "10.0.0.1", 123
+                                "instance1",
+                                "10.0.0.1",
+                                123,
                             ).to_brokertype(),
                             zc.types.Instance(
-                                "instance2", "10.0.0.2", 234
+                                "instance2",
+                                "10.0.0.2",
+                                234,
                             ).to_brokertype(),
-                        ]
+                        ],
                     ),
                 ).to_brokertype(),
-            )
+            ),
         )
 
         parser = zc.cli.create_parser()
@@ -551,7 +550,7 @@ role = WORKER
                                         12346,
                                         2201,
                                     ).to_brokertype(),
-                                ]
+                                ],
                             ),
                         ).to_brokertype(),
                         zc.types.Result(
@@ -573,7 +572,7 @@ role = WORKER
                                         zc.types.ClusterRole.WORKER,
                                         23457,
                                     ).to_brokertype(),
-                                ]
+                                ],
                             ),
                         ).to_brokertype(),
                         # These cover various error conditions
@@ -584,11 +583,12 @@ role = WORKER
                             error="uh-oh",
                         ).to_brokertype(),
                         zc.types.Result(
-                            "reqid-0003", instance="instance4"
+                            "reqid-0003",
+                            instance="instance4",
                         ).to_brokertype(),
-                    ]
+                    ],
                 ),
-            )
+            ),
         )
 
         parser = zc.cli.create_parser()
@@ -658,16 +658,24 @@ role = WORKER
                 zc.brokertypes.Vector(
                     [
                         zc.types.Result(
-                            "reqid-0001", instance="instance1", node="manager"
+                            "reqid-0001",
+                            instance="instance1",
+                            node="manager",
                         ).to_brokertype(),
                         zc.types.Result(
-                            "reqid-0002", instance="instance1", node="logger"
+                            "reqid-0002",
+                            instance="instance1",
+                            node="logger",
                         ).to_brokertype(),
                         zc.types.Result(
-                            "reqid-0003", instance="instance2", node="worker1"
+                            "reqid-0003",
+                            instance="instance2",
+                            node="worker1",
                         ).to_brokertype(),
                         zc.types.Result(
-                            "reqid-0004", instance="instance2", node="worker2"
+                            "reqid-0004",
+                            instance="instance2",
+                            node="worker2",
                         ).to_brokertype(),
                         zc.types.Result(
                             "reqid-0004",
@@ -675,9 +683,9 @@ role = WORKER
                             node="worker3",
                             error="unknown node",
                         ).to_brokertype(),
-                    ]
+                    ],
                 ),
-            )
+            ),
         )
 
         parser = zc.cli.create_parser()
@@ -717,14 +725,17 @@ role = WORKER
                 zc.brokertypes.Vector(
                     [
                         zc.types.Result(
-                            "reqid-0001", data=zc.brokertypes.String("reqid-config-id")
+                            "reqid-0001",
+                            data=zc.brokertypes.String("reqid-config-id"),
                         ).to_brokertype(),
                         zc.types.Result(
-                            "reqid-0002", success=False, error="uh-oh"
+                            "reqid-0002",
+                            success=False,
+                            error="uh-oh",
                         ).to_brokertype(),
-                    ]
+                    ],
                 ),
-            )
+            ),
         )
 
         parser = zc.cli.create_parser()
@@ -752,11 +763,12 @@ role = WORKER
                 zc.brokertypes.Vector(
                     [
                         zc.types.Result(
-                            "reqid-0001", data=zc.brokertypes.String("reqid-config-id")
+                            "reqid-0001",
+                            data=zc.brokertypes.String("reqid-config-id"),
                         ).to_brokertype(),
-                    ]
+                    ],
                 ),
-            )
+            ),
         )
 
         self.enqueue_response_event(
@@ -765,17 +777,22 @@ role = WORKER
                 zc.brokertypes.Vector(
                     [
                         zc.types.Result(
-                            "reqid-0001", data=zc.brokertypes.String("reqid-config-id")
+                            "reqid-0001",
+                            data=zc.brokertypes.String("reqid-config-id"),
                         ).to_brokertype(),
                         zc.types.Result(
-                            "reqid-0002", instance="instance1", node="manager"
+                            "reqid-0002",
+                            instance="instance1",
+                            node="manager",
                         ).to_brokertype(),
                         zc.types.Result(
-                            "reqid-0003", instance="instance1", node="logger"
+                            "reqid-0003",
+                            instance="instance1",
+                            node="logger",
                         ).to_brokertype(),
-                    ]
+                    ],
                 ),
-            )
+            ),
         )
 
         parser = zc.cli.create_parser()

@@ -4,6 +4,8 @@ dynamic = ["version"]
 description = "A CLI for Zeek's Management Framework"
 dependencies = [
     "websocket-client>=1.8.0",
+    "argcomplete>=3.4.0",
+    "argparse>=1.4.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
@@ -37,6 +39,7 @@ Repository = "https://github.com/zeek/zeek-client"
 [project.optional-dependencies]
 dev = [
     "pytest>=8.1.1",
+    "pytest-cov>=5.0.0",
 ]
 
 [build-system]
@@ -45,3 +48,20 @@ requires = ["setuptools"]
 [tool.setuptools]
 packages = ["zeekclient"]
 script-files = ["zeek-client"]
+
+[tool.ruff.lint]
+select = [
+    "A",
+    "B",
+    "C4",
+    "COM",
+    "F",
+    "I",
+    "ISC",
+    "N",
+    "UP",
+]
+ignore = [
+    "COM812",
+    "ISC001",
+]

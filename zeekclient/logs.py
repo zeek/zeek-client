@@ -1,4 +1,5 @@
 """Logging configuration for zeek-client."""
+
 import logging
 
 LOG = logging.getLogger(__name__)
@@ -20,7 +21,8 @@ def configure(verbosity=0, rich_logging=False, stream=None):
 
     if rich_logging:
         formatter = logging.Formatter(
-            "%(asctime)s %(levelname)-8s %(message)s", "%Y-%m-%d %H:%M:%S"
+            "%(asctime)s %(levelname)-8s %(message)s",
+            "%Y-%m-%d %H:%M:%S",
         )
     else:
         formatter = logging.Formatter("%(levelname)s: %(message)s")

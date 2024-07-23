@@ -1,4 +1,5 @@
 """Python-level representations of the records in policy/framework/management/types.zeek."""
+
 import configparser
 import enum
 import shlex
@@ -6,15 +7,15 @@ import socket
 from ipaddress import ip_address
 
 from . import brokertypes as bt
-from .utils import make_uuid
 from .logs import LOG
+from .utils import make_uuid
 
 
 class ConfigParserMixin:
     """Methods to create and render the object via ConfigParser instances."""
 
     @classmethod
-    def from_config_parser(cls, cfp, section=None):  # pylint: disable=unused-argument
+    def from_config_parser(cls, cfp, section=None):
         """Instantiates an object of this class based on the given
         ConfigParser, and optional section name in it, as applicable.
 
@@ -23,7 +24,7 @@ class ConfigParserMixin:
         """
         return None  # pragma: no cover
 
-    def to_config_parser(self, cfp=None):  # pylint: disable=unused-argument
+    def to_config_parser(self, cfp=None):
         """Returns this object in a ConfigParser instance. When the optional cfp
         argument is not None, the caller requests the implementation to add to
         the given parser, not create a new one.
@@ -40,7 +41,7 @@ class ConfigParserMixin:
                     return typ(val)
                 except ValueError as err:
                     raise ValueError(
-                        f'cannot convert "{section}.{key}" value "{val}" to {typ.__name__}'
+                        f'cannot convert "{section}.{key}" value "{val}" to {typ.__name__}',
                     ) from err
         return None
 
@@ -61,7 +62,7 @@ class SerializableZeekType:
         return None  # pragma: no cover
 
     @classmethod
-    def from_brokertype(cls, data):  # pylint: disable=unused-argument
+    def from_brokertype(cls, data):
         """Returns an instance of this class for the given brokertype data.
 
         data: a brokertype instance
@@ -141,12 +142,11 @@ class Enum(ZeekType, enum.Enum):
         return cls[name.upper()]
 
     @classmethod
-    def module_scope(cls):  # pragma: no cover
+    def module_scope(cls) -> str:  # pragma: no cover
         # Reimplement this in derived classes to convey the Zeek-level enum
         # scope. For example, for a Foo.BAR (or Foo::BAR, in Zeek) enum value,
         # this should return the string "Foo".
-        assert False, "reimplement module_scope() in your Enum derivative"
-        return ""
+        raise AssertionError("reimplement module_scope() in your Enum derivative")
 
     @classmethod
     def from_brokertype(cls, data):
@@ -156,12 +156,12 @@ class Enum(ZeekType, enum.Enum):
             module = data.to_py().split("::", 1)[0]
             if module != cls.module_scope():
                 raise ValueError(
-                    f"module scope mismatch for {cls.__name__}: {module} != {cls.module_scope()}."
+                    f"module scope mismatch for {cls.__name__}: {module} != {cls.module_scope()}.",
                 )
             return cls.lookup(data.to_py())
         except (ValueError, KeyError) as err:
             raise TypeError(
-                f"unexpected enum value for {cls.__name__}: {repr(data)}"
+                f"unexpected enum value for {cls.__name__}: {repr(data)}",
             ) from err
 
 
@@ -265,7 +265,7 @@ class Instance(ZeekType):
                 bt.String(self.name),
                 bt.Address(self.host),
                 bt.from_py(self.port, typ=bt.Port),
-            ]
+            ],
         )
 
     def to_json_data(self):
@@ -285,7 +285,7 @@ class Instance(ZeekType):
             return Instance(name, addr, None if port is None else port.number)
         except ValueError as err:
             raise TypeError(
-                f"unexpected Broker data for Instance object ({data})"
+                f"unexpected Broker data for Instance object ({data})",
             ) from err
 
 
@@ -516,19 +516,16 @@ class Node(ZeekType, ConfigParserMixin):
         # Warn about unexpected keys:
         cfp_subset = cfp[section] if section else cfp
         keys = set(cfp_subset.keys())
-        keys -= set(
-            [
-                "instance",
-                "role",
-                "scripts",
-                "port",
-                "scripts",
-                "interface",
-                "cpu_affinity",
-                "env",
-                "metrics_port",
-            ]
-        )
+        keys -= {
+            "instance",
+            "role",
+            "scripts",
+            "port",
+            "interface",
+            "cpu_affinity",
+            "env",
+            "metrics_port",
+        }
 
         if len(keys) > 0:
             LOG.warning("ignoring unexpected keys: %s", ", ".join(sorted(keys)))
@@ -632,7 +629,7 @@ class Configuration(ZeekType, ConfigParserMixin):
                 bt.String(self.id),
                 bt.Set({inst.to_brokertype() for inst in self.instances}),
                 bt.Set({node.to_brokertype() for node in self.nodes}),
-            ]
+            ],
         )
 
     def to_json_data(self):
@@ -698,7 +695,8 @@ class Configuration(ZeekType, ConfigParserMixin):
             # a node name, with the keys being one of "type", "instance", etc.
             if section in [node.name for node in config.nodes]:
                 LOG.warning(
-                    'node "%s" defined more than once, skipping repeats"', section
+                    'node "%s" defined more than once, skipping repeats"',
+                    section,
                 )
                 continue
 
@@ -718,7 +716,7 @@ class Configuration(ZeekType, ConfigParserMixin):
                 return None
             if "instances" in cfp.sections():
                 LOG.error(
-                    "omit instances section when skipping instances in node definitions"
+                    "omit instances section when skipping instances in node definitions",
                 )
                 return None
 
@@ -859,7 +857,13 @@ class Result(SerializableZeekType):
     """Equivalent of Management::Result."""
 
     def __init__(
-        self, reqid, success=True, instance=None, data=None, error=None, node=None
+        self,
+        reqid,
+        success=True,
+        instance=None,
+        data=None,
+        error=None,
+        node=None,
     ):
         self.reqid = reqid
         self.success = success
@@ -902,7 +906,7 @@ class Result(SerializableZeekType):
 
     def hash(self):
         return hash(
-            (self.reqid, self.success, self.instance, self.data, self.error, self.node)
+            (self.reqid, self.success, self.instance, self.data, self.error, self.node),
         )
 
     def to_brokertype(self):
@@ -928,7 +932,7 @@ class Result(SerializableZeekType):
                 data,
                 error,
                 node,
-            ]
+            ],
         )
 
     @classmethod
@@ -977,7 +981,7 @@ class NodeOutputs(SerializableZeekType):
             [
                 bt.String(self.stdout),
                 bt.String(self.stderr),
-            ]
+            ],
         )
 
     @classmethod
