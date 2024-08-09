@@ -118,16 +118,18 @@ class Config(configparser.ConfigParser):
         # The `--controller` argument is a shortcut for two `--set` arguments that
         # set controller host and port, so update these manually:
         if args.controller:
-            if(":" not in args.controller):
+            if ":" not in args.controller:
                 host = args.controller
                 port = ""
             else:
                 (host, _, port) = args.controller.rpartition(":")
-                if(host.count(":") > 1):
+                if host.count(":") > 1:
                     # We likely have an IPv6 address
-                    if(not host.startswith("[")):
-                        raise ValueError('IPv6 addresses must be surrounded by brackets: [<ipv6>]:<port>')
-                    if(port.endswith("]")):
+                    if not host.startswith("["):
+                        raise ValueError(
+                            "IPv6 addresses must be surrounded by brackets: [<ipv6>]:<port>"
+                        )
+                    if port.endswith("]"):
                         host = host + ":" + port
                         port = ""
 
