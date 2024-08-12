@@ -123,7 +123,7 @@ class Config(configparser.ConfigParser):
                 port = ""
             else:
                 (host, _, port) = args.controller.rpartition(":")
-                if host.count(":") > 1:
+                if host.count(":") >= 1:
                     # We likely have an IPv6 address
                     if not host.startswith("["):
                         raise ValueError(
