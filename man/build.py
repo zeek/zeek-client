@@ -21,7 +21,7 @@ def main():
     # Set a fixed number of columns to avoid output discrepancies between
     # invocation at the shell vs via CI tooling. This only affects how the
     # manpage is written to disk, not how it renders at the terminal.
-    os.environ["COLUMNS"] = "80"
+    os.environ["COLUMNS"] = "200"
 
     # Change the program name so the parsers report zeek-client, not build.py.
     sys.argv[0] = "zeek-client"

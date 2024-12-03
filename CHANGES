@@ -1,3 +1,11 @@
+1.3.1-40 | 2024-12-03 15:10:02 -0700
+
+  * Force the manpage columns to a large value to override outside environments (Tim Wojtulewicz, Corelight)
+
+  * Fix ruff-format pre-commit failures (Tim Wojtulewicz, Corelight)
+
+  * Upgrade python requirement to 3.9 (Tim Wojtulewicz, Corelight)
+
 1.3.1-36 | 2024-07-23 10:08:29 +0200
 
   * Bump pre-commit hooks (Benjamin Bannier, Corelight)
