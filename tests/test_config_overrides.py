@@ -63,6 +63,30 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(self.config.get("controller", "host"), "foo")
         self.assertEqual(self.config.getint("controller", "port"), 2149)
 
+        parser = zeekclient.cli.create_parser()
+        args = parser.parse_args(["--controller", "127.0.0.1"])
+        self.config.update_from_args(args)
+        self.assertEqual(self.config.get("controller", "host"), "127.0.0.1")
+        self.assertEqual(self.config.getint("controller", "port"), 2149)
+
+        parser = zeekclient.cli.create_parser()
+        args = parser.parse_args(["--controller", "127.0.0.1:"])
+        self.config.update_from_args(args)
+        self.assertEqual(self.config.get("controller", "host"), "127.0.0.1")
+        self.assertEqual(self.config.getint("controller", "port"), 2149)
+
+        parser = zeekclient.cli.create_parser()
+        args = parser.parse_args(["--controller", "[fe80::1]"])
+        self.config.update_from_args(args)
+        self.assertEqual(self.config.get("controller", "host"), "[fe80::1]")
+        self.assertEqual(self.config.getint("controller", "port"), 2149)
+
+        parser = zeekclient.cli.create_parser()
+        args = parser.parse_args(["--controller", "[fe80::1]:"])
+        self.config.update_from_args(args)
+        self.assertEqual(self.config.get("controller", "host"), "[fe80::1]")
+        self.assertEqual(self.config.getint("controller", "port"), 2149)
+
     def test_update_from_args_controller_port(self):
         parser = zeekclient.cli.create_parser()
         args = parser.parse_args(["--controller", ":2222"])
@@ -75,4 +99,16 @@ class TestConfig(unittest.TestCase):
         args = parser.parse_args(["--controller", "foo:2222"])
         self.config.update_from_args(args)
         self.assertEqual(self.config.get("controller", "host"), "foo")
+        self.assertEqual(self.config.getint("controller", "port"), 2222)
+
+        parser = zeekclient.cli.create_parser()
+        args = parser.parse_args(["--controller", "127.0.0.1:2222"])
+        self.config.update_from_args(args)
+        self.assertEqual(self.config.get("controller", "host"), "127.0.0.1")
+        self.assertEqual(self.config.getint("controller", "port"), 2222)
+
+        parser = zeekclient.cli.create_parser()
+        args = parser.parse_args(["--controller", "[fe80::1]:2222"])
+        self.config.update_from_args(args)
+        self.assertEqual(self.config.get("controller", "host"), "[fe80::1]")
         self.assertEqual(self.config.getint("controller", "port"), 2222)
