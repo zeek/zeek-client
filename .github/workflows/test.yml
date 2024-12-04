@@ -12,8 +12,8 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
       - uses: pre-commit/action@v3.0.0
 
   test:
@@ -30,9 +30,9 @@ jobs:
           - "3.13"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
@@ -47,7 +47,7 @@ jobs:
     needs: [test]
     if: github.repository == 'zeek/zeek-client' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Check release version
         # This fails e.g. if VERSION contains a dev commits suffix,
         # since we don't want to push these to PyPI.
