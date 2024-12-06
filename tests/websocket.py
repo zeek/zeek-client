@@ -6,11 +6,13 @@ For details, see https://github.com/websocket-client/websocket-client.
 import zeekclient
 
 
-class WebSocketError(Exception):
+# This typename needs to match the one in websocket-client or tests will fail.
+class WebSocketException(Exception):  # noqa: N818
     pass
 
 
-class WebSocketTimeoutError(WebSocketError):
+# This typename needs to match the one in websocket-client or tests will fail.
+class WebSocketTimeoutException(WebSocketException):  # noqa: N818
     pass
 
 
