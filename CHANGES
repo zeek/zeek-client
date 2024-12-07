@@ -1,3 +1,13 @@
+1.3.1-47 | 2024-12-06 18:26:31 -0700
+
+  * Ensure exception types in our tests match websocket-client (Tim Wojtulewicz, Corelight)
+
+  * Use correct types for websocket exceptions (Tim Wojtulewicz)
+
+    After the upgrade to Python 3.9, some of the types we were using
+    for the websocket package changed. This fixes the code to use the
+    right types.
+
 1.3.1-44 | 2024-12-05 13:22:44 +0100
 
   * Bump pre-commit hooks (Benjamin Bannier, Corelight)

@@ -139,7 +139,7 @@ class TestController(unittest.TestCase):
 
     def test_connect_fails_with_timeout(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_connect_exc = websocket.WebSocketTimeoutError(
+        controller.wsock.mock_connect_exc = websocket.WebSocketTimeoutException(
             "connection timed out",
         )
         # Dial down attempts and waits to make this fast:
@@ -153,7 +153,7 @@ class TestController(unittest.TestCase):
 
     def test_connect_fails_with_websocket_error(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_connect_exc = websocket.WebSocketError("uh-oh")
+        controller.wsock.mock_connect_exc = websocket.WebSocketException("uh-oh")
         self.assertFalse(controller.connect())
         self.assertLogLines(
             "info: connecting to controller 127.0.0.1:2149",
@@ -192,7 +192,7 @@ class TestController(unittest.TestCase):
 
     def test_handshake_fails_with_timeout(self):
         controller = zeekclient.controller.Controller()
-        controller.wsock.mock_recv_exc = websocket.WebSocketTimeoutError(
+        controller.wsock.mock_recv_exc = websocket.WebSocketTimeoutException(
             "connection timed out",
         )
         self.assertFalse(controller.connect())
@@ -278,7 +278,7 @@ class TestController(unittest.TestCase):
     def test_receive_fails_with_timeout(self):
         controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
-        controller.wsock.mock_recv_exc = websocket.WebSocketTimeoutError(
+        controller.wsock.mock_recv_exc = websocket.WebSocketTimeoutException(
             "connection timed out",
         )
         res, msg = controller.receive()
