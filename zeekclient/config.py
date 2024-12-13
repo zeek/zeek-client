@@ -118,16 +118,30 @@ class Config(configparser.ConfigParser):
         # The `--controller` argument is a shortcut for two `--set` arguments that
         # set controller host and port, so update these manually:
         if args.controller:
-            host_port = args.controller.split(":", 1)
-            if len(host_port) != 2 or not host_port[1]:
-                # It's just a hostname
-                self.set("controller", "host", host_port[0])
-            elif not host_port[0]:
-                # It's just a port (as ":<port>")
-                self.set("controller", "port", host_port[1])
+            if ":" not in args.controller:
+                host = args.controller
+                port = ""
             else:
-                self.set("controller", "host", host_port[0])
-                self.set("controller", "port", host_port[1])
+                (host, _, port) = args.controller.rpartition(":")
+                if host.count(":") >= 1:
+                    # We likely have an IPv6 address
+                    if not host.startswith("["):
+                        raise ValueError(
+                            "IPv6 addresses must be surrounded by brackets: [<ipv6>]:<port>"
+                        )
+                    if port.endswith("]"):
+                        host = host + ":" + port
+                        port = ""
+
+            if port == "":
+                # It's just a hostname
+                self.set("controller", "host", host)
+            elif host == "":
+                # It's just a port (as ":<port>")
+                self.set("controller", "port", port)
+            else:
+                self.set("controller", "host", host)
+                self.set("controller", "port", port)
 
         # --verbose/-v/-vvv etc set a numeric verbosity level:
         if args.verbose:
