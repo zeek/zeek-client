@@ -20,6 +20,7 @@ class TestController(unittest.TestCase):
         # the output the user would see.
         self.logbuf = io.StringIO()
         zeekclient.logs.configure(verbosity=2, stream=self.logbuf)
+        zeekclient.CONFIG.reset()
 
     def assertLogLines(self, *patterns):  # noqa: N802
         buflines = self.logbuf.getvalue().split("\n")
