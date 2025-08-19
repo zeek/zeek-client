@@ -66,15 +66,16 @@ class Config(configparser.ConfigParser):
                     "port": 2149,
                 },
                 "ssl": {
-                    # These settings control the security settings of the connection
-                    # to the controller. They mirror Broker's approach and naming:
-                    # by default, SSL is active, but unvalidated. Providing
-                    # certificate, private key, and possibly CA & passphrase secure
-                    # the connection properly.  Compare to Zeek's Broker framework.
-                    # Whether to use SSL at all. Disabling this yields plaintext
-                    # communication. This mirrors Broker::disable_ssl on the Zeek
-                    # side.
-                    "disable": False,
+                    # Security settings of the connection to the controller.
+                    # Connections are unencrypted by default. To enable Broker's
+                    # default mode of encryption with unverified endpoints, just
+                    # set "enable" to true. Providing certificate, private
+                    # key, and possibly CA & passphrase secure the connection
+                    # properly.
+                    #
+                    # Boolean to indicate whether to use SSL at all. By default
+                    # the client uses plaintext communication.
+                    "enable": False,
                     # Path to a file containing a X.509 certificate in PEM format.
                     "certificate": "",
                     # Path to a file containing the private key for the certificate,

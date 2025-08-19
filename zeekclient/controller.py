@@ -56,13 +56,21 @@ class Controller:
                     f"controller port number {self.controller_port} outside valid range",
                 )
 
-            disable_ssl = CONFIG.getboolean("ssl", "disable")
+            if CONFIG.has_option("ssl", "disable"):
+                LOG.warning(
+                    "The ssl.disable setting is deprecated and ignored. "
+                    "Controller connections now default to plaintext. "
+                    "Use ssl.enabled to enable encryption. "
+                    "See 'zeek-client show-settings' for details."
+                )
 
-            proto = "ws" if disable_ssl else "wss"
+            enable_ssl = CONFIG.getboolean("ssl", "enable")
+
+            proto = "wss" if enable_ssl else "ws"
             remote = f"{self.controller_host}:{self.controller_port}"
             self.wsock_url = f"{proto}://{remote}/v1/messages/json"
 
-            sslopt = None if disable_ssl else get_websocket_sslopt()
+            sslopt = get_websocket_sslopt() if enable_ssl else None
             self.wsock = websocket.WebSocket(sslopt=sslopt)
         except (ValueError, OSError, ssl.SSLError) as err:
             raise ConfigError(
