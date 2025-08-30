@@ -24,7 +24,7 @@ from .consts import (
 )
 from .logs import LOG
 
-__version__ = "1.4.0"
+__version__ = "1.4.0-3"
 __all__ = [
     "brokertypes",
     "cli",

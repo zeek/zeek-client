@@ -20,6 +20,7 @@ class TestController(unittest.TestCase):
         # the output the user would see.
         self.logbuf = io.StringIO()
         zeekclient.logs.configure(verbosity=2, stream=self.logbuf)
+        zeekclient.CONFIG.reset()
 
     def assertLogLines(self, *patterns):  # noqa: N802
         buflines = self.logbuf.getvalue().split("\n")
@@ -53,7 +54,17 @@ class TestController(unittest.TestCase):
         )
 
     def test_connect_successful_no_tls(self):
-        zeekclient.CONFIG.set("ssl", "disable", "true")
+        controller = zeekclient.controller.Controller()
+        self.assertTrue(controller.connect())
+        self.assertTrue(controller.wsock.mock_url.startswith("ws://"))
+        self.assertLogLines(
+            "info: connecting to controller 127.0.0.1:2149",
+            "info: peered with controller 127.0.0.1:2149",
+        )
+
+    def test_connect_ssldisable_deprecation(self):
+        # The old default setting, to enable unvalidated TLS:
+        zeekclient.CONFIG.set("ssl", "disable", "false")
         controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
         self.assertTrue(controller.wsock.mock_url.startswith("ws://"))
@@ -63,6 +74,7 @@ class TestController(unittest.TestCase):
         )
 
     def test_connect_successful_authenticated_tls(self):
+        zeekclient.CONFIG.set("ssl", "enable", "true")
         zeekclient.CONFIG.set(
             "ssl",
             "certificate",
@@ -83,6 +95,7 @@ class TestController(unittest.TestCase):
         )
 
     def test_connect_successful_authenticated_tls_pw(self):
+        zeekclient.CONFIG.set("ssl", "enable", "true")
         zeekclient.CONFIG.set(
             "ssl",
             "certificate",
@@ -104,6 +117,7 @@ class TestController(unittest.TestCase):
 
     def test_connect_successful_authenticated_tls_file_config_errors(self):
         for error in ("certificate", "keyfile", "cafile"):
+            zeekclient.CONFIG.set("ssl", "enable", "true")
             zeekclient.CONFIG.set(
                 "ssl",
                 "certificate",
