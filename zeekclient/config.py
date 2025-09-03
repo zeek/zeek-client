@@ -56,7 +56,8 @@ class Config(configparser.ConfigParser):
                     #   1   also warnings
                     #   2   also informational messages
                     #   3   also debug messages
-                    #   4+  no additional effect
+                    #   4   also trace websocket I/O
+                    #   5+  no additional effect
                     "verbosity": 0,
                 },
                 "controller": {
