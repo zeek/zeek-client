@@ -10,6 +10,7 @@ from .brokertypes import (
     HandshakeAckMessage,
     HandshakeMessage,
     ZeekEvent,
+    unserialize,
 )
 from .config import CONFIG
 from .consts import CONTROLLER_TOPIC
@@ -270,7 +271,10 @@ class Controller:
                 # (2) ensure it's a data message
                 # (3) try to extract data message payload as event
                 try:
-                    msg = DataMessage.unserialize(self.wsock.recv())
+                    msg = unserialize(self.wsock.recv())
+                    if not isinstance(msg, DataMessage):
+                        LOG.debug("skipping unexpected received message %s", msg)
+                        continue
                 except TypeError as err:
                     return (
                         None,
