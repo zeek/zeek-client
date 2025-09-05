@@ -279,14 +279,12 @@ class TestController(unittest.TestCase):
         controller = zeekclient.controller.Controller()
         self.assertTrue(controller.connect())
         # Not a DataMessage:
-        controller.wsock.mock_recv_queue.append(
-            zeekclient.brokertypes.Count(1).serialize(),
-        )
+        controller.wsock.mock_recv_queue.append('{"type": "data-message"}')
         res, msg = controller.receive()
         self.assertIsNone(res)
         self.assertRegex(
             msg,
-            "protocol data error .+: invalid data layout for Broker MessageType",
+            "protocol data error .+: invalid data layout for DataMessage",
         )
 
     def test_receive_fails_with_timeout(self):

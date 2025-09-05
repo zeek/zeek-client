@@ -25,6 +25,9 @@ if os.path.isdir(ZEEK_PYTHON_DIR):
     sys.path.insert(0, os.path.abspath(ZEEK_PYTHON_DIR))
 else:
     ZEEK_PYTHON_DIR = None
+
+import websocket  # pylint: disable=wrong-import-position
+
 import zeekclient  # pylint: disable=wrong-import-position
 
 
@@ -53,6 +56,9 @@ def main():
             zeekclient.CONFIG.getint("client", "verbosity"),
             zeekclient.CONFIG.getboolean("client", "rich_logging_format"),
         )
+
+        if zeekclient.CONFIG.getint("client", "verbosity") >= 4:
+            websocket.enableTrace(True)
 
     if not args.command:
         zeekclient.LOG.error("please provide a command to execute.")

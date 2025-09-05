@@ -1,3 +1,9 @@
+1.4.0-6 | 2025-09-05 16:26:07 -0700
+
+  * Add websocket I/O tracking via debug level 4 (Christian Kreibich, Corelight)
+
+  * In controller I/O, don't insist on a DataMessage response (Christian Kreibich, Corelight)
+
 1.4.0-3 | 2025-08-29 17:17:52 -0700
 
   * Testing: reset config before every test (Christian Kreibich, Corelight)
