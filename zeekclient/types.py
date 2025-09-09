@@ -5,6 +5,7 @@ import enum
 import shlex
 import socket
 from ipaddress import ip_address
+from typing import Any
 
 from . import brokertypes as bt
 from .logs import LOG
@@ -15,7 +16,9 @@ class ConfigParserMixin:
     """Methods to create and render the object via ConfigParser instances."""
 
     @classmethod
-    def from_config_parser(cls, cfp, section=None):
+    def from_config_parser(
+        cls, cfp: configparser.ConfigParser, section: str = ""
+    ) -> Any:
         """Instantiates an object of this class based on the given
         ConfigParser, and optional section name in it, as applicable.
 
@@ -24,15 +27,19 @@ class ConfigParserMixin:
         """
         return None  # pragma: no cover
 
-    def to_config_parser(self, cfp=None):
+    def to_config_parser(
+        self, cfp: configparser.ConfigParser | None = None
+    ) -> configparser.ConfigParser | None:
         """Returns this object in a ConfigParser instance. When the optional cfp
         argument is not None, the caller requests the implementation to add to
         the given parser, not create a new one.
         """
-        return None  # pragma: no cover
+        ...
 
     @staticmethod
-    def _get(cfp, typ, section, *keys):
+    def _get(
+        cfp: configparser.ConfigParser, typ: type, section: str, *keys: str
+    ) -> Any:
         """Typed config key/val retrieval, with support for key name aliases."""
         for key in keys:
             val = cfp.get(section, key, fallback=None)
@@ -57,19 +64,19 @@ class SerializableZeekType:
     # We are not using abc.abstractmethod and friends here because the metaclass
     # magic they introduces clashes with multiple inheritance from other types,
     # affecting e.g. Enums below.
-    def to_brokertype(self):
+    def to_brokertype(self) -> bt.DataType:
         """Returns a brokertype instance representing this object."""
-        return None  # pragma: no cover
+        return bt.NoneType()
 
     @classmethod
-    def from_brokertype(cls, data):
+    def from_brokertype(cls, data: Any) -> "SerializableZeekType | None":
         """Returns an instance of this class for the given brokertype data.
 
         data: a brokertype instance
 
         Raises TypeError when the given data doesn't match the expected type.
         """
-        return None  # pragma: no cover
+        return None
 
 
 class JsonableZeekType:
@@ -80,7 +87,7 @@ class JsonableZeekType:
     reports to the user.
     """
 
-    def to_json_data(self):
+    def to_json_data(self) -> Any:
         """Returns JSON-suitable datastructure representing the object."""
         return self.__dict__  # pragma: no cover
 
@@ -98,38 +105,45 @@ class Enum(ZeekType, enum.Enum):
     reimplement the module_scope() class method to prefix with a scope string.
     """
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         if self.__class__ != other.__class__:
             return NotImplemented
+
+        if not isinstance(other, Enum):
+            return False
+
         return self.qualified_name() < other.qualified_name()
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Enum):
+            return False
+
         return (
             self.__class__ == other.__class__
             and self.qualified_name() == other.qualified_name()
         )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.qualified_name(), self.value))
 
-    def to_brokertype(self):
+    def to_brokertype(self) -> bt.Enum:
         scope = self.module_scope()
         scope = scope + "::" if scope else ""
         return bt.Enum(scope + self.name)
 
-    def to_json_data(self):
+    def to_json_data(self) -> str:
         # A similar concern as above applies here, but the exact enum type will
         # often be clear from context and so the un-scoped name alone may
         # suffice.
         return self.name
 
-    def qualified_name(self):
+    def qualified_name(self) -> str:
         scope = self.module_scope()
         scope = scope + "::" if scope else ""
         return scope + self.name
 
     @classmethod
-    def lookup(cls, name):
+    def lookup(cls, name: str) -> "Enum":
         """Robust name-based lookup of an enum value.
 
         This removes any Zeek-land or Python-land qualifications, and
@@ -149,7 +163,7 @@ class Enum(ZeekType, enum.Enum):
         raise AssertionError("reimplement module_scope() in your Enum derivative")
 
     @classmethod
-    def from_brokertype(cls, data):
+    def from_brokertype(cls, data: Any) -> "Enum":
         # The argument should be a brokertype.Enum a scoped value such as
         # "Foo::VALUE".
         try:
@@ -175,7 +189,7 @@ class ClusterRole(Enum):
     WORKER = 4
 
     @classmethod
-    def module_scope(cls):
+    def module_scope(cls) -> str:
         return "Supervisor"
 
 
@@ -188,7 +202,7 @@ class ManagementRole(Enum):
     NODE = 3
 
     @classmethod
-    def module_scope(cls):
+    def module_scope(cls) -> str:
         return "Management"
 
 
@@ -203,39 +217,44 @@ class State(Enum):
     UNKNOWN = 5
 
     @classmethod
-    def module_scope(cls):
+    def module_scope(cls) -> str:
         return "Management"
 
 
 class Option(ZeekType):
     """Equivalent of Management::Option."""
 
-    def __init__(self, name, value):
+    def __init__(self, name: str, value: str) -> None:
         self.name = name
         self.value = value
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Option):
+            return False
+
         return (
             self.__class__ == other.__class__
             and self.name == other.name
             and self.value == other.value
         )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.name, self.value))
 
-    def to_brokertype(self):
+    def to_brokertype(self) -> bt.Vector:
         return bt.Vector([bt.String(self.name), bt.String(self.value)])
 
     @classmethod
-    def from_brokertype(cls, data):
+    def from_brokertype(cls, data: Any) -> "Option":
         return Option(*data.to_py())
 
 
 class Instance(ZeekType):
     """Equivalent of Management::Instance."""
 
-    def __init__(self, name, addr=None, port=None):
+    def __init__(
+        self, name: str, addr: str | None = None, port: str | None = None
+    ) -> None:
         self.name = name
         # This is a workaround until we've resolved addresses in instances
         self.host = "0.0.0.0"  # XXX needs proper optionality
@@ -245,10 +264,16 @@ class Instance(ZeekType):
             self.host = str(addr)
         self.port = port  # None or integer value; we always mean TCP
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, Instance):
+            return False
+
         return self.name < other.name
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Instance):
+            return False
+
         return (
             self.__class__ == other.__class__
             and self.name == other.name
@@ -256,10 +281,10 @@ class Instance(ZeekType):
             and self.port == other.port
         )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.name, self.host, self.port))
 
-    def to_brokertype(self):
+    def to_brokertype(self) -> bt.Vector:
         return bt.Vector(
             [
                 bt.String(self.name),
@@ -268,7 +293,7 @@ class Instance(ZeekType):
             ],
         )
 
-    def to_json_data(self):
+    def to_json_data(self) -> Any:
         if self.port is not None:
             return self.__dict__
 
@@ -279,7 +304,7 @@ class Instance(ZeekType):
         return {"name": self.name}
 
     @classmethod
-    def from_brokertype(cls, data):
+    def from_brokertype(cls, data: Any) -> "Instance":
         try:
             name, addr, port = data.to_py()
             return Instance(name, addr, None if port is None else port.number)
@@ -294,18 +319,18 @@ class Node(ZeekType, ConfigParserMixin):
 
     def __init__(
         self,
-        name,
-        instance,
-        role,
-        state=State.RUNNING,
-        port=None,
-        scripts=None,
-        options=None,
-        interface=None,
-        cpu_affinity=None,
-        env=None,
-        metrics_port=None,
-    ):
+        name: str,
+        instance: str,
+        role: ClusterRole,
+        state: State = State.RUNNING,
+        port: int | None = None,
+        scripts: list[str] | None = None,
+        options: list[Option] | None = None,
+        interface: str | None = None,
+        cpu_affinity: int | None = None,
+        env: dict[str, str] | None = None,
+        metrics_port: int | None = None,
+    ) -> None:
         self.name = name
         self.instance = instance
         self.role = role
@@ -318,10 +343,16 @@ class Node(ZeekType, ConfigParserMixin):
         self.env = env or {}
         self.metrics_port = metrics_port
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, Node):
+            return False
+
         return self.name < other.name
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Node):
+            return False
+
         return (
             self.__class__ == other.__class__
             and self.name == other.name
@@ -337,7 +368,7 @@ class Node(ZeekType, ConfigParserMixin):
             and self.metrics_port == other.metrics_port
         )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         scripts = tuple(self.scripts) if self.scripts else None
         options = tuple(self.options) if self.options else None
         env = None
@@ -361,8 +392,8 @@ class Node(ZeekType, ConfigParserMixin):
             )
         )
 
-    def to_brokertype(self):
-        options = bt.NoneType()
+    def to_brokertype(self) -> bt.Vector | bt.Set:
+        options: bt.DataType = bt.NoneType()
         if self.options:
             options = bt.Set({opt.to_brokertype() for opt in self.options})
 
@@ -382,7 +413,7 @@ class Node(ZeekType, ConfigParserMixin):
             ]
         )
 
-    def to_json_data(self):
+    def to_json_data(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "instance": self.instance,
@@ -400,7 +431,7 @@ class Node(ZeekType, ConfigParserMixin):
         }
 
     @classmethod
-    def from_brokertype(cls, data):
+    def from_brokertype(cls, data: Any) -> "Node":
         try:
             options = None
             if isinstance(data[6], bt.Set):
@@ -417,8 +448,8 @@ class Node(ZeekType, ConfigParserMixin):
             return Node(
                 data[0].to_py(),  # name
                 data[1].to_py(),  # instance
-                ClusterRole.from_brokertype(data[2]),
-                State.from_brokertype(data[3]),
+                ClusterRole(ClusterRole.from_brokertype(data[2])),
+                State(State.from_brokertype(data[3])),
                 port,
                 data[5].to_py(),  # scripts
                 options,
@@ -431,8 +462,10 @@ class Node(ZeekType, ConfigParserMixin):
             raise TypeError(f"unexpected Broker data for Node object ({data})") from err
 
     @classmethod
-    def from_config_parser(cls, cfp, section=None):
-        def get(typ, *keys):
+    def from_config_parser(
+        cls, cfp: configparser.ConfigParser, section: str = ""
+    ) -> "Node":
+        def get(typ: type, *keys: str) -> Any:
             return cls._get(cfp, typ, section, *keys)
 
         name = section
@@ -543,7 +576,9 @@ class Node(ZeekType, ConfigParserMixin):
             metrics_port=metrics_port,
         )
 
-    def to_config_parser(self, cfp=None):
+    def to_config_parser(
+        self, cfp: configparser.ConfigParser | None = None
+    ) -> configparser.ConfigParser:
         if cfp is None:
             cfp = configparser.ConfigParser(allow_no_value=True)
 
@@ -604,15 +639,18 @@ class Node(ZeekType, ConfigParserMixin):
 class Configuration(ZeekType, ConfigParserMixin):
     """Equivalent of Management::Configuration."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.id = make_uuid()
         # The following are sets in the Zeek record equivalents. We could
         # reflect this, but handling lists is easier. They do get serialized
         # to/from sets.
-        self.instances = []
-        self.nodes = []
+        self.instances: list[Instance] = []
+        self.nodes: list[Node] = []
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Configuration):
+            return False
+
         return (
             self.__class__ == other.__class__
             and self.id == other.id
@@ -620,10 +658,10 @@ class Configuration(ZeekType, ConfigParserMixin):
             and self.nodes == other.nodes
         )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.id, tuple(self.instances), tuple(self.nodes)))
 
-    def to_brokertype(self):
+    def to_brokertype(self) -> bt.Vector:
         return bt.Vector(
             [
                 bt.String(self.id),
@@ -632,7 +670,7 @@ class Configuration(ZeekType, ConfigParserMixin):
             ],
         )
 
-    def to_json_data(self):
+    def to_json_data(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "instances": [inst.to_json_data() for inst in sorted(self.instances)],
@@ -640,7 +678,7 @@ class Configuration(ZeekType, ConfigParserMixin):
         }
 
     @classmethod
-    def from_brokertype(cls, data):
+    def from_brokertype(cls, data: Any) -> "Configuration":
         res = Configuration()
         res.id = data[0].to_py()
         for inst_data in data[1]:
@@ -652,7 +690,9 @@ class Configuration(ZeekType, ConfigParserMixin):
         return res
 
     @classmethod
-    def from_config_parser(cls, cfp, _section=None):
+    def from_config_parser(
+        cls, cfp: configparser.ConfigParser, section: str = ""
+    ) -> "Configuration | None":
         config = Configuration()
 
         # The nodes in this configuration that do not specify an instance.
@@ -737,7 +777,9 @@ class Configuration(ZeekType, ConfigParserMixin):
 
         return config
 
-    def to_config_parser(self, cfp=None):
+    def to_config_parser(
+        self, cfp: configparser.ConfigParser | None = None
+    ) -> configparser.ConfigParser:
         if cfp is None:
             cfp = configparser.ConfigParser(allow_no_value=True)
 
@@ -765,14 +807,14 @@ class NodeStatus(SerializableZeekType):
 
     def __init__(
         self,
-        node,
-        state,
-        mgmt_role,
-        cluster_role,
-        pid=None,
-        port=None,
-        metrics_port=None,
-    ):
+        node: Node,
+        state: State,
+        mgmt_role: ManagementRole,
+        cluster_role: ClusterRole,
+        pid: int | None = None,
+        port: str | None = None,
+        metrics_port: int | None = None,
+    ) -> None:
         self.node = node  # A string containing the name of the node
         self.state = state  # A State enum value
         self.mgmt_role = mgmt_role  # A ManagementRole enum value
@@ -781,10 +823,16 @@ class NodeStatus(SerializableZeekType):
         self.port = port  # A numeric (TCP) port
         self.metrics_port = metrics_port  # A numeric (TCP) port for Prometheus
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, NodeStatus):
+            return False
+
         return self.node < other.node
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, NodeStatus):
+            return False
+
         return (
             self.__class__ == other.__class__
             and self.node == other.node
@@ -796,7 +844,7 @@ class NodeStatus(SerializableZeekType):
             and self.metrics_port == other.metrics_port
         )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(
             (
                 self.node,
@@ -809,7 +857,7 @@ class NodeStatus(SerializableZeekType):
             )
         )
 
-    def to_brokertype(self):
+    def to_brokertype(self) -> bt.Vector:
         # In normal operation we only ever receive NodeStates, but for testing
         # it helps to be able to serialize.
         pid = bt.NoneType() if self.pid is None else bt.Integer(self.pid)
@@ -831,7 +879,7 @@ class NodeStatus(SerializableZeekType):
         )
 
     @classmethod
-    def from_brokertype(cls, data):
+    def from_brokertype(cls, data: Any) -> "NodeStatus":
         port = data[5].to_py()
         if port is not None:
             port = port.number
@@ -844,9 +892,9 @@ class NodeStatus(SerializableZeekType):
 
         return NodeStatus(
             data[0].to_py(),
-            State.from_brokertype(data[1]),
-            ManagementRole.from_brokertype(data[2]),
-            ClusterRole.from_brokertype(data[3]),
+            State(State.from_brokertype(data[1])),
+            ManagementRole(ManagementRole.from_brokertype(data[2])),
+            ClusterRole(ClusterRole.from_brokertype(data[3])),
             data[4].to_py(),
             port,
             metrics_port,
@@ -858,12 +906,12 @@ class Result(SerializableZeekType):
 
     def __init__(
         self,
-        reqid,
-        success=True,
-        instance=None,
-        data=None,
-        error=None,
-        node=None,
+        reqid: str,
+        success: bool = True,
+        instance: Instance | None = None,
+        data: bt.DataType | None = None,
+        error: str | None = None,
+        node: Node | None = None,
     ):
         self.reqid = reqid
         self.success = success
@@ -872,10 +920,13 @@ class Result(SerializableZeekType):
         self.error = error
         self.node = node
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         """Support sorting. Sort first by instance name the result comes from,
         second by the node name if present.
         """
+        if not isinstance(other, Result):
+            return False
+
         if self.instance is None and other.instance is not None:
             return False
         if self.instance is not None and other.instance is None:
@@ -893,7 +944,10 @@ class Result(SerializableZeekType):
 
         return False
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Result):
+            return False
+
         return (
             self.__class__ == other.__class__
             and self.reqid == other.reqid
@@ -904,17 +958,17 @@ class Result(SerializableZeekType):
             and self.node == other.node
         )
 
-    def hash(self):
+    def hash(self) -> int:
         return hash(
             (self.reqid, self.success, self.instance, self.data, self.error, self.node),
         )
 
-    def to_brokertype(self):
+    def to_brokertype(self) -> bt.Vector:
         # In normal operation we only ever receive Results, but for testing it
         # helps to be able to serialize.
         instance = bt.NoneType() if self.instance is None else bt.String(self.instance)
 
-        data = bt.NoneType()
+        data: bt.DataType = bt.NoneType()
         if self.data is not None:
             # This is any-typed in Zeek and so a bit special: it is up to the
             # caller what exactly this is, an it is assumed to already be in
@@ -936,7 +990,7 @@ class Result(SerializableZeekType):
         )
 
     @classmethod
-    def from_brokertype(cls, data):
+    def from_brokertype(cls, data: Any) -> "Result":
         # The data field gets special treatment since it can be of any
         # type. When it's a brokertype.NoneType (i.e., not present), we turn it
         # into None, since that simplifies its handling. Otherwise we leave it
@@ -960,21 +1014,24 @@ class Result(SerializableZeekType):
 class NodeOutputs(SerializableZeekType):
     """Equivalent of Management::NodeOutputs."""
 
-    def __init__(self, stdout, stderr):
+    def __init__(self, stdout: str, stderr: str) -> None:
         self.stdout = stdout
         self.stderr = stderr
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, NodeOutputs):
+            return False
+
         return (
             self.__class__ == other.__class__
             and self.stdout == other.stdout
             and self.stderr == other.stderr
         )
 
-    def hash(self):
+    def hash(self) -> int:
         return hash((self.stdout, self.stderr))
 
-    def to_brokertype(self):
+    def to_brokertype(self) -> bt.Vector:
         # In normal operation we only ever receive NodeOutputs, but for testing
         # it helps to be able to serialize.
         return bt.Vector(
@@ -985,5 +1042,5 @@ class NodeOutputs(SerializableZeekType):
         )
 
     @classmethod
-    def from_brokertype(cls, data):
+    def from_brokertype(cls, data: Any) -> "NodeOutputs":
         return NodeOutputs(*(data.to_py()))

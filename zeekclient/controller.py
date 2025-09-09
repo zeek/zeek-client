@@ -2,8 +2,10 @@
 
 import ssl
 import time
+from collections.abc import Callable
+from typing import Any
 
-import websocket
+import websocket  # type: ignore
 
 from .brokertypes import (
     DataMessage,
@@ -14,7 +16,7 @@ from .brokertypes import (
 )
 from .config import CONFIG
 from .consts import CONTROLLER_TOPIC
-from .events import Registry
+from .events import Event, Registry
 from .logs import LOG
 from .ssl import get_websocket_sslopt
 from .utils import make_uuid
@@ -37,10 +39,10 @@ class Controller:
 
     def __init__(
         self,
-        controller_host=None,
-        controller_port=None,
-        controller_topic=CONTROLLER_TOPIC,
-    ):
+        controller_host: str | None = None,
+        controller_port: int | None = None,
+        controller_topic: str = CONTROLLER_TOPIC,
+    ) -> None:
         """Controller connection constructor.
 
         This may raise ConfigError in case of trouble with the
@@ -79,7 +81,7 @@ class Controller:
                 f"{self.controller_host}:{self.controller_port}: {err}",
             ) from err
 
-    def connect(self):
+    def connect(self) -> bool:
         """Connect to the configured controller.
 
         This takes the controller coordonates from the zeek-client configuration
@@ -110,7 +112,7 @@ class Controller:
         # remain for the handshake. Since the kinds of problems that may arise
         # in either stage in the (web)socket operations overlap substantially,
         # we use a single function that checks them all:
-        def wsock_operation(op, stage):
+        def wsock_operation(op: Callable[[], bool], stage: str) -> bool:
             nonlocal attempts
 
             while attempts > 0:
@@ -181,12 +183,12 @@ class Controller:
                 )
             return False
 
-        def connect_op():
+        def connect_op() -> bool:
             self.wsock.connect(self.wsock_url, timeout=retry_delay)
             self.wsock.send(handshake.serialize())
             return True
 
-        def handshake_op():
+        def handshake_op() -> bool:
             rawdata = self.wsock.recv()
             try:
                 msg = HandshakeAckMessage.unserialize(rawdata)
@@ -215,7 +217,7 @@ class Controller:
 
         return True
 
-    def publish(self, event):
+    def publish(self, event: Event) -> None:
         """Publishes the given event to the controller topic.
 
         Raises UsageError when invoked without an earlier connect().
@@ -229,7 +231,11 @@ class Controller:
         msg = DataMessage(self.controller_topic, event.to_brokertype())
         self.wsock.send(msg.serialize())
 
-    def receive(self, timeout_secs=None, filter_pred=None):
+    def receive(
+        self,
+        timeout_secs: int | None = None,
+        filter_pred: Callable[[Event], bool] | None = None,
+    ) -> tuple[Event | None, str]:
         """Receive an event from the controller's event subscriber.
 
         Raises UsageError when invoked without an earlier connect().
@@ -310,7 +316,13 @@ class Controller:
         finally:
             self.wsock.settimeout(old_timeout)
 
-    def transact(self, request_type, response_type, *request_args, reqid=None):
+    def transact(
+        self,
+        request_type: type[Event],
+        response_type: type[Event],
+        *request_args: Any,
+        reqid: str | None = None,
+    ) -> tuple[None, str] | tuple[Event | None, str]:
         """Pairs publishing a request event with receiving its response event.
 
         This is a wrapper around :meth:`.Controller.publish()` with subsequent
@@ -361,7 +373,7 @@ class Controller:
         evt = request_type(reqid, *request_args)
         self.publish(evt)
 
-        def is_response(evt):
+        def is_response(evt: Event) -> bool:
             try:
                 return isinstance(evt, response_type) and evt.reqid.to_py() == reqid
             except AttributeError:

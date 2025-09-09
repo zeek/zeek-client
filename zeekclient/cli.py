@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import traceback
+from typing import Any
 
 from . import brokertypes as bt
 from .config import CONFIG
@@ -54,8 +55,8 @@ STDOUT = sys.stdout
 # in this json.dumps() wrapper for JSON serialization of any object.
 # Could go into utils.py, but it easier here to keep free of cyclic
 # dependencies.
-def json_dumps(obj):
-    def default(obj):
+def json_dumps(obj: Any) -> str:
+    def default(obj: bt.DataType) -> str:
         # Check specific Python types:
         if isinstance(obj, ipaddress.IPv4Address):
             return str(obj)
@@ -70,11 +71,11 @@ def json_dumps(obj):
         if isinstance(obj, bt.Port):
             return str(obj.number)
         if isinstance(obj, bt.Timespan):
-            return f"{obj.value}{obj.unit.value}"
+            return f"{obj._td.microseconds}us"
         # Fallback: assume the type's own Python representation is right.
         # json.dumps() will complain when that does not work.
         if isinstance(obj, bt.Type):
-            return obj.to_py()
+            return obj.to_py()  # type: ignore
 
         raise TypeError(f"cannot serialize {type(obj)} ({str(obj)})")
 
@@ -82,7 +83,7 @@ def json_dumps(obj):
     return json.dumps(obj, default=default, sort_keys=True, indent=indent)
 
 
-def create_controller():
+def create_controller() -> Controller | None:
     try:
         ctl = Controller()
     except ControllerError as err:
@@ -95,7 +96,7 @@ def create_controller():
     return ctl
 
 
-def create_parser():
+def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="A Zeek management client",
@@ -130,12 +131,11 @@ def create_parser():
         metavar="SECTION.KEY=VAL",
         action="append",
         default=[],
-        help="Adjust a configuration setting. Can use repeatedly. "
-        "See show-settings.",
+        help="Adjust a configuration setting. Can use repeatedly. See show-settings.",
     )
 
     # This is for argcomplete users and has no effect otherwise.
-    arg.completer = CONFIG.completer
+    setattr(arg, "completer", CONFIG.completer)  # noqa: B010
 
     verbosity_group = parser.add_mutually_exclusive_group()
     verbosity_group.add_argument(
@@ -228,8 +228,7 @@ def create_parser():
         metavar="NODES",
         nargs="*",
         default=[],
-        help="Name(s) of Zeek cluster nodes to query. "
-        "When omitted, queries all nodes.",
+        help="Name(s) of Zeek cluster nodes to query. When omitted, queries all nodes.",
     )
 
     sub_parser = command_parser.add_parser(
@@ -292,7 +291,7 @@ def create_parser():
     return parser
 
 
-def cmd_deploy(_args, controller=None):
+def cmd_deploy(args: argparse.Namespace, controller: Controller | None = None) -> int:
     # The deploy-config command first stages a configuration and then calls this
     # function to deploy. We re-use its controller, passed to us.
     if controller is None:
@@ -307,12 +306,12 @@ def cmd_deploy(_args, controller=None):
         return 1
 
     retval = 0
-    json_data = {
+    json_data: dict[str, Any] = {
         "results": {},
         "errors": [],
     }
 
-    for broker_data in resp.results:
+    for broker_data in resp.results:  # type: ignore
         res = Result.from_brokertype(broker_data)
 
         if not res.success:
@@ -364,7 +363,7 @@ def cmd_deploy(_args, controller=None):
     return retval
 
 
-def cmd_get_config(args):
+def cmd_get_config(args: argparse.Namespace) -> int:
     controller = create_controller()
     if controller is None:
         return 1
@@ -410,7 +409,7 @@ def cmd_get_config(args):
     return 0
 
 
-def cmd_get_id_value(args):
+def cmd_get_id_value(args: argparse.Namespace) -> int:
     controller = create_controller()
     if controller is None:
         return 1
@@ -426,7 +425,7 @@ def cmd_get_id_value(args):
         LOG.error("no response received: %s", msg)
         return 1
 
-    json_data = {
+    json_data: dict[str, Any] = {
         "results": {},
         "errors": [],
     }
@@ -436,7 +435,7 @@ def cmd_get_id_value(args):
     # task to Python, for our error reporting it's up to us, and we want be
     # reproducible.
 
-    results = [Result.from_brokertype(broker_data) for broker_data in resp.results]
+    results = [Result.from_brokertype(broker_data) for broker_data in resp.results]  # type: ignore
 
     for res in sorted(results):
         if not res.success:
@@ -483,7 +482,7 @@ def cmd_get_id_value(args):
     return 0 if len(json_data["errors"]) == 0 else 1
 
 
-def cmd_get_instances(_args):
+def cmd_get_instances(_args: argparse.Namespace) -> int:
     controller = create_controller()
     if controller is None:
         return 1
@@ -511,7 +510,7 @@ def cmd_get_instances(_args):
     # instances easier to comprehend than raw Broker data: turn it into Instance
     # objects, then render these JSON-friendly.
     try:
-        for inst in sorted([Instance.from_brokertype(inst) for inst in res.data]):
+        for inst in sorted([Instance.from_brokertype(inst) for inst in res.data]):  # type: ignore
             json_data[inst.name] = inst.to_json_data()
             json_data[inst.name].pop("name")
     except TypeError as err:
@@ -521,7 +520,7 @@ def cmd_get_instances(_args):
     return 0
 
 
-def cmd_get_nodes(_args):
+def cmd_get_nodes(_args: argparse.Namespace) -> int:
     controller = create_controller()
     if controller is None:
         return 1
@@ -532,12 +531,12 @@ def cmd_get_nodes(_args):
         LOG.error("no response received: %s", msg)
         return 1
 
-    json_data = {
+    json_data: dict[str, Any] = {
         "results": {},
         "errors": [],
     }
 
-    results = [Result.from_brokertype(broker_data) for broker_data in resp.results]
+    results = [Result.from_brokertype(broker_data) for broker_data in resp.results]  # type: ignore
 
     for res in sorted(results):
         if not res.success:
@@ -562,7 +561,7 @@ def cmd_get_nodes(_args):
 
         # res.data is a NodeStatusVec
         try:
-            nstats = [NodeStatus.from_brokertype(nstat_data) for nstat_data in res.data]
+            nstats = [NodeStatus.from_brokertype(nstat_data) for nstat_data in res.data]  # type: ignore
             for nstat in sorted(nstats):
                 # If either of the two role enums are "NONE", we make them
                 # None. That way they stay in the reporting, but are more easily
@@ -598,7 +597,7 @@ def cmd_get_nodes(_args):
     return 0 if len(json_data["errors"]) == 0 else 1
 
 
-def cmd_monitor(_args):
+def cmd_monitor(_args: argparse.Namespace) -> int:
     controller = create_controller()
     if controller is None:
         return 1
@@ -611,10 +610,8 @@ def cmd_monitor(_args):
         else:
             print(f'received "{resp}"')
 
-    return 0
 
-
-def cmd_restart(args):
+def cmd_restart(args: argparse.Namespace) -> int:
     controller = create_controller()
     if controller is None:
         return 1
@@ -625,7 +622,7 @@ def cmd_restart(args):
         LOG.error("no response received: %s", msg)
         return 1
 
-    json_data = {
+    json_data: dict[str, Any] = {
         "results": {},
         "errors": [],
     }
@@ -635,7 +632,7 @@ def cmd_restart(args):
     # task to Python, for our error reporting it's up to us, and we want be
     # reproducible.
 
-    results = [Result.from_brokertype(broker_data) for broker_data in resp.results]
+    results = [Result.from_brokertype(broker_data) for broker_data in resp.results]  # type: ignore
 
     for res in sorted(results):
         if not res.success and res.instance is None:
@@ -663,7 +660,9 @@ def cmd_restart(args):
     return 0 if len(json_data["errors"]) == 0 else 1
 
 
-def cmd_stage_config_impl(args):
+def cmd_stage_config_impl(
+    args: argparse.Namespace,
+) -> tuple[int, dict[str, Any] | None, Controller | None]:
     """Internals of cmd_stage_config() to enable chaining with other commands.
 
     Returns a tuple of exit code, any JSON data to show to the user/caller, and
@@ -681,7 +680,7 @@ def cmd_stage_config_impl(args):
     # foobar
     #
     # All other keys must have a value.
-    config = Configuration()
+    config: Configuration | None = Configuration()
     cfp = configparser.ConfigParser(allow_no_value=True)
 
     if args.config == "-":
@@ -710,12 +709,12 @@ def cmd_stage_config_impl(args):
         return 1, None, controller
 
     retval = 0
-    json_data = {
+    json_data: dict[str, Any] = {
         "results": {},
         "errors": [],
     }
 
-    for broker_data in resp.results:
+    for broker_data in resp.results:  # type: ignore
         res = Result.from_brokertype(broker_data)
 
         if not res.success:
@@ -733,7 +732,7 @@ def cmd_stage_config_impl(args):
     return retval, json_data, controller
 
 
-def cmd_stage_config(args):
+def cmd_stage_config(args: argparse.Namespace) -> int:
     ret, json_data, _ = cmd_stage_config_impl(args)
 
     if json_data:
@@ -742,7 +741,7 @@ def cmd_stage_config(args):
     return ret
 
 
-def cmd_deploy_config(args):
+def cmd_deploy_config(args: argparse.Namespace) -> int:
     ret, json_data, controller = cmd_stage_config_impl(args)
 
     if ret != 0:
@@ -753,12 +752,12 @@ def cmd_deploy_config(args):
     return cmd_deploy(args, controller=controller)
 
 
-def cmd_show_settings(_args):
+def cmd_show_settings(_args: argparse.Namespace) -> int:
     CONFIG.write(STDOUT)
     return 0
 
 
-def cmd_test_timeout(args):
+def cmd_test_timeout(args: argparse.Namespace) -> int:
     controller = create_controller()
     if controller is None:
         return 1

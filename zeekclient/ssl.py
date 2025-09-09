@@ -2,11 +2,12 @@
 
 import os.path
 import ssl
+from typing import Any
 
 from .config import CONFIG
 
 
-def get_context():  # pragma: no cover
+def get_context() -> ssl.SSLContext:  # pragma: no cover
     """Returns an ssl.SSLContext for TLS-protected websocket communication.
 
     This is a helper for communication protected with SSL, with or without
@@ -61,7 +62,7 @@ def get_context():  # pragma: no cover
     return ctx
 
 
-def get_websocket_sslopt():
+def get_websocket_sslopt() -> dict[str, Any]:
     """Returns a TLS options dict for websocket-client.
 
     The resulting dict is suitable for the websocket.WebSocket()
@@ -85,7 +86,7 @@ def get_websocket_sslopt():
         raise FileNotFoundError(f'SSL trusted CAs path "{ssl_capath}" not found')
 
     # SSL options as understood by websocket-client
-    sslopt = {}
+    sslopt: dict[str, Any] = {}
 
     if not ssl_certificate:
         sslopt["cert_reqs"] = ssl.CERT_NONE

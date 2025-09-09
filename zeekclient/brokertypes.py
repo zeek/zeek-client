@@ -15,6 +15,8 @@ import enum
 import ipaddress
 import json
 import re
+from collections.abc import ItemsView, Iterator, KeysView, ValuesView
+from typing import Any
 
 
 class Type(abc.ABC):
@@ -23,7 +25,7 @@ class Type(abc.ABC):
     https://docs.zeek.org/projects/broker/en/current/web-socket.html
     """
 
-    def serialize(self, pretty=False):
+    def serialize(self, pretty: bool = False) -> str:
         """Serializes the object to Broker-compatible wire data.
 
         pretty: When True, pretty-prints the resulting JSON.
@@ -33,7 +35,7 @@ class Type(abc.ABC):
         indent = 4 if pretty else None
         return json.dumps(self.to_broker(), indent=indent, sort_keys=True)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """The default equality method for brokertypes.
 
         This implements member-by-member comparison based on the object's
@@ -47,14 +49,14 @@ class Type(abc.ABC):
 
         return self.__dict__ == other.__dict__
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.serialize()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.serialize(pretty=True)
 
     @classmethod
-    def unserialize(cls, data):
+    def unserialize(cls, data: Any) -> Any:
         """Instantiates an object of this class from Broker wire data.
 
         This assumes the message content in JSON and first unserializes it into
@@ -84,7 +86,7 @@ class Type(abc.ABC):
             raise TypeError(f"invalid data for {cls.__name__}: {data}") from err
 
     @abc.abstractmethod
-    def to_py(self):
+    def to_py(self) -> Any:
         """Returns a Python-"native" rendering of the object.
 
         For most brokertypes this will be a native Python type (such as int or
@@ -96,15 +98,15 @@ class Type(abc.ABC):
         return None
 
     @abc.abstractmethod
-    def to_broker(self):
+    def to_broker(self) -> Any:
         """Returns a Broker-JSON-compatible Python data structure representing
         a value of this type.
         """
-        return None
+        ...
 
     @classmethod
     @abc.abstractmethod
-    def check_broker_data(cls, data):
+    def check_broker_data(cls, data: Any) -> None:
         """Checks the Broker data for compliance with the expected type.
 
         If you use unserialize() to obtain objects, you can ignore this
@@ -117,7 +119,7 @@ class Type(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> Any:
         """Returns an instance of the type given Broker's JSON data.
 
         This is a low-level method that you likely don't want to use. Consider
@@ -138,7 +140,7 @@ class Type(abc.ABC):
 class DataType(Type):
     """Base class for data types known to Broker."""
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         if not isinstance(other, DataType):
             raise TypeError(
                 f"'<' comparison not supported between instances "
@@ -152,7 +154,7 @@ class DataType(Type):
         return NotImplemented
 
     @classmethod
-    def check_broker_data(cls, data):
+    def check_broker_data(cls, data: Any) -> None:
         if not isinstance(data, dict):
             raise TypeError("invalid data layout for Broker data: not an object")
         if "@data-type" not in data or "data" not in data:
@@ -164,141 +166,157 @@ class DataType(Type):
 class NoneType(DataType):
     """Broker's representation of an absent value."""
 
-    def __init__(self, _=None):
+    def __init__(self, _: None = None) -> None:
         # It helps to have a constructor that can be passed None explicitly, for
         # symmetry with other constructors below.
         pass
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
         return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(None)
 
-    def to_py(self):
+    def to_py(self) -> None:
         return None
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "none",
             "data": {},
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> Any:
         return NoneType()
 
 
 class Boolean(DataType):
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         self._value = bool(value)
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
+
+        if not isinstance(other, Boolean):
+            return False
+
         return self._value < other._value
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._value)
 
-    def to_py(self):
+    def to_py(self) -> bool:
         return self._value
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "boolean",
             "data": self._value,
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Boolean":
         return Boolean(data["data"])
 
 
 class Count(DataType):
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         self._value = int(value)
         if self._value < 0:
             raise ValueError("Count can only hold non-negative values")
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
+
+        if not isinstance(other, Count):
+            return False
+
         return self._value < other._value
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._value)
 
-    def to_py(self):
+    def to_py(self) -> int:
         return self._value
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "count",
             "data": self._value,
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Count":
         return Count(data["data"])
 
 
 class Integer(DataType):
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         self._value = int(value)
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
+
+        if not isinstance(other, Integer):
+            return False
+
         return self._value < other._value
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._value)
 
-    def to_py(self):
+    def to_py(self) -> int:
         return self._value
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "integer",
             "data": self._value,
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Integer":
         return Integer(data["data"])
 
 
 class Real(DataType):
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         self._value = float(value)
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
+
+        if not isinstance(other, Real):
+            return False
+
         return self._value < other._value
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._value)
 
-    def to_py(self):
+    def to_py(self) -> float:
         return self._value
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "real",
             "data": self._value,
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Real":
         return Real(data["data"])
 
 
@@ -315,7 +333,7 @@ class Timespan(DataType):
         H = "h"
         D = "d"
 
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         if isinstance(value, datetime.timedelta):
             self._value = Timespan.timedelta_to_broker_timespan(value)
             self._td = value
@@ -323,37 +341,45 @@ class Timespan(DataType):
             self._value = str(value)
             self._td = Timespan.broker_to_timedelta(self._value)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         # Make equality defined by the timedelta instances, not the
         # more variable string data (e.g. 1000ms == 1s):
         if self.__class__ != other.__class__:
             return False
+
+        if not isinstance(other, Timespan):
+            return False
+
         return self._td == other._td
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
+
+        if not isinstance(other, Timespan):
+            return False
+
         return self._td < other._td
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._value)
 
-    def to_py(self):
+    def to_py(self) -> datetime.timedelta:
         return self._td
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "timespan",
             "data": Timespan.timedelta_to_broker_timespan(self._td),
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Timespan":
         return Timespan(cls.broker_to_timedelta(data["data"]))
 
     @classmethod
-    def broker_to_timedelta(cls, data):
+    def broker_to_timedelta(cls, data: Any) -> datetime.timedelta:
         """Converts Broker-compatible timespan string into timedelta object."""
         mob = cls.REGEX.fullmatch(data)
         if mob is None:
@@ -380,13 +406,13 @@ class Timespan(DataType):
         raise AssertionError(f"unhandled timespan unit '{unit}'")
 
     @classmethod
-    def timedelta_to_broker_timespan(cls, tdelta):
+    def timedelta_to_broker_timespan(cls, tdelta: datetime.timedelta) -> str:
         """Converts timedelta object to Broker-compatible timespan string."""
         # We use the smallest unit that's non-zero in the timespan (which has
         # only three relevant members: .microseconds, .seconds, and .days)
         # and map it to the closest Broker unit.
 
-        def fmt(val, unit):
+        def fmt(val: float, unit: str) -> str:
             # Don't say 10.0, say 10:
             val = int(val) if float(val).is_integer() else val
             return f"{val}{unit}"
@@ -418,7 +444,7 @@ class Timespan(DataType):
 
 
 class Timestamp(DataType):
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         if isinstance(value, datetime.datetime):
             self._value = Timestamp.to_broker_iso8601(value)
             self._ts = value
@@ -427,34 +453,41 @@ class Timestamp(DataType):
             # Raise value error if not formatted acceptably
             self._ts = datetime.datetime.fromisoformat(self._value)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         # Make equality defined by the timestamp instances, not the
         # more variable ISO 8601 data:
         if self.__class__ != other.__class__:
             return False
+
+        if not isinstance(other, Timestamp):
+            return False
+
         return self._ts == other._ts
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, Timestamp):
+            return False
+
         return self._ts < other._ts
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._value)
 
-    def to_py(self):
+    def to_py(self) -> datetime.datetime:
         return self._ts
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "timestamp",
             "data": Timestamp.to_broker_iso8601(self._ts),
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Timestamp":
         return Timestamp(data["data"])
 
     @classmethod
-    def to_broker_iso8601(cls, dtime):
+    def to_broker_iso8601(cls, dtime: datetime.datetime) -> str:
         # The Broker docs say the timestamp looks like this:
         # "2022-04-10T07:00:00.000" -- meaning that given Python's
         # microseconds-granularity rendering we need to chop off the last
@@ -463,118 +496,138 @@ class Timestamp(DataType):
 
 
 class String(DataType):
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         self._value = str(value)
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
+
+        if not isinstance(other, String):
+            return False
+
         return self._value < other._value
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._value)
 
-    def to_py(self):
+    def to_py(self) -> str:
         return self._value
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "string",
             "data": self._value,
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "String":
         return String(data["data"])
 
 
 class Enum(DataType):
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         self._value = str(value)
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
+
+        if not isinstance(other, Enum):
+            return False
+
         return self._value < other._value
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._value)
 
-    def to_py(self):
+    def to_py(self) -> str:
         return self._value
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "enum-value",
             "data": self._value,
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Enum":
         return Enum(data["data"])
 
 
 class Address(DataType):
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         self._value = str(value)  # A str or ipaddress.IPv[46]Address
         # Throws a derivative of ValueError when not v4/v6 address:
         self._addr = ipaddress.ip_address(self._value)
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
+
+        if not isinstance(other, Address):
+            return False
+
         if self._addr.version == other._addr.version:
-            return self._addr < other._addr
+            return self._addr < other._addr  # type: ignore
 
         # Make a blanket assumption that an IPv4 address is "less than" an IPv6 address
         return self._addr.version < other._addr.version
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._value)
 
-    def to_py(self):
+    def to_py(self) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
         return self._addr
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "address",
             "data": self._value,
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Address":
         return Address(data["data"])
 
 
 class Subnet(DataType):
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         self._value = str(value)  # A str or ipaddress.IPv[46]Network
         # Throws a derivative of ValueError when not v4/v6 network:
         self._subnet = ipaddress.ip_network(self._value)
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
-        return self._subnet < other._subnet
 
-    def __hash__(self):
+        if not isinstance(other, Subnet):
+            return False
+
+        if self._subnet.version == other._subnet.version:
+            return self._subnet < other._subnet  # type: ignore
+
+        # Make a blanket assumption that an IPv4 subnet is "less than" an IPv6 subnet.
+        return self._subnet.version < other._subnet.version
+
+    def __hash__(self) -> int:
         return hash(self._value)
 
-    def to_py(self):
+    def to_py(self) -> ipaddress.IPv4Network | ipaddress.IPv6Network:
         return self._subnet
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "subnet",
             "data": str(self._subnet),
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Subnet":
         return Subnet(data["data"])
 
 
@@ -585,7 +638,7 @@ class Port(DataType):
         UDP = "udp"
         ICMP = "icmp"
 
-    def __init__(self, number, proto=Proto.TCP):
+    def __init__(self, number: str | int, proto: Any = Proto.TCP) -> None:
         self.number = int(number)
         self.proto = proto
         if not isinstance(proto, self.Proto):
@@ -593,29 +646,33 @@ class Port(DataType):
         if self.number < 1 or self.number > 65535:
             raise ValueError(f"Port number '{self.number}' invalid")
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
         order = ["?", "tcp", "udp", "icmp"]
+
+        if not isinstance(other, Port):
+            return False
+
         if order.index(self.proto.value) < order.index(other.proto.value):
             return True
         return self.number < other.number
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.number, self.proto))
 
-    def to_py(self):
+    def to_py(self) -> "Port":
         return self
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "port",
             "data": f"{self.number}/{self.proto.value}",
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Port":
         return Port(
             data["data"].split("/", 1)[0],
             Port.Proto(data["data"].split("/", 1)[1]),
@@ -623,7 +680,7 @@ class Port(DataType):
 
 
 class Vector(DataType):
-    def __init__(self, elements=None):
+    def __init__(self, elements: list[Any] | None = None) -> None:
         self._elements = elements or []
         if not isinstance(self._elements, tuple) and not isinstance(
             self._elements,
@@ -633,90 +690,100 @@ class Vector(DataType):
         if not all(isinstance(elem, Type) for elem in self._elements):
             raise TypeError("Non-empty Vector construction requires brokertype values.")
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
-        for el1, el2 in zip(self._elements, other._elements):
+
+        if not isinstance(other, Vector):
+            return False
+
+        for el1, el2 in zip(self._elements, other._elements, strict=False):
             if el1 < el2:
                 return True
         if len(self._elements) < len(other._elements):
             return True
         return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(tuple(self._elements))
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
         return iter(self._elements)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._elements)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Any:
         return self._elements[idx]
 
-    def to_py(self):
+    def to_py(self) -> list[Any]:
         return [elem.to_py() for elem in self._elements]
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "vector",
             "data": [elem.to_broker() for elem in self._elements],
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Vector":
         return Vector([from_broker(elem) for elem in data["data"]])
 
 
 class Set(DataType):
-    def __init__(self, elements=None):
+    def __init__(self, elements: set[Any] | Any = None) -> None:
         self._elements = elements or set()
         if not isinstance(self._elements, set):
             raise TypeError("Set initialization requires set data")
         if not all(isinstance(elem, Type) for elem in self._elements):
             raise TypeError("Non-empty Set construction requires brokertype values.")
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
-        for el1, el2 in zip(sorted(self._elements), sorted(other._elements)):
+
+        if not isinstance(other, Set):
+            return False
+
+        for el1, el2 in zip(
+            sorted(self._elements), sorted(other._elements), strict=False
+        ):
             if el1 < el2:
                 return True
         if len(self._elements) < len(other._elements):
             return True
         return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(tuple(sorted(self._elements)))
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
         return iter(self._elements)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._elements)
 
-    def __contains__(self, key):
+    def __contains__(self, key: Any) -> bool:
         return key in self._elements
 
-    def to_py(self):
+    def to_py(self) -> set[Any]:
         return {elem.to_py() for elem in self._elements}
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "set",
             "data": [elem.to_broker() for elem in sorted(self._elements)],
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Set":
         return Set({from_broker(elem) for elem in data["data"]})
 
 
 class Table(DataType):
-    def __init__(self, elements=None):
+    def __init__(self, elements: dict[Any, Any] | None = None) -> None:
         self._elements = elements or {}
         if not isinstance(self._elements, dict):
             raise TypeError("Table initialization requires dict data")
@@ -725,11 +792,17 @@ class Table(DataType):
         if not keys_ok or not vals_ok:
             raise TypeError("Non-empty Table construction requires brokertype values.")
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
-        for key1, key2 in zip(sorted(self._elements), sorted(other._elements)):
+
+        if not isinstance(other, Table):
+            return False
+
+        for key1, key2 in zip(
+            sorted(self._elements), sorted(other._elements), strict=False
+        ):
             if key1 < key2:
                 return True
             if self._elements[key1] < other._elements[key2]:
@@ -738,34 +811,34 @@ class Table(DataType):
             return True
         return False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((key, self._elements[key]) for key in sorted(self._elements))
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
         return iter(self._elements)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._elements)
 
-    def __contains__(self, key):
+    def __contains__(self, key: Any) -> bool:
         return key in self._elements
 
-    def keys(self):
+    def keys(self) -> KeysView[Any]:
         return self._elements.keys()
 
-    def values(self):
+    def values(self) -> ValuesView[Any]:
         return self._elements.values()
 
-    def items(self):
+    def items(self) -> ItemsView[Any, Any]:
         return self._elements.items()
 
-    def to_py(self):
+    def to_py(self) -> dict[Any, Any]:
         res = {}
         for key, val in self._elements.items():
             res[key.to_py()] = val.to_py()
         return res
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "table",
             "data": [
@@ -775,7 +848,7 @@ class Table(DataType):
         }
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "Table":
         return Table(
             {
                 from_broker(elem["key"]): from_broker(elem["value"])
@@ -799,7 +872,7 @@ class ZeekEvent(Vector):
     https://docs.zeek.org/projects/broker/en/current/web-socket.html#encoding-of-zeek-events
     """
 
-    def __init__(self, name, *args):
+    def __init__(self, name: str, *args: Any) -> None:
         super().__init__()
 
         self.name = name.to_py() if isinstance(name, String) else str(name)
@@ -809,7 +882,7 @@ class ZeekEvent(Vector):
             if not isinstance(arg, Type):
                 raise TypeError("ZeekEvent constructor requires brokertype arguments")
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "@data-type": "vector",
             "data": [
@@ -829,7 +902,7 @@ class ZeekEvent(Vector):
         }
 
     @classmethod
-    def from_vector(cls, vec):
+    def from_vector(cls, vec: Vector | Any) -> "ZeekEvent":
         """Special case for an existing Vector instance: recast as Zeek event."""
         if not isinstance(vec, Vector):
             raise TypeError("cannot convert non-vector to Zeek event")
@@ -851,7 +924,7 @@ class ZeekEvent(Vector):
         return ZeekEvent(name, *args._elements)
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "ZeekEvent":
         name = data["data"][2]["data"][0]["data"]
         res = ZeekEvent(name)
         for argdata in data["data"][2]["data"][1]["data"]:
@@ -866,7 +939,7 @@ class MessageType(Type):
     """Base class for Broker messages."""
 
     @classmethod
-    def check_broker_data(cls, data):
+    def check_broker_data(cls, data: Any) -> None:
         if not isinstance(data, dict):
             raise TypeError(
                 f"invalid data layout for Broker {cls.__name__}: not an object",
@@ -883,7 +956,7 @@ class HandshakeMessage(MessageType):
     This is just a list of topics to subscribe to. Clients won't receive it.
     """
 
-    def __init__(self, topics=None):
+    def __init__(self, topics: Any = None) -> None:
         self.topics = []
 
         if topics:
@@ -897,23 +970,22 @@ class HandshakeMessage(MessageType):
                     self.topics.append(topic.to_py())
                     continue
                 raise TypeError(
-                    "topics for HandshakeMessage must be Python or "
-                    "brokertype strings",
+                    "topics for HandshakeMessage must be Python or brokertype strings",
                 )
 
-    def to_py(self):
+    def to_py(self) -> "HandshakeMessage":
         return self
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return self.topics
 
     @classmethod
-    def check_broker_data(cls, data):
+    def check_broker_data(cls, data: Any) -> None:
         if not isinstance(data, tuple) and not isinstance(data, list):
             raise TypeError("invalid data layout for HandshakeMessage: not an object")
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "HandshakeMessage":
         return HandshakeMessage(data)
 
 
@@ -923,14 +995,14 @@ class HandshakeAckMessage(MessageType):
     Clients won't need to send this.
     """
 
-    def __init__(self, endpoint, version):
+    def __init__(self, endpoint: str, version: str) -> None:
         self.endpoint = endpoint
         self.version = version
 
-    def to_py(self):
+    def to_py(self) -> "HandshakeAckMessage":
         return self
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "type": "ack",
             "endpoint": self.endpoint,
@@ -938,7 +1010,7 @@ class HandshakeAckMessage(MessageType):
         }
 
     @classmethod
-    def check_broker_data(cls, data):
+    def check_broker_data(cls, data: Any) -> None:
         MessageType.check_broker_data(data)
         for key in ("type", "endpoint", "version"):
             if key not in data:
@@ -948,19 +1020,19 @@ class HandshakeAckMessage(MessageType):
                 )
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "HandshakeAckMessage":
         return HandshakeAckMessage(data["endpoint"], data["version"])
 
 
 class DataMessage(MessageType):
-    def __init__(self, topic, data):
+    def __init__(self, topic: str, data: Any) -> None:
         self.topic = topic
         self.data = data
 
-    def to_py(self):
+    def to_py(self) -> "DataMessage":
         return self
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         bdata = self.data.to_broker()
 
         return {
@@ -971,7 +1043,7 @@ class DataMessage(MessageType):
         }
 
     @classmethod
-    def check_broker_data(cls, data):
+    def check_broker_data(cls, data: Any) -> None:
         MessageType.check_broker_data(data)
         for key in ("type", "topic", "@data-type", "data"):
             if key not in data:
@@ -981,7 +1053,7 @@ class DataMessage(MessageType):
                 )
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "DataMessage":
         return DataMessage(
             data["topic"],
             from_broker({"@data-type": data["@data-type"], "data": data["data"]}),
@@ -989,14 +1061,14 @@ class DataMessage(MessageType):
 
 
 class ErrorMessage(Type):
-    def __init__(self, code, context):
+    def __init__(self, code: str, context: str) -> None:
         self.code = code  # A string representation of a Broker error code
         self.context = context
 
-    def to_py(self):
+    def to_py(self) -> "ErrorMessage":
         return self
 
-    def to_broker(self):
+    def to_broker(self) -> Any:
         return {
             "type": "error",
             "code": self.code,
@@ -1004,7 +1076,7 @@ class ErrorMessage(Type):
         }
 
     @classmethod
-    def check_broker_data(cls, data):
+    def check_broker_data(cls, data: Any) -> None:
         MessageType.check_broker_data(data)
         for key in ("type", "code", "context"):
             if key not in data:
@@ -1014,7 +1086,7 @@ class ErrorMessage(Type):
                 )
 
     @classmethod
-    def from_broker(cls, data):
+    def from_broker(cls, data: Any) -> "ErrorMessage":
         return ErrorMessage(data["code"], data["context"])
 
 
@@ -1022,7 +1094,7 @@ class ErrorMessage(Type):
 
 # This maps the types expressed in Broker's JSON representation to those
 # implemented in this module.
-_broker_typemap = {
+_broker_typemap: dict[str, type[DataType]] = {
     "none": NoneType,
     "address": Address,
     "boolean": Boolean,
@@ -1049,7 +1121,7 @@ _broker_messagemap = {
 }
 
 
-def unserialize(data):
+def unserialize(data: Any) -> DataType:
     """A factory that instantiates a brokertype value from Broker wire data.
 
     This assumes the message content in JSON and first unserializes it into a
@@ -1064,7 +1136,7 @@ def unserialize(data):
     return from_broker(obj)
 
 
-def from_broker(data):
+def from_broker(data: Any) -> DataType:
     """A factory that turns Python-level data into brokertype instances.
 
     Consider using unserialize() instead, it starts from raw message data, and
@@ -1082,14 +1154,14 @@ def from_broker(data):
     try:
         typ = _broker_messagemap[data["type"]]
         typ.check_broker_data(data)
-        return typ.from_broker(data)
+        return typ.from_broker(data)  # type: ignore
     except KeyError:
         pass
 
     try:
         typ = _broker_typemap[data["@data-type"]]
         typ.check_broker_data(data)
-        return typ.from_broker(data)
+        return typ.from_broker(data)  # type: ignore
     except KeyError as err:
         raise TypeError(f"unrecognized Broker type: {data}") from err
 
@@ -1118,7 +1190,9 @@ _python_typemap = {
 }
 
 
-def from_py(data, typ=None, check_none=True):
+def from_py(
+    data: Any, typ: type[Any] | None = None, check_none: bool = True
+) -> DataType:
     """Instantiates a brokertype object from the given Python data.
 
     Some Python types map naturally to Broker ones, such as bools and strs. For
@@ -1162,6 +1236,8 @@ def from_py(data, typ=None, check_none=True):
                 f"cannot map Python type {type(data)} to Broker type",
             ) from err
 
+    res: DataType
+
     if typ == Table:
         res = Table()
         for key, val in data.items():
@@ -1184,4 +1260,4 @@ def from_py(data, typ=None, check_none=True):
 
     # For others the constructors of the types in this module should naturally
     # work with the provided value.
-    return typ(data)
+    return typ(data)  # type: ignore

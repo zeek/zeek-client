@@ -1,7 +1,7 @@
 import uuid
 
 
-def make_uuid(prefix=""):
+def make_uuid(prefix: str = "") -> str:
     """Returns a prefixable  UUID string.
 
     The client uses this for event request/response identifiers.
