@@ -130,8 +130,7 @@ def create_parser():
         metavar="SECTION.KEY=VAL",
         action="append",
         default=[],
-        help="Adjust a configuration setting. Can use repeatedly. "
-        "See show-settings.",
+        help="Adjust a configuration setting. Can use repeatedly. See show-settings.",
     )
 
     # This is for argcomplete users and has no effect otherwise.
@@ -228,8 +227,7 @@ def create_parser():
         metavar="NODES",
         nargs="*",
         default=[],
-        help="Name(s) of Zeek cluster nodes to query. "
-        "When omitted, queries all nodes.",
+        help="Name(s) of Zeek cluster nodes to query. When omitted, queries all nodes.",
     )
 
     sub_parser = command_parser.add_parser(

@@ -53,7 +53,7 @@ class Event(SerializableZeekType):
             except TypeError as err:
                 raise TypeError(
                     f"event argument type mismatch: argument "
-                    f"{idx+1} is {type(arg)}, {err}",
+                    f"{idx + 1} is {type(arg)}, {err}",
                 ) from err
 
             # Again: if we now have a type match, we're done.
@@ -63,7 +63,7 @@ class Event(SerializableZeekType):
 
             raise TypeError(
                 f"event argument type mismatch: argument "
-                f"{idx+1} is {type(arg)}, should be {self.ARG_TYPES[idx]}",
+                f"{idx + 1} is {type(arg)}, should be {self.ARG_TYPES[idx]}",
             )
 
     def __getattr__(self, name):
@@ -119,7 +119,7 @@ class Registry:
         for idx, typ in enumerate(arg_types):
             if not issubclass(typ, Type):
                 raise TypeError(
-                    f"event type creation error: argument {idx+1}, "
+                    f"event type creation error: argument {idx + 1}, "
                     f'"{arg_names[idx]}", is not a brokertype class',
                 )
         res.NAME = name

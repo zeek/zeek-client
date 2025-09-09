@@ -897,8 +897,7 @@ class HandshakeMessage(MessageType):
                     self.topics.append(topic.to_py())
                     continue
                 raise TypeError(
-                    "topics for HandshakeMessage must be Python or "
-                    "brokertype strings",
+                    "topics for HandshakeMessage must be Python or brokertype strings",
                 )
 
     def to_py(self):
