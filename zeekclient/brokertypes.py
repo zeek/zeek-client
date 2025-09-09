@@ -637,7 +637,7 @@ class Vector(DataType):
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
-        for el1, el2 in zip(self._elements, other._elements):
+        for el1, el2 in zip(self._elements, other._elements, strict=False):
             if el1 < el2:
                 return True
         if len(self._elements) < len(other._elements):
@@ -682,7 +682,9 @@ class Set(DataType):
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
-        for el1, el2 in zip(sorted(self._elements), sorted(other._elements)):
+        for el1, el2 in zip(
+            sorted(self._elements), sorted(other._elements), strict=False
+        ):
             if el1 < el2:
                 return True
         if len(self._elements) < len(other._elements):
@@ -729,7 +731,9 @@ class Table(DataType):
         res = super().__lt__(other)
         if res != NotImplemented:
             return res
-        for key1, key2 in zip(sorted(self._elements), sorted(other._elements)):
+        for key1, key2 in zip(
+            sorted(self._elements), sorted(other._elements), strict=False
+        ):
             if key1 < key2:
                 return True
             if self._elements[key1] < other._elements[key2]:

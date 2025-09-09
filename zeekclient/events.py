@@ -78,7 +78,9 @@ class Event(SerializableZeekType):
 
     def __str__(self):
         # A list of pairs (argument name, typename)
-        zeek_style_args = zip(self.ARG_NAMES, [str(type(arg)) for arg in self.args])
+        zeek_style_args = zip(
+            self.ARG_NAMES, [str(type(arg)) for arg in self.args], strict=False
+        )
         # That list, with each item now a string "<name>: <typename"
         zeek_style_arg_strings = [": ".join(arg) for arg in zeek_style_args]
         # A Zeek-looking event signature
