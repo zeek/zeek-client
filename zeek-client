@@ -20,18 +20,19 @@ import sys
 # installation to the search path. This ensures we find the matching module
 # first (or at all), avoiding potential conflicts with installations elsewhere
 # on the system.
-ZEEK_PYTHON_DIR = "@PY_MOD_INSTALL_DIR@"
+ZEEK_PYTHON_DIR: str | None = "@PY_MOD_INSTALL_DIR@"
+assert ZEEK_PYTHON_DIR
 if os.path.isdir(ZEEK_PYTHON_DIR):
     sys.path.insert(0, os.path.abspath(ZEEK_PYTHON_DIR))
 else:
     ZEEK_PYTHON_DIR = None
 
-import websocket  # pylint: disable=wrong-import-position
+import websocket  # type: ignore
 
 import zeekclient  # pylint: disable=wrong-import-position
 
 
-def main():
+def main() -> int:
     # Preliminary configuration update: environment variables can already take
     # hold. This allows autocompleted settings to show values more accurately
     # than our hardwired defaults.
@@ -65,7 +66,7 @@ def main():
         return 1
 
     try:
-        return args.run_cmd(args)
+        return args.run_cmd(args)  # type: ignore
     except KeyboardInterrupt:
         return 0
 

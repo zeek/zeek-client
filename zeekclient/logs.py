@@ -1,12 +1,15 @@
 """Logging configuration for zeek-client."""
 
 import logging
+from io import StringIO
 
 LOG = logging.getLogger(__name__)
 LOG.addHandler(logging.NullHandler())
 
 
-def configure(verbosity=0, rich_logging=False, stream=None):
+def configure(
+    verbosity: int = 0, rich_logging: bool = False, stream: StringIO | None = None
+) -> None:
     """Configures logging.
 
     Args:

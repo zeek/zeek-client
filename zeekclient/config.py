@@ -3,9 +3,11 @@ a set of config settings for zeek-client and includes ways to override these
 from the environment and the command line.
 """
 
+import argparse
 import configparser
 import os
 import shlex
+from typing import Any
 
 from .consts import CONFIG_FILE
 from .logs import LOG
@@ -25,11 +27,11 @@ class Config(configparser.ConfigParser):
     (3) Any --set <section.key>=<val> arguments apply final overrides
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         self.read_dict(
             {
                 "client": {
@@ -93,10 +95,10 @@ class Config(configparser.ConfigParser):
             },
         )
 
-    def update_from_file(self, config_file=CONFIG_FILE):
+    def update_from_file(self, config_file: str = CONFIG_FILE) -> None:
         self.read(config_file)
 
-    def update_from_env(self):
+    def update_from_env(self) -> None:
         for item in shlex.split(os.getenv("ZEEK_CLIENT_CONFIG_SETTINGS") or ""):
             try:
                 self.apply(item)
@@ -107,7 +109,7 @@ class Config(configparser.ConfigParser):
                     item,
                 )
 
-    def update_from_args(self, args):
+    def update_from_args(self, args: argparse.Namespace) -> None:
         for item in args.set:
             try:
                 self.apply(item)
@@ -149,7 +151,7 @@ class Config(configparser.ConfigParser):
         if args.verbose:
             self.set("client", "verbosity", str(args.verbose))
 
-    def apply(self, item):
+    def apply(self, item: str) -> None:
         """This is equivalent to set(), but works via a single <section.key>=<val> string."""
         try:
             identifier, val = item.split("=", 1)
@@ -160,7 +162,7 @@ class Config(configparser.ConfigParser):
         except ValueError as err:
             raise ValueError(f'config item "{item}" invalid') from err
 
-    def completer(self, **_kwargs):
+    def completer(self, **_kwargs: Any) -> list[str]:
         """A completer suitable for argcomplete."""
         ret = []
 
