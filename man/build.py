@@ -5,7 +5,7 @@
 import os
 import sys
 
-from argparse_manpage.manpage import Manpage
+from argparse_manpage.manpage import Manpage  # type: ignore
 
 LOCALDIR = os.path.dirname(os.path.realpath(__file__))
 ROOTDIR = os.path.normpath(os.path.join(LOCALDIR, ".."))
@@ -17,7 +17,7 @@ sys.path.insert(0, ROOTDIR)
 import zeekclient.cli  # noqa: E402
 
 
-def main():
+def main() -> None:
     # Set a fixed number of columns to avoid output discrepancies between
     # invocation at the shell vs via CI tooling. This only affects how the
     # manpage is written to disk, not how it renders at the terminal.
@@ -68,7 +68,7 @@ error in its handling of a command.""",
 
     # Create an environment section from the epilog in the parser.
     # We replace the first line to be more manpage-suitable.
-    env = environment.splitlines()
+    env = environment.splitlines() if environment else []
     env = ["zeek-client supports the following environment variables:"] + env[1:]
     manpage.add_section("ENVIRONMENT", ">", "\n".join(env))
 

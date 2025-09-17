@@ -65,7 +65,7 @@ class TestBundledCliInvocation(unittest.TestCase):
                 [
                     "cmake",
                     "-D",
-                    f'PY_MOD_INSTALL_DIR={os.path.join(tmpdir, "python")}',
+                    f"PY_MOD_INSTALL_DIR={os.path.join(tmpdir, 'python')}",
                     f"--install-prefix={tmpdir}",
                     ROOT,
                 ],
